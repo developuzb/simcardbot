@@ -19,10 +19,10 @@ import numbers_db
 
 router = Router()
 
-# ─── YETKAZIB BERISH HUDUDLARI ──────────────────────────────────
-# config.py → DELIVERY_LAT, DELIVERY_LON, DELIVERY_RADIUS_KM, DELIVERY_ZONE_NAME
+
 def _get_delivery_zones():
     return [(DELIVERY_ZONE_NAME, DELIVERY_LAT, DELIVERY_LON, DELIVERY_RADIUS_KM)]
+
 
 _ai_client: anthropic.AsyncAnthropic | None = None
 
@@ -37,7 +37,7 @@ def _get_client() -> anthropic.AsyncAnthropic:
     return _ai_client
 
 
-def _haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+def _haversine(lat1, lon1, lat2, lon2) -> float:
     R = 6371
     dlat = math.radians(lat2 - lat1)
     dlon = math.radians(lon2 - lon1)
@@ -54,22 +54,22 @@ def _check_zone(lat: float, lon: float) -> str | None:
     return None
 
 
+# ─── SYSTEM PROMPT ──────────────────────────────────────────────
+
 def _build_system_prompt() -> str:
     tariff_lines = []
     for op_id, op in OPERATORS.items():
         for t in TARIFFS.get(op_id, []):
-            items = [x.strip() for x in t["desc"].split("•") if x.strip()]
             tariff_lines.append(
-                f"{op['emoji']} {op['name']} | id:{t['id']} | {t['name']} | "
-                f"{t['price']:,} so'm/oy | " + " | ".join(items)
+                f"{op['emoji']} {op['name']} | {t['id']} | {t['name']} | {t['price']:,} so'm/oy"
             )
     zones = " va ".join(z[0] for z in _get_delivery_zones())
     return (
-        'Suxrob — Texnoset SIM karta savdo konsultanti. O\'zbek tilida, qisqa, emoji bilan.\n'
-        "Javob max 2 jumla. 1 ta savol. Sotishga undash.\n\n"
-        "TARTIB: 1)Tarif tanlat→2)Tel so'ra→3)Yetkazish turi so'ra→4)request_location→5)place_order\n"
-        "SIM raqam kuryer kelganida tanlanadi.\n\n"
-        "YETKAZISH: ⚡tezkor=1soat/10000so'm | 🚗standart=2soat/5000so'm | 🕐ish_vaqti=12soat/BEPUL\n\n"
+        "Suxrob — Texnoset SIM karta savdo konsultanti. O'zbek tilida, qisqa, 1-2 jumla, emoji.\n"
+        "Mijoz operator/tarif/yetkazish ni TUGMALAR orqali tanlaydi — sen faqat tasdiqlaysan va oldinga o'tassan.\n"
+        "Tarif tanlangach — telefon raqam so'ra. Telefon olgach — request_location chaqir. Hudud tasdiqlangach — place_order.\n"
+        "SIM raqam kuryer kelganida tanlanadi — hozir so'rama.\n\n"
+        "YETKAZISH: ⚡tezkor=1soat/10000so'm | 🚗standart=2soat/5000so'm | 🕐ish_vaqti=12soat/BEPUL\n"
         "HUDUD: faqat " + zones + ". Boshqa joy bo'lsa rad et.\n\n"
         "TARIFLAR:\n" + "\n".join(tariff_lines)
     )
@@ -84,14 +84,13 @@ def _get_system_prompt() -> str:
         _SYSTEM_PROMPT = _build_system_prompt()
     return _SYSTEM_PROMPT
 
+
+# ─── TOOLS ──────────────────────────────────────────────────────
+
 TOOLS = [
     {
         "name": "request_location",
-        "description": (
-            "Mijozdan GPS lokatsiya so'rash. "
-            "Yetkazib berish hududi tekshiriladi. "
-            "Manzil yig'ish bosqichida chaqirish kerak."
-        ),
+        "description": "Mijozdan GPS lokatsiya so'rash. Manzil yig'ish bosqichida chaqirish kerak.",
         "input_schema": {"type": "object", "properties": {}, "required": []},
     },
     {
@@ -104,11 +103,10 @@ TOOLS = [
                 "tariff_id": {"type": "string"},
                 "customer_name": {"type": "string"},
                 "customer_phone": {"type": "string"},
-                "region": {"type": "string", "description": "GPS orqali tasdiqlangan hudud nomi"},
+                "region": {"type": "string"},
                 "delivery_type": {
                     "type": "string",
                     "enum": ["tezkor", "standart", "ish_vaqti"],
-                    "description": "Yetkazish tezligi: tezkor (1 soat, 10000), standart (2 soat, 5000), ish_vaqti (12 soat, bepul)",
                 },
             },
             "required": ["operator_id", "tariff_id", "customer_phone", "region", "delivery_type"],
@@ -116,6 +114,61 @@ TOOLS = [
     },
 ]
 
+
+# ─── KLAVIATURALAR ──────────────────────────────────────────────
+
+def _stage_keyboard(stage: str) -> object:
+    b = InlineKeyboardBuilder()
+
+    if stage == "operator":
+        for op_id, op in OPERATORS.items():
+            b.button(text=f"{op['emoji']} {op['name']}", callback_data=f"ai_op_{op_id}")
+        b.adjust(2, 2, 1)
+        b.button(text="❌ Chiqish", callback_data="ai_exit")
+        b.adjust(2, 2, 1, 1)
+
+    elif stage.startswith("tariff:"):
+        op_id = stage.split(":", 1)[1]
+        for t in TARIFFS.get(op_id, []):
+            b.button(
+                text=f"📦 {t['name']} — {t['price']:,} so'm",
+                callback_data=f"ai_tf_{op_id}__{t['id']}",
+            )
+        b.button(text="⬅️ Operator o'zgartirish", callback_data="ai_back_op")
+        b.button(text="❌ Chiqish", callback_data="ai_exit")
+        b.adjust(1)
+
+    elif stage == "delivery":
+        for key, dt in DELIVERY_TYPES.items():
+            price_text = "Bepul 🎁" if dt["price"] == 0 else f"{dt['price']:,} so'm"
+            b.button(
+                text=f"{dt['emoji']} {dt['desc']} — {price_text}",
+                callback_data=f"ai_del_{key}",
+            )
+        b.button(text="❌ Chiqish", callback_data="ai_exit")
+        b.adjust(1)
+
+    elif stage == "done":
+        b.button(text="🔄 Yangi buyurtma", callback_data="ai_restart")
+        b.button(text="❌ Chiqish", callback_data="ai_exit")
+        b.adjust(1)
+
+    else:  # phone va boshqalar
+        b.button(text="❌ Chiqish", callback_data="ai_exit")
+        b.adjust(1)
+
+    return b.as_markup()
+
+
+def _location_keyboard() -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        keyboard=[[KeyboardButton(text="📍 Lokatsiyamni yuborish", request_location=True)]],
+        resize_keyboard=True,
+        one_time_keyboard=True,
+    )
+
+
+# ─── AI LOOP ────────────────────────────────────────────────────
 
 def _serialize_content(blocks) -> list:
     result = []
@@ -128,13 +181,6 @@ def _serialize_content(blocks) -> list:
 
 
 async def _execute_tool(name: str, inputs: dict, user_id: int, bot, ctx: dict) -> str:
-    if name == "get_available_numbers":
-        op_id = inputs.get("operator_id", "")
-        numbers = numbers_db.get_available(op_id)
-        if not numbers:
-            return "Bu operator uchun hozircha mavjud raqam yo'q."
-        return OPERATORS[op_id]["name"] + " uchun mavjud raqamlar: " + ", ".join(numbers)
-
     if name == "request_location":
         ctx["waiting_for_location"] = True
         return "Mijozdan GPS lokatsiya kutilmoqda."
@@ -142,7 +188,6 @@ async def _execute_tool(name: str, inputs: dict, user_id: int, bot, ctx: dict) -
     if name == "place_order":
         op_id = inputs.get("operator_id", "")
         tariff_id = inputs.get("tariff_id", "")
-        sim_number = "pending"
         customer_name = inputs.get("customer_name", "") or ctx.get("user_name", "Mehmon")
         customer_phone = inputs.get("customer_phone", "")
         region = inputs.get("region", "")
@@ -169,7 +214,7 @@ async def _execute_tool(name: str, inputs: dict, user_id: int, bot, ctx: dict) -
             "contact_phone": customer_phone,
             "operator_name": operator["name"],
             "tariff_name": tariff_name,
-            "sim_number": sim_number,
+            "sim_number": "pending",
             "region": region,
             "delivery_price": delivery_type_price,
             "delivery_type_name": delivery_type_name,
@@ -197,7 +242,7 @@ async def _execute_tool(name: str, inputs: dict, user_id: int, bot, ctx: dict) -
             except Exception:
                 pass
 
-        return f"BUYURTMA_OK|{order_num}|{sim_number}"
+        return f"BUYURTMA_OK|{order_num}"
 
     return "Noma'lum amal."
 
@@ -221,7 +266,6 @@ async def _run_ai_loop(history: list, user_id: int, bot, ctx: dict) -> tuple[str
                     result = await _execute_tool(block.name, block.input, user_id, bot, ctx)
                     tool_results.append({"type": "tool_result", "tool_use_id": block.id, "content": result})
                     if ctx.get("waiting_for_location"):
-                        # Lokatsiya kutilmoqda — loop to'xtaydi, foydalanuvchi yuborgunicha
                         ai_text = next((b.text for b in resp.content if b.type == "text"), "")
                         history.append({"role": "user", "content": tool_results})
                         return ai_text, history
@@ -233,57 +277,98 @@ async def _run_ai_loop(history: list, user_id: int, bot, ctx: dict) -> tuple[str
     return "Qayta urinib ko'ring.", history
 
 
-def _location_keyboard() -> ReplyKeyboardMarkup:
-    return ReplyKeyboardMarkup(
-        keyboard=[[KeyboardButton(text="📍 Lokatsiyamni yuborish", request_location=True)]],
-        resize_keyboard=True,
-        one_time_keyboard=True,
-    )
+# ─── HELPER: INJECT MESSAGE TO AI ───────────────────────────────
+
+async def _inject_and_respond(
+    callback: CallbackQuery,
+    state: FSMContext,
+    injected_msg: str,
+    new_stage: str,
+    fallback_text: str = "Davom etamiz...",
+):
+    """Tugma bosilganda xabarni AI ga yuborish va javob olish."""
+    data = await state.get_data()
+    history: list = data.get("ai_history", [])
+    user_name: str = data.get("user_name", callback.from_user.first_name or "Mehmon")
+
+    history.append({"role": "user", "content": injected_msg})
+    await state.update_data(ai_history=history, ai_stage=new_stage)
+
+    try:
+        await callback.message.edit_reply_markup(reply_markup=None)
+    except Exception:
+        pass
+
+    await callback.answer()
+    await callback.bot.send_chat_action(callback.message.chat.id, ChatAction.TYPING)
+
+    ctx = {"waiting_for_location": False, "order_placed": False, "user_name": user_name}
+
+    try:
+        ai_text, history = await _run_ai_loop(history, callback.from_user.id, callback.bot, ctx)
+        if not ai_text:
+            ai_text = fallback_text
+
+        if len(history) > 14:
+            history = history[-14:]
+
+        final_stage = "done" if ctx["order_placed"] else new_stage
+        await state.update_data(
+            ai_history=history,
+            ai_stage=final_stage,
+            waiting_for_location=ctx["waiting_for_location"],
+        )
+
+        if ctx["waiting_for_location"]:
+            await callback.message.answer(ai_text, reply_markup=_location_keyboard())
+        else:
+            await callback.message.answer(ai_text, reply_markup=_stage_keyboard(final_stage))
+
+    except anthropic.AuthenticationError:
+        await callback.message.answer("⚠️ AI kalit xato.")
+    except anthropic.RateLimitError:
+        await callback.message.answer("⚠️ AI band. Bir oz kuting.")
+    except Exception:
+        await callback.message.answer("⚠️ Xatolik. /start bosing.")
 
 
-def _inline_keyboard(order_placed: bool = False):
-    b = InlineKeyboardBuilder()
-    if order_placed:
-        b.button(text="🔄 Yangi buyurtma", callback_data="ai_restart")
-    b.button(text="❌ Chiqish", callback_data="ai_exit")
-    b.adjust(1)
-    return b.as_markup()
-
+# ─── START AI CHAT ───────────────────────────────────────────────
 
 async def start_ai_chat(target, state: FSMContext):
     await state.clear()
     await state.set_state(AIState.chatting)
-
-    if isinstance(target, Message):
-        user_name = target.from_user.first_name or "Mehmon"
-    else:
-        user_name = target.from_user.first_name or "Mehmon"
-
-    await state.update_data(ai_history=[], waiting_for_location=False, user_name=user_name)
-    text = (
-        f"Assalomu alaykum! 👋 Men Suxrob — \"Texnoset\" SIM karta xizmatidan.\n\n"
-        "Sizga eng mos SIM karta va tarif topishda yordam beraman 📱\n\n"
-        "Qanday tarif kerak — ko'proq internet, arzon, yoki cheksiz qo'ng'iroqmi? 😊"
+    user_name = target.from_user.first_name or "Mehmon"
+    await state.update_data(
+        ai_history=[], waiting_for_location=False,
+        user_name=user_name, ai_stage="operator",
     )
+
+    text = (
+        "Assalomu alaykum! 👋 Men Suxrob — Texnoset SIM karta xizmatidan.\n\n"
+        "📱 Sizga eng mos SIM karta topishda yordam beraman!\n\n"
+        "Qaysi operator SIM kartasini xohlaysiz? 👇"
+    )
+    keyboard = _stage_keyboard("operator")
     if isinstance(target, Message):
-        await target.answer(text, reply_markup=_inline_keyboard())
+        await target.answer(text, reply_markup=keyboard)
     else:
-        await target.message.edit_text(text, reply_markup=_inline_keyboard())
+        await target.message.edit_text(text, reply_markup=keyboard)
         await target.answer()
 
 
-# ─── ASOSIY XABAR HANDLERI ──────────────────────────────────────
+# ─── ASOSIY TEXT HANDLERI ───────────────────────────────────────
 
 @router.message(AIState.chatting, F.text)
 async def handle_ai_message(message: Message, state: FSMContext):
     data = await state.get_data()
     history: list = data.get("ai_history", [])
     user_name: str = data.get("user_name", message.from_user.first_name or "Mehmon")
+    current_stage: str = data.get("ai_stage", "operator")
+
     history.append({"role": "user", "content": message.text})
-
     await message.bot.send_chat_action(message.chat.id, ChatAction.TYPING)
-    ctx = {"waiting_for_location": False, "order_placed": False, "user_name": user_name}
 
+    ctx = {"waiting_for_location": False, "order_placed": False, "user_name": user_name}
     try:
         ai_text, history = await _run_ai_loop(history, message.from_user.id, message.bot, ctx)
         if not ai_text:
@@ -292,15 +377,17 @@ async def handle_ai_message(message: Message, state: FSMContext):
         if len(history) > 14:
             history = history[-14:]
 
+        final_stage = "done" if ctx["order_placed"] else current_stage
         await state.update_data(
             ai_history=history,
+            ai_stage=final_stage,
             waiting_for_location=ctx["waiting_for_location"],
         )
 
         if ctx["waiting_for_location"]:
             await message.answer(ai_text, reply_markup=_location_keyboard())
         else:
-            await message.answer(ai_text, reply_markup=_inline_keyboard(ctx["order_placed"]))
+            await message.answer(ai_text, reply_markup=_stage_keyboard(final_stage))
 
     except anthropic.AuthenticationError:
         await message.answer("⚠️ AI kalit xato. Admin bilan bog'laning.")
@@ -322,8 +409,8 @@ async def handle_location(message: Message, state: FSMContext):
     if not zone:
         zones_str = " va ".join(z[0] for z in _get_delivery_zones())
         await message.answer(
-            f"❌ Kechirasiz, hozircha yetkazib berish faqat <b>{zones_str}</b> da amalga oshiriladi.\n\n"
-            "Siz shu hududlarda yashamaysizmi? Agar xato bo'lsa, qayta urinib ko'ring.",
+            f"❌ Kechirasiz, yetkazib berish faqat <b>{zones_str}</b> da amalga oshiriladi.\n\n"
+            "Siz shu hududda yashamaysizmi? Qayta urinib ko'ring.",
             reply_markup=ReplyKeyboardRemove(),
         )
         return
@@ -334,24 +421,98 @@ async def handle_location(message: Message, state: FSMContext):
     history.append({"role": "user", "content": f"Mening hududim tasdiqlandi: {zone}"})
 
     await message.bot.send_chat_action(message.chat.id, ChatAction.TYPING)
-    ctx = {"waiting_for_location": False, "order_placed": False, "user_name": data.get("user_name", message.from_user.first_name or "Mehmon")}
+    ctx = {
+        "waiting_for_location": False,
+        "order_placed": False,
+        "user_name": data.get("user_name", message.from_user.first_name or "Mehmon"),
+    }
 
     try:
         ai_text, history = await _run_ai_loop(history, message.from_user.id, message.bot, ctx)
         if not ai_text:
-            ai_text = "Zo'r! Davom etamiz."
+            ai_text = "Zo'r! Buyurtma rasmiylashtirilmoqda..."
 
         if len(history) > 14:
             history = history[-14:]
 
-        await state.update_data(ai_history=history, waiting_for_location=False)
-        await message.answer(ai_text, reply_markup=_inline_keyboard(ctx["order_placed"]))
+        final_stage = "done" if ctx["order_placed"] else "phone"
+        await state.update_data(ai_history=history, waiting_for_location=False, ai_stage=final_stage)
+        await message.answer(ai_text, reply_markup=_stage_keyboard(final_stage))
 
     except Exception:
         await message.answer("⚠️ Xatolik. /start bosib qayta boshlang.")
 
 
-# ─── CALLBACK HANDLERLAR ────────────────────────────────────────
+# ─── TUGMA CALLBACK HANDLERLARI ─────────────────────────────────
+
+@router.callback_query(AIState.chatting, F.data.startswith("ai_op_"))
+async def ai_pick_operator(callback: CallbackQuery, state: FSMContext):
+    op_id = callback.data.replace("ai_op_", "")
+    op = OPERATORS.get(op_id)
+    if not op:
+        return await callback.answer("Xatolik.", show_alert=True)
+
+    await _inject_and_respond(
+        callback, state,
+        injected_msg=f"Men {op['emoji']} {op['name']} operatorini tanladim",
+        new_stage=f"tariff:{op_id}",
+        fallback_text=f"{op['name']} tariflarini ko'rsataman 👇",
+    )
+
+
+@router.callback_query(AIState.chatting, F.data.startswith("ai_tf_"))
+async def ai_pick_tariff(callback: CallbackQuery, state: FSMContext):
+    parts = callback.data.replace("ai_tf_", "").split("__", 1)
+    if len(parts) < 2:
+        return await callback.answer("Xatolik.", show_alert=True)
+    op_id, tariff_id = parts
+
+    tariff = next((t for t in TARIFFS.get(op_id, []) if t["id"] == tariff_id), None)
+    if not tariff:
+        return await callback.answer("Tarif topilmadi.", show_alert=True)
+
+    await _inject_and_respond(
+        callback, state,
+        injected_msg=f"📦 {tariff['name']} tarifini tanladim ({tariff['price']:,} so'm/oy)",
+        new_stage="delivery",
+        fallback_text="Ajoyib! Yetkazib berish turini tanlang 👇",
+    )
+
+
+@router.callback_query(AIState.chatting, F.data.startswith("ai_del_"))
+async def ai_pick_delivery(callback: CallbackQuery, state: FSMContext):
+    dtype_key = callback.data.replace("ai_del_", "")
+    dtype = DELIVERY_TYPES.get(dtype_key)
+    if not dtype:
+        return await callback.answer("Xatolik.", show_alert=True)
+
+    price_text = "Bepul" if dtype["price"] == 0 else f"{dtype['price']:,} so'm"
+    await _inject_and_respond(
+        callback, state,
+        injected_msg=f"{dtype['emoji']} {dtype['name']} ({dtype['desc']}) — {price_text}",
+        new_stage="phone",
+        fallback_text="Telefon raqamingizni yozing 📞",
+    )
+
+
+@router.callback_query(AIState.chatting, F.data == "ai_back_op")
+async def ai_back_operator(callback: CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    history: list = data.get("ai_history", [])
+    history.append({"role": "user", "content": "Operatorni o'zgartirmoqchiman"})
+    await state.update_data(ai_history=history, ai_stage="operator")
+    try:
+        await callback.message.edit_reply_markup(reply_markup=None)
+    except Exception:
+        pass
+    await callback.answer()
+    await callback.message.answer(
+        "Qaysi operatorni xohlaysiz? 👇",
+        reply_markup=_stage_keyboard("operator"),
+    )
+
+
+# ─── UMUMIY CALLBACK HANDLERLARI ────────────────────────────────
 
 @router.callback_query(F.data == "open_ai_chat")
 async def open_ai_chat(callback: CallbackQuery, state: FSMContext):
