@@ -104,8 +104,13 @@ def _build_system_prompt() -> str:
         "• Faqat juda kerak bo'lsa, 1 ta muqobil ayt ('yoki biroz arzonrog'i...').\n\n"
         "✅ JAVOB TUZILISHI:\n"
         "1) Mijoz gapini iliq tasdiqla ('Zo'r tanlov!', 'Tushundim 👍', 'Internetni yaxshi ko'rasiz-a')\n"
-        "2) BITTA tarifni tavsiya qil: nomi + 1 qator asosiy foyda + narx\n"
+        "2) BITTA tarifni tavsiya qil: <b>nom</b> + afzalliklar <blockquote> ichida + <b>narx</b>\n"
         "3) Iliq yo'naltir: 'Ucell tugmasini bossangiz, davom etamiz 👇'\n\n"
+        "🎨 FORMATLASH (Telegram HTML — MAJBURIY):\n"
+        "• Tarif NOMI va NARXini <b>...</b> bilan ajrat\n"
+        "• Tarif afzalliklarini <blockquote>...</blockquote> ichiga yoz (2-3 qator, emoji bilan)\n"
+        "• Faqat <b>, <i>, <blockquote> teglaridan foydalan. Boshqa teg YO'Q\n"
+        "• Har bir teg ALBATTA yopilishi shart (<b>...</b>). Yarim ochiq teg qoldirma\n\n"
         "Mijoz nima deyishiga qarab BITTA tanla:\n"
         "• 'arzon' → eng arzon 1 ta | 'ko'p internet' → eng ko'p GB li 1 ta\n"
         "• 'youtube/tiktok' → o'sha ilova bepul 1 ta | 'qo'ng'iroq' → cheksiz qo'ng'iroqli 1 ta\n"
@@ -196,23 +201,26 @@ _PRIMING = [
     )},
     {"role": "user", "content": "menga eng arzon tarif kerak"},
     {"role": "assistant", "content": (
-        "Tejamkorlikni yaxshi ko'raman 👍\n"
-        "Sizga <b>Beeline Standart</b> aynan to'g'ri keladi — 10 GB internet + 700 daqiqa "
-        "qo'ng'iroq, atigi 45 000 so'm/oy (kuniga 1 500 so'm).\n"
+        "Tejamkorlikni yaxshi ko'raman 👍\n\n"
+        "<b>Beeline Standart</b> — aynan siz uchun:\n"
+        "<blockquote>📶 10 GB internet\n☎️ 700 daqiqa qo'ng'iroq\n💬 500 SMS</blockquote>\n"
+        "💰 <b>45 000 so'm/oy</b> (kuniga 1 500 so'm)\n\n"
         "Beeline tugmasini bossangiz, davom etamiz 👇"
     )},
     {"role": "user", "content": "ko'p internet kerak, qaysi tarif yaxshi?"},
     {"role": "assistant", "content": (
-        "Internetni ko'p ishlatasiz-a, tushundim! 📶\n"
-        "Unda <b>Mobiuz ORZU 90</b> — bu zo'r tanlov: 180 GB internet + cheksiz qo'ng'iroq, "
-        "90 000 so'm/oy. Ustiga 🎁 1+1: ikkinchi SIM karta BEPUL!\n"
+        "Internetni ko'p ishlatasiz-a, tushundim! 📶\n\n"
+        "<b>Mobiuz ORZU 90</b> — bu zo'r tanlov:\n"
+        "<blockquote>📶 180 GB internet\n☎️ Cheksiz qo'ng'iroq\n🎁 1+1: ikkinchi SIM BEPUL</blockquote>\n"
+        "💰 <b>90 000 so'm/oy</b> (kuniga ~3 000 so'm)\n\n"
         "Mobiuz tugmasini tanlang 👇"
     )},
     {"role": "user", "content": "YouTube ko'p ishlataman"},
     {"role": "assistant", "content": (
-        "YouTube'ni yaxshi ko'rasiz-da 🎬\n"
-        "Sizga <b>Humans YouTube+</b> aynan mos — YouTube CHEKSIZ + 40 GB internet, "
-        "56 000 so'm/oy.\n"
+        "YouTube'ni yaxshi ko'rasiz-da 🎬\n\n"
+        "<b>Humans YouTube+</b> — aynan mos:\n"
+        "<blockquote>▶️ YouTube CHEKSIZ\n📶 40 GB internet\n☎️ Cheksiz qo'ng'iroq</blockquote>\n"
+        "💰 <b>56 000 so'm/oy</b>\n\n"
         "Humans tugmasini bosing 👇"
     )},
     {"role": "user", "content": "bilmadim qaysi birini olsam"},
@@ -234,39 +242,55 @@ async def _ai_reply(history: list) -> str:
     return "".join(b.text for b in resp.content if b.type == "text").strip()
 
 
+_TAG_RE = re.compile(r"<[^>]+>")
+
+
+def _strip_html(text: str) -> str:
+    """HTML teglarni olib tashlaydi (oraliq kadr va xato fallback uchun)."""
+    return _TAG_RE.sub("", text)
+
+
 async def _typewriter(answer_to, text: str, reply_markup, existing_msg=None):
-    """Tez: bitta yengil 'yozilmoqda' kadri, keyin to'liq matn.
+    """Tez: bitta yengil 'yozilmoqda' kadri, keyin to'liq (HTML) matn.
 
-    Avval 6 ta Telegram chaqiruvi + 0.54s kechikish bor edi.
-    Endi ko'pi bilan 2 chaqiruv + 0.1s — sezilarli tezroq.
+    Oraliq kadrда teglar ko'rinmasligi uchun tozalanadi. Agar HTML
+    noto'g'ri bo'lsa, teglarsiz toza matn yuboriladi (raw teg ko'rinmaydi).
     """
-    words = text.split()
     msg = existing_msg
+    plain = _strip_html(text)
+    words = plain.split()
 
-    # Qisqa javob yoki placeholder bo'lmasa — to'g'ridan-to'g'ri
+    # Placeholder bo'lmasa — to'g'ridan-to'g'ri
     if msg is None:
-        return await answer_to.answer(text, reply_markup=reply_markup)
+        try:
+            return await answer_to.answer(text, reply_markup=reply_markup)
+        except Exception:
+            return await answer_to.answer(plain, reply_markup=reply_markup)
+
     if len(words) <= 8:
         try:
             return await msg.edit_text(text, reply_markup=reply_markup)
         except Exception:
-            return msg
+            try:
+                return await msg.edit_text(plain, reply_markup=reply_markup)
+            except Exception:
+                return msg
 
-    # Uzunroq javob — bitta yengil "yozilmoqda" kadri
+    # Uzunroq javob — bitta yengil "yozilmoqda" kadri (teglarsiz)
     try:
         half = " ".join(words[: max(1, len(words) * 6 // 10)]) + " ▌"
         await msg.edit_text(half, parse_mode=None)
         await asyncio.sleep(0.1)
     except Exception:
         pass
+    # Yakuniy: HTML bilan; xato bo'lsa — toza matn (raw teg emas)
     try:
         await msg.edit_text(text, reply_markup=reply_markup)
     except Exception:
         try:
-            await msg.edit_text(text, parse_mode=None)
+            await msg.edit_text(plain, reply_markup=reply_markup)
         except Exception:
             pass
-    return msg
     return msg
 
 
