@@ -22,7 +22,7 @@ import numbers_db
 router = Router()
 
 MODEL = "claude-haiku-4-5"
-MAX_TOKENS = 300
+MAX_TOKENS = 256
 
 
 def _get_delivery_zones():
@@ -321,12 +321,13 @@ async def _run_plain(history, user_id, bot, ctx) -> str:
 
 
 async def _typewriter(answer_to, text: str, reply_markup, existing_msg=None):
-    """Matnni 'yozilayotgandek' bo'lak-bo'lak ko'rsatadi (kursor effekti bilan).
+    """Matnni 'yozilayotgandek' ko'rsatadi. Qisqa javoblar darhol chiqadi (tezlik uchun).
     existing_msg berilsa — o'sha xabar ustiga yoziladi (yangi xabar yaratilmaydi)."""
     words = text.split()
     msg = existing_msg
 
-    if len(words) <= 4:
+    # Qisqa javob — animatsiyasiz darhol (tez)
+    if len(words) <= 6:
         if msg is not None:
             try:
                 await msg.edit_text(text, reply_markup=reply_markup)
@@ -337,8 +338,9 @@ async def _typewriter(answer_to, text: str, reply_markup, existing_msg=None):
 
     if msg is None:
         msg = await answer_to.answer("✍️")
-    steps = min(6, len(words))
-    step_size = max(1, len(words) // steps)
+    # Yengil animatsiya: 3 oraliq qadam, qisqa pauza
+    steps = 3
+    step_size = max(1, len(words) // (steps + 1))
     try:
         for i in range(step_size, len(words), step_size):
             partial = " ".join(words[:i])
@@ -346,7 +348,7 @@ async def _typewriter(answer_to, text: str, reply_markup, existing_msg=None):
                 await msg.edit_text(partial + " ▌", parse_mode=None)
             except Exception:
                 pass
-            await asyncio.sleep(0.32)
+            await asyncio.sleep(0.18)
     finally:
         try:
             await msg.edit_text(text, reply_markup=reply_markup)
