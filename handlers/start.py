@@ -57,20 +57,8 @@ async def back_to_main(callback: CallbackQuery, state: FSMContext):
 
 
 # ─── BUYURTMA ────────────────────────────────────────────────────
-
-@router.callback_query(F.data == "new_order")
-async def start_order(callback: CallbackQuery, state: FSMContext):
-    await state.clear()
-    await state.set_state(OrderState.choosing_operator)
-    await callback.message.edit_text(
-        "🛒 <b>Tezkor buyurtma</b>\n\n"
-        "📡 Avval operatorni tanlang — keyin tarif va yetkazib berishni "
-        "bir necha bosqichda hal qilamiz.\n\n"
-        "<i>Aniq bilmasangiz, «⬅️ Bosh sahifa» → «🤖 AI yordamchi» orqali "
-        "Suxrob sizga eng mosini topib beradi.</i>",
-        reply_markup=operators_keyboard(),
-    )
-    await callback.answer()
+# «🛒 Tezkor buyurtma» (new_order) endi AI oqimi orqali ishlaydi —
+# handlers/ai_chat.py dagi open_quick_order. Eski qo'lda oqim olib tashlandi.
 
 
 # ─── AKSIYALAR ───────────────────────────────────────────────────

@@ -57,7 +57,7 @@ DELIVERY_TYPES = {
     "standart": {
         "name": "Standart yetkazish",
         "desc": "2 soat ichida",
-        "price": 30_000,
+        "price": 5_000,
         "emoji": "🚗",
     },
     "ish_vaqti": {

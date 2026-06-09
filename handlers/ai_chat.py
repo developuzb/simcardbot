@@ -343,20 +343,28 @@ async def _place_order(data: dict, user_id: int, bot) -> int:
 
 # ─── START AI CHAT ───────────────────────────────────────────────
 
-async def start_ai_chat(target, state: FSMContext):
+async def start_ai_chat(target, state: FSMContext, quick: bool = False):
     await state.clear()
     await state.set_state(AIState.chatting)
     user_name = target.from_user.first_name or "Mehmon"
     await state.update_data(ai_history=[], user_name=user_name, ai_stage="operator")
     analytics_store.ai_session()
 
-    text = (
-        f"Assalomu alaykum, {user_name}! 👋\n"
-        "Men Suxrob — sizga eng mos SIM kartani tanlashda yordam beraman 😊\n\n"
-        "Erkin yozing — masalan «arzonroq kerak» yoki «internet ko'p bo'lsin», "
-        "men aynan sizga mosini topib beraman.\n\n"
-        "Yoki to'g'ridan operatorni tanlang 👇"
-    )
+    if quick:
+        text = (
+            f"🛒 Boshladik, {user_name}! 👋\n"
+            "Men Suxrob, buyurtmangizni tez rasmiylashtiramiz.\n\n"
+            "Qaysi operatorni xohlaysiz? Quyidan tanlang — yoki «arzonroq» / "
+            "«internet ko'p» deb yozsangiz, mosini o'zim topaman 👇"
+        )
+    else:
+        text = (
+            f"Assalomu alaykum, {user_name}! 👋\n"
+            "Men Suxrob — sizga eng mos SIM kartani tanlashda yordam beraman 😊\n\n"
+            "Erkin yozing — masalan «arzonroq kerak» yoki «internet ko'p bo'lsin», "
+            "men aynan sizga mosini topib beraman.\n\n"
+            "Yoki to'g'ridan operatorni tanlang 👇"
+        )
     keyboard = _stage_keyboard("operator")
     if isinstance(target, Message):
         await target.answer(text, reply_markup=keyboard)
@@ -611,10 +619,13 @@ async def ai_back_operator(callback: CallbackQuery, state: FSMContext):
 
 @router.callback_query(F.data == "open_ai_chat")
 async def open_ai_chat(callback: CallbackQuery, state: FSMContext):
-    if not ANTHROPIC_API_KEY:
-        await callback.answer("AI xizmati hozircha mavjud emas.", show_alert=True)
-        return
     await start_ai_chat(callback, state)
+
+
+@router.callback_query(F.data == "new_order")
+async def open_quick_order(callback: CallbackQuery, state: FSMContext):
+    # Tezkor buyurtma ham AI oqimi orqali (tugmalar + Suxrob yordami)
+    await start_ai_chat(callback, state, quick=True)
 
 
 @router.callback_query(F.data == "ai_restart")
