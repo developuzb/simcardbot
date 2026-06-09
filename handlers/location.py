@@ -7,6 +7,7 @@ from utils import detect_region, get_delivery_price, build_order_summary
 from sheets_handler import save_order
 from config import DELIVERY_TYPES, ADMIN_IDS, ADMIN_CONTACT
 import settings_store
+import analytics_store
 import math
 
 router = Router()
@@ -61,6 +62,7 @@ async def _redirect_to_admin(message: Message, state: FSMContext, lat: float, lo
         except Exception:
             pass
 
+    analytics_store.out_of_zone()
     await state.clear()
 
 
@@ -137,6 +139,8 @@ async def confirm_order(callback: CallbackQuery, state: FSMContext):
     user_data["user_id"] = callback.from_user.id
 
     saved = await save_order(user_data)
+    total = int(user_data.get("tariff_price", 0)) + int(user_data.get("delivery_price", 0))
+    analytics_store.order_placed(total, via_ai=False)
 
     dtype_name = user_data.get("delivery_type_name", "—")
     await callback.message.edit_text(

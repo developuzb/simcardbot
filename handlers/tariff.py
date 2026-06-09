@@ -5,6 +5,7 @@ from states import OrderState
 from keyboards import numbers_keyboard, tariffs_keyboard
 from data import TARIFFS
 from config import PROMO_1PLUS1_MIN_PRICE, PROMO_1PLUS1_TEXT
+import analytics_store
 
 router = Router()
 
@@ -25,6 +26,7 @@ async def choose_tariff(callback: CallbackQuery, state: FSMContext):
         await callback.answer("Xatolik! Qaytadan urinib ko'ring.", show_alert=True)
         return
 
+    analytics_store.tariff_chosen(op_id, tariff_id)
     await state.update_data(
         tariff_id=tariff_id,
         tariff_name=selected_tariff["name"],

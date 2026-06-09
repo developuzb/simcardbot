@@ -4,6 +4,7 @@ from aiogram.fsm.context import FSMContext
 from states import OrderState
 from keyboards import tariffs_keyboard, operators_keyboard
 from data import OPERATORS, TARIFFS
+import analytics_store
 
 router = Router()
 
@@ -16,6 +17,7 @@ async def choose_operator(callback: CallbackQuery, state: FSMContext):
         await callback.answer("Xatolik! Qaytadan urinib ko'ring.", show_alert=True)
         return
 
+    analytics_store.operator_asked(op_id)
     await state.update_data(
         operator_id=op_id,
         operator_name=operator["name"],

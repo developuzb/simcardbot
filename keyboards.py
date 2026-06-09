@@ -93,8 +93,19 @@ def admin_menu_keyboard() -> InlineKeyboardMarkup:
     builder.button(text="📊 Statistika", callback_data="adm_stats")
     builder.button(text="🚴 Kuryerlar", callback_data="adm_couriers")
     builder.button(text="📢 Xabar yuborish", callback_data="adm_broadcast")
+    builder.button(text="📈 AI Analitika", callback_data="adm_analytics")
     builder.button(text="📍 Ofis lokatsiyasi", callback_data="adm_office")
-    builder.adjust(2, 2, 1)
+    builder.adjust(2, 2, 2)
+    return builder.as_markup()
+
+
+def analytics_menu_keyboard() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.button(text="🤖 AI Insight (tavsiya)", callback_data="adm_an_insight")
+    builder.button(text="📊 AI Statistika", callback_data="adm_an_stats")
+    builder.button(text="🔄 Yangilash", callback_data="adm_analytics")
+    builder.button(text="⬅️ Orqaga", callback_data="adm_back_menu")
+    builder.adjust(1)
     return builder.as_markup()
 
 

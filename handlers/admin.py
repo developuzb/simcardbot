@@ -10,8 +10,10 @@ from keyboards import (
     admin_couriers_keyboard, admin_courier_detail_keyboard,
     select_courier_keyboard, orders_list_keyboard,
     office_menu_keyboard, office_location_request_keyboard, remove_keyboard,
+    analytics_menu_keyboard,
 )
 import settings_store
+import ai_analytics
 from sheets_handler import (
     get_all_orders, get_order_by_num, update_order,
     get_all_couriers, get_courier, add_courier, remove_courier,
@@ -459,6 +461,55 @@ async def add_courier_region(message: Message, state: FSMContext, is_admin: bool
     else:
         await message.answer(f"⚠️ Bu ID ({tg_id}) allaqachon ro'yxatda. Boshqa ID kiriting.")
         await state.set_state(AdminState.adding_courier_id)
+
+
+# ─── AI ANALITIKA ────────────────────────────────────────────────
+
+@router.callback_query(F.data == "adm_analytics")
+async def show_analytics_menu(callback: CallbackQuery, state: FSMContext, is_admin: bool = False):
+    if not is_admin:
+        return await callback.answer("⛔", show_alert=True)
+    await state.set_state(AdminState.main_menu)
+    await callback.message.edit_text(
+        "📈 <b>AI Analitika</b>\n\n"
+        "🤖 <b>AI Insight</b> — Claude buyurtma va suhbatlarni tahlil qilib, "
+        "biznes tavsiya beradi.\n"
+        "📊 <b>AI Statistika</b> — raqamli ko'rsatkichlar.\n\n"
+        "Quyidan tanlang 👇",
+        reply_markup=analytics_menu_keyboard(),
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data == "adm_an_stats")
+async def show_analytics_stats(callback: CallbackQuery, is_admin: bool = False):
+    if not is_admin:
+        return await callback.answer("⛔", show_alert=True)
+    text = ai_analytics.format_stats()
+    await callback.message.edit_text(text, reply_markup=analytics_menu_keyboard())
+    await callback.answer()
+
+
+@router.callback_query(F.data == "adm_an_insight")
+async def show_analytics_insight(callback: CallbackQuery, is_admin: bool = False):
+    if not is_admin:
+        return await callback.answer("⛔", show_alert=True)
+    await callback.answer("🤖 Tahlil qilinmoqda...")
+    try:
+        await callback.message.edit_text("🤖 AI tahlil qilmoqda, bir lahza...")
+    except Exception:
+        pass
+    insight = await ai_analytics.generate_insight()
+    try:
+        await callback.message.edit_text(
+            f"🤖 <b>AI Insight</b>\n\n{insight}",
+            reply_markup=analytics_menu_keyboard(),
+        )
+    except Exception:
+        await callback.message.answer(
+            f"🤖 <b>AI Insight</b>\n\n{insight}",
+            reply_markup=analytics_menu_keyboard(),
+        )
 
 
 # ─── OFIS LOKATSIYASI ────────────────────────────────────────────

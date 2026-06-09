@@ -17,6 +17,7 @@ from config import (
     PROMO_1PLUS1_MIN_PRICE, PROMO_1PLUS1_BADGE, PROMO_1PLUS1_TEXT,
 )
 import settings_store
+import analytics_store
 from sheets_handler import save_order
 
 router = Router()
@@ -321,6 +322,7 @@ async def _place_order(data: dict, user_id: int, bot) -> int:
         except Exception:
             pass
 
+    analytics_store.order_placed(total, via_ai=True)
     return order_num
 
 
@@ -331,6 +333,7 @@ async def start_ai_chat(target, state: FSMContext):
     await state.set_state(AIState.chatting)
     user_name = target.from_user.first_name or "Mehmon"
     await state.update_data(ai_history=[], user_name=user_name, ai_stage="operator")
+    analytics_store.ai_session()
 
     text = (
         "Salom! 👋 Men Suxrob — Texnoset SIM mutaxassisi.\n\n"
@@ -394,6 +397,7 @@ async def handle_ai_message(message: Message, state: FSMContext):
     op_id = _detect_operator(message.text)
     if op_id and (stage == "operator" or stage.startswith("tariff:")):
         op = OPERATORS[op_id]
+        analytics_store.operator_asked(op_id)
         await state.update_data(ai_stage=f"tariff:{op_id}", sel_operator=op_id)
         await message.answer(
             f"✅ {op['emoji']} <b>{op['name']}</b> tanlandi!\n\nQaysi tarifni xohlaysiz? 👇",
@@ -402,6 +406,7 @@ async def handle_ai_message(message: Message, state: FSMContext):
         return
 
     # Operator/tarif/delivery bosqichlari — AI maslahat (sof matn)
+    analytics_store.advice_query(message.text)
     history: list = data.get("ai_history", [])
     history.append({"role": "user", "content": message.text})
 
@@ -468,6 +473,7 @@ async def handle_location(message: Message, state: FSMContext):
                 await message.bot.send_location(admin_id, latitude=lat, longitude=lon)
             except Exception:
                 pass
+        analytics_store.out_of_zone()
         await state.update_data(ai_stage="done")
         return
 
@@ -505,6 +511,7 @@ async def ai_pick_operator(callback: CallbackQuery, state: FSMContext):
     if not op:
         return await callback.answer("Xatolik.", show_alert=True)
 
+    analytics_store.operator_asked(op_id)
     await state.update_data(ai_stage=f"tariff:{op_id}", sel_operator=op_id)
     try:
         await callback.message.edit_reply_markup(reply_markup=None)
@@ -527,6 +534,7 @@ async def ai_pick_tariff(callback: CallbackQuery, state: FSMContext):
     if not tariff:
         return await callback.answer("Tarif topilmadi.", show_alert=True)
 
+    analytics_store.tariff_chosen(op_id, tariff_id)
     await state.update_data(ai_stage="delivery", sel_tariff=tariff_id, sel_operator=op_id)
     try:
         await callback.message.edit_reply_markup(reply_markup=None)
