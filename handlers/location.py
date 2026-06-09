@@ -5,9 +5,20 @@ from states import OrderState
 from keyboards import confirm_keyboard, remove_keyboard, delivery_type_keyboard
 from utils import detect_region, get_delivery_price, build_order_summary
 from sheets_handler import save_order
-from config import DELIVERY_TYPES
+from config import DELIVERY_TYPES, DELIVERY_LAT, DELIVERY_LON, DELIVERY_RADIUS_KM, DELIVERY_ZONE_NAME
+import math
 
 router = Router()
+
+
+def _haversine(lat1, lon1, lat2, lon2) -> float:
+    R = 6371
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+    a = (math.sin(dlat / 2) ** 2
+         + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2))
+         * math.sin(dlon / 2) ** 2)
+    return R * 2 * math.asin(math.sqrt(a))
 
 
 @router.message(OrderState.sharing_location, F.location)
@@ -15,8 +26,17 @@ async def receive_location(message: Message, state: FSMContext):
     lat = message.location.latitude
     lon = message.location.longitude
 
-    region = detect_region(lat, lon)
-    delivery_price = get_delivery_price(region)
+    distance = _haversine(lat, lon, DELIVERY_LAT, DELIVERY_LON)
+    if distance > DELIVERY_RADIUS_KM:
+        await message.answer(
+            f"❌ Kechirasiz, hozircha yetkazib berish faqat <b>{DELIVERY_ZONE_NAME}</b> (atrofida {DELIVERY_RADIUS_KM:.0f} km) da amalga oshiriladi.\n\n"
+            "📍 Siz shu hududda yashamaysizmi? Agar xato bo'lsa, qayta urinib ko'ring.",
+            reply_markup=remove_keyboard(),
+        )
+        return
+
+    region = DELIVERY_ZONE_NAME
+    delivery_price = 0
 
     await state.update_data(
         region=region,

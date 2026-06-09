@@ -32,6 +32,12 @@ DELIVERY_PRICES = {
 
 DEFAULT_DELIVERY_PRICE = 35_000
 
+# Yetkazib berish hududi (Railway Variables dan o'rnatiladi)
+DELIVERY_LAT = float(os.getenv("DELIVERY_LAT", "41.2995"))
+DELIVERY_LON = float(os.getenv("DELIVERY_LON", "69.2401"))
+DELIVERY_RADIUS_KM = float(os.getenv("DELIVERY_RADIUS_KM", "10.0"))
+DELIVERY_ZONE_NAME = os.getenv("DELIVERY_ZONE_NAME", "Yetkazib berish hududi")
+
 # Yetkazib berish tezligi turlari
 DELIVERY_TYPES = {
     "tezkor": {

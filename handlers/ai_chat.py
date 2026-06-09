@@ -10,18 +10,19 @@ from aiogram.enums import ChatAction
 
 from states import AIState
 from data import OPERATORS, TARIFFS
-from config import ANTHROPIC_API_KEY, ADMIN_IDS, DELIVERY_PRICES, DEFAULT_DELIVERY_PRICE, DELIVERY_TYPES
+from config import (
+    ANTHROPIC_API_KEY, ADMIN_IDS, DELIVERY_PRICES, DEFAULT_DELIVERY_PRICE,
+    DELIVERY_TYPES, DELIVERY_LAT, DELIVERY_LON, DELIVERY_RADIUS_KM, DELIVERY_ZONE_NAME,
+)
 from sheets_handler import save_order
 import numbers_db
 
 router = Router()
 
 # ─── YETKAZIB BERISH HUDUDLARI ──────────────────────────────────
-# (lat, lon, radius_km) — aniq koordinatalarni yangilang
-DELIVERY_ZONES = [
-    ("Qo'vchin shaharcha", 41.2800, 69.5500, 5.0),
-    ("Shirkent shaharcha", 41.3500, 69.9800, 5.0),
-]
+# config.py → DELIVERY_LAT, DELIVERY_LON, DELIVERY_RADIUS_KM, DELIVERY_ZONE_NAME
+def _get_delivery_zones():
+    return [(DELIVERY_ZONE_NAME, DELIVERY_LAT, DELIVERY_LON, DELIVERY_RADIUS_KM)]
 
 _ai_client: anthropic.AsyncAnthropic | None = None
 
@@ -47,7 +48,7 @@ def _haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
 
 
 def _check_zone(lat: float, lon: float) -> str | None:
-    for name, zlat, zlon, radius in DELIVERY_ZONES:
+    for name, zlat, zlon, radius in _get_delivery_zones():
         if _haversine(lat, lon, zlat, zlon) <= radius:
             return name
     return None
@@ -62,7 +63,7 @@ def _build_system_prompt() -> str:
                 f"{op['emoji']} {op['name']} | id:{t['id']} | {t['name']} | "
                 f"{t['price']:,} so'm/oy | " + " | ".join(items)
             )
-    zones = " va ".join(z[0] for z in DELIVERY_ZONES)
+    zones = " va ".join(z[0] for z in _get_delivery_zones())
     return (
         'Sen "Texnoset" SIM karta xizmatining eng professional savdo-konsultantisan. Ismingiz Suxrob.\n\n'
         "MAQSAD: Har bir mijozni SIM karta buyurtma berishga undash — issiq, professional, natijali.\n\n"
@@ -97,7 +98,14 @@ def _build_system_prompt() -> str:
     )
 
 
-SYSTEM_PROMPT = _build_system_prompt()
+_SYSTEM_PROMPT: str | None = None
+
+
+def _get_system_prompt() -> str:
+    global _SYSTEM_PROMPT
+    if _SYSTEM_PROMPT is None:
+        _SYSTEM_PROMPT = _build_system_prompt()
+    return _SYSTEM_PROMPT
 
 TOOLS = [
     {
@@ -223,7 +231,7 @@ async def _run_ai_loop(history: list, user_id: int, bot, ctx: dict) -> tuple[str
         resp = await client.messages.create(
             model="claude-haiku-4-5",
             max_tokens=500,
-            system=SYSTEM_PROMPT,
+            system=_get_system_prompt(),
             messages=history,
             tools=TOOLS,
         )
@@ -335,7 +343,7 @@ async def handle_location(message: Message, state: FSMContext):
     zone = _check_zone(lat, lon)
 
     if not zone:
-        zones_str = " va ".join(z[0] for z in DELIVERY_ZONES)
+        zones_str = " va ".join(z[0] for z in _get_delivery_zones())
         await message.answer(
             f"❌ Kechirasiz, hozircha yetkazib berish faqat <b>{zones_str}</b> da amalga oshiriladi.\n\n"
             "Siz shu hududlarda yashamaysizmi? Agar xato bo'lsa, qayta urinib ko'ring.",
