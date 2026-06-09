@@ -1,5 +1,5 @@
 from aiogram import Router, F
-from aiogram.filters import CommandStart, Command
+from aiogram.filters import CommandStart, Command, StateFilter
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from states import OrderState
@@ -51,4 +51,15 @@ async def cancel_handler(message: Message, state: FSMContext):
     await message.answer(
         "❌ Bekor qilindi. Qayta boshlash uchun /start bosing.",
         reply_markup=remove_keyboard(),
+    )
+
+
+# Holatdan tashqari (restart yoki sessiya tugaganda) matn yozilsa —
+# bot jim qolmasin, menyuni (AI tugmasi bilan) ko'rsatsin.
+@router.message(StateFilter(None), F.text & ~F.text.startswith("/"))
+async def fallback_no_state(message: Message):
+    await message.answer(
+        "👋 Davom etamizmi? Quyidagilardan birini tanlang 👇\n\n"
+        "<i>SIM karta tanlash uchun «🤖 Mutaxassis yordamida tanlash» tugmasini bosing.</i>",
+        reply_markup=main_menu_keyboard(),
     )
