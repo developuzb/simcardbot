@@ -1,4 +1,5 @@
 import asyncio
+import os
 import gspread
 from functools import partial
 from google.oauth2.service_account import Credentials
@@ -8,6 +9,21 @@ import logging
 import time
 
 logger = logging.getLogger(__name__)
+
+# Credentials fayli yo'q bo'lsa — Sheets'ga urinmaymiz (tez, log spam yo'q).
+_SHEETS_ENABLED: bool | None = None
+
+
+def _sheets_enabled() -> bool:
+    global _SHEETS_ENABLED
+    if _SHEETS_ENABLED is None:
+        _SHEETS_ENABLED = os.path.exists(GOOGLE_CREDENTIALS_FILE)
+        if not _SHEETS_ENABLED:
+            logger.warning(
+                "Google Sheets o'chiq: '%s' topilmadi. Buyurtmalar saqlanmaydi.",
+                GOOGLE_CREDENTIALS_FILE,
+            )
+    return _SHEETS_ENABLED
 
 SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets",
@@ -64,6 +80,8 @@ def _get_client():
 
 def get_sheet():
     global _order_sheet
+    if not _sheets_enabled():
+        return None
     if _order_sheet is None:
         try:
             client = _get_client()
@@ -81,6 +99,8 @@ def get_sheet():
 
 def get_courier_sheet():
     global _courier_sheet
+    if not _sheets_enabled():
+        return None
     if _courier_sheet is None:
         try:
             client = _get_client()

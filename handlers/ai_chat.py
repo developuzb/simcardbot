@@ -8,7 +8,6 @@ from aiogram.types import Message, CallbackQuery, ReplyKeyboardRemove
 from aiogram.fsm.context import FSMContext
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
-from aiogram.enums import ChatAction
 
 from states import AIState
 from data import OPERATORS, TARIFFS
@@ -220,38 +219,38 @@ async def _ai_reply(history: list) -> str:
 
 
 async def _typewriter(answer_to, text: str, reply_markup, existing_msg=None):
-    """Matnni 'yozilayotgandek' ko'rsatadi. Qisqa javoblar darhol chiqadi."""
+    """Tez: bitta yengil 'yozilmoqda' kadri, keyin to'liq matn.
+
+    Avval 6 ta Telegram chaqiruvi + 0.54s kechikish bor edi.
+    Endi ko'pi bilan 2 chaqiruv + 0.1s — sezilarli tezroq.
+    """
     words = text.split()
     msg = existing_msg
 
-    if len(words) <= 6:
-        if msg is not None:
-            try:
-                await msg.edit_text(text, reply_markup=reply_markup)
-                return msg
-            except Exception:
-                pass
-        return await answer_to.answer(text, reply_markup=reply_markup)
-
+    # Qisqa javob yoki placeholder bo'lmasa — to'g'ridan-to'g'ri
     if msg is None:
-        msg = await answer_to.answer("✍️")
-    steps = 3
-    step_size = max(1, len(words) // (steps + 1))
-    try:
-        for i in range(step_size, len(words), step_size):
-            try:
-                await msg.edit_text(" ".join(words[:i]) + " ▌", parse_mode=None)
-            except Exception:
-                pass
-            await asyncio.sleep(0.18)
-    finally:
+        return await answer_to.answer(text, reply_markup=reply_markup)
+    if len(words) <= 8:
         try:
-            await msg.edit_text(text, reply_markup=reply_markup)
+            return await msg.edit_text(text, reply_markup=reply_markup)
         except Exception:
-            try:
-                await msg.edit_text(text, parse_mode=None)
-            except Exception:
-                pass
+            return msg
+
+    # Uzunroq javob — bitta yengil "yozilmoqda" kadri
+    try:
+        half = " ".join(words[: max(1, len(words) * 6 // 10)]) + " ▌"
+        await msg.edit_text(half, parse_mode=None)
+        await asyncio.sleep(0.1)
+    except Exception:
+        pass
+    try:
+        await msg.edit_text(text, reply_markup=reply_markup)
+    except Exception:
+        try:
+            await msg.edit_text(text, parse_mode=None)
+        except Exception:
+            pass
+    return msg
     return msg
 
 
@@ -407,7 +406,6 @@ async def handle_ai_message(message: Message, state: FSMContext):
     history.append({"role": "user", "content": message.text})
 
     thinking = await message.answer("💭 Bir lahza...")
-    await message.bot.send_chat_action(message.chat.id, ChatAction.TYPING)
 
     try:
         ai_text = await _ai_reply(history)
