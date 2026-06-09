@@ -65,36 +65,13 @@ def _build_system_prompt() -> str:
             )
     zones = " va ".join(z[0] for z in _get_delivery_zones())
     return (
-        'Sen "Texnoset" SIM karta xizmatining eng professional savdo-konsultantisan. Ismingiz Suxrob.\n\n'
-        "MAQSAD: Har bir mijozni SIM karta buyurtma berishga undash — issiq, professional, natijali.\n\n"
-        "SAVDO USLUBI:\n"
-        "- Do'stona o'zbek tilida, emoji qo'sh ✅\n"
-        "- 2-3 jumladan oshirma\n"
-        "- Bir vaqtda 1 ta savol\n"
-        "- Ehtiyojga qarab 1-2 tarifni tavsiya qil\n"
-        "- Narxni rag'batlantirib ko'rsat: 'Oyiga 70,000 — kuniga atiga 2,300 so'm!'\n"
-        "- E'tirozga: afzalliklarni ta'kidla\n"
-        "- Shoshiltir: 'Bu raqamlar kam qoldi, hozir band qilib qo'ying!'\n\n"
-        "BUYURTMA KETMA-KETLIGI:\n"
-        "1. Salom + darhol ehtiyojini so'ra (ism so'rama)\n"
-        "2. Mos tarifni tavsiya qil, roziligini ol\n"
-        "3. Telefon raqamini so'ra\n"
-        "4. Yetkazish tezligini so'ra va tushuntir (quyida)\n"
-        "5. request_location chaqir (GPS lokatsiya tekshirish uchun)\n"
-        "6. Hamma ma'lumotni qisqacha takrorla va tasdiqlat\n"
-        "7. place_order chaqir\n"
-        "SIM raqam tanlash kuryer yetib kelganida bo'ladi — hozir so'rama.\n\n"
-        "YETKAZIB BERISH TARIFLARI (yumshoq, chiroyli tushuntir):\n"
-        "⚡ tezkor — '1 soat ichida eshigingizga yetkazamiz, shoshilinch bo'lsa ideal!' — 10 000 so'm\n"
-        "🚗 standart — '2 soat ichida qulay narxda' — 5 000 so'm\n"
-        "🕐 ish_vaqti — 'Bugun ish vaqtida (12 soat ichida) — mutlaqo BEPUL! 🎁' — 0 so'm\n"
-        "Mijozga 3 variantni iliq tushuntir. Tejamkor bo'lsa ish_vaqti ni, shoshilsa tezkor ni tavsiya qil.\n\n"
-        "MUHIM: Yetkazib berish FAQAT " + zones + " da amalga oshiriladi.\n"
-        "Boshqa hudud so'rasa: 'Kechirasiz, hozircha faqat " + zones + " ga yetkazamiz' de.\n\n"
-        "MAVJUD TARIFLAR:\n"
-        + "\n".join(tariff_lines)
-        + "\n\n"
-        "Faqat SIM karta va buyurtma haqida gaplash."
+        'Suxrob — Texnoset SIM karta savdo konsultanti. O\'zbek tilida, qisqa, emoji bilan.\n'
+        "Javob max 2 jumla. 1 ta savol. Sotishga undash.\n\n"
+        "TARTIB: 1)Tarif tanlat→2)Tel so'ra→3)Yetkazish turi so'ra→4)request_location→5)place_order\n"
+        "SIM raqam kuryer kelganida tanlanadi.\n\n"
+        "YETKAZISH: ⚡tezkor=1soat/10000so'm | 🚗standart=2soat/5000so'm | 🕐ish_vaqti=12soat/BEPUL\n\n"
+        "HUDUD: faqat " + zones + ". Boshqa joy bo'lsa rad et.\n\n"
+        "TARIFLAR:\n" + "\n".join(tariff_lines)
     )
 
 
@@ -227,10 +204,10 @@ async def _execute_tool(name: str, inputs: dict, user_id: int, bot, ctx: dict) -
 
 async def _run_ai_loop(history: list, user_id: int, bot, ctx: dict) -> tuple[str, list]:
     client = _get_client()
-    for _ in range(8):
+    for _ in range(5):
         resp = await client.messages.create(
             model="claude-haiku-4-5",
-            max_tokens=500,
+            max_tokens=250,
             system=_get_system_prompt(),
             messages=history,
             tools=TOOLS,
@@ -312,8 +289,8 @@ async def handle_ai_message(message: Message, state: FSMContext):
         if not ai_text:
             ai_text = "Uzr, tushunmadim. Boshqacha yozing."
 
-        if len(history) > 24:
-            history = history[-24:]
+        if len(history) > 14:
+            history = history[-14:]
 
         await state.update_data(
             ai_history=history,
@@ -364,8 +341,8 @@ async def handle_location(message: Message, state: FSMContext):
         if not ai_text:
             ai_text = "Zo'r! Davom etamiz."
 
-        if len(history) > 24:
-            history = history[-24:]
+        if len(history) > 14:
+            history = history[-14:]
 
         await state.update_data(ai_history=history, waiting_for_location=False)
         await message.answer(ai_text, reply_markup=_inline_keyboard(ctx["order_placed"]))
