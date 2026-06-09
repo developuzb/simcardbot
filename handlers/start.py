@@ -3,46 +3,157 @@ from aiogram.filters import CommandStart, Command, StateFilter
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from states import OrderState
-from keyboards import operators_keyboard, main_menu_keyboard, remove_keyboard
+from keyboards import (
+    operators_keyboard, main_menu_keyboard, remove_keyboard, back_to_main_keyboard,
+)
+from data import OPERATORS, TARIFFS
+from config import (
+    ADMIN_CONTACT, DELIVERY_TYPES, PROMO_1PLUS1_MIN_PRICE, PROMO_1PLUS1_BADGE,
+)
 
 router = Router()
+
+
+# ─── BOSH SAHIFA ─────────────────────────────────────────────────
+
+def _welcome_text(name: str) -> str:
+    return (
+        "✨ <b>TEXNOSET</b> ✨\n"
+        "<i>SIM karta — eshigingizgacha yetkazib beramiz</i>\n"
+        "➖➖➖➖➖➖➖➖➖➖\n"
+        f"Assalomu alaykum, <b>{name}</b>! 👋\n\n"
+        "📡 Barcha operatorlar: Ucell, Beeline, Mobiuz, Humans, Uzmobile\n"
+        "⚡ Tezkor yetkazish — atigi <b>1 soatda</b>\n"
+        "🎁 70 000+ tariflarga <b>1+1</b>: ikkinchi SIM <b>BEPUL</b>\n"
+        "🤖 Suxrob — shaxsiy maslahatchingiz har doim yoningizda\n"
+        "➖➖➖➖➖➖➖➖➖➖\n"
+        "Boshlash uchun quyidan tanlang 👇"
+    )
 
 
 @router.message(CommandStart())
 async def cmd_start(message: Message, state: FSMContext):
     await state.clear()
     await message.answer(
-        f"👋 Salom, <b>{message.from_user.first_name}</b>!\n\n"
-        "📲 <b>Texnoset</b> — SIM karta yetkazib berish xizmatiga xush kelibsiz!\n\n"
-        "Quyidagi tugmalardan birini tanlang 👇",
+        _welcome_text(message.from_user.first_name or "mehmon"),
         reply_markup=main_menu_keyboard(),
     )
 
+
+@router.callback_query(F.data == "back_to_main")
+async def back_to_main(callback: CallbackQuery, state: FSMContext):
+    await state.clear()
+    try:
+        await callback.message.edit_text(
+            _welcome_text(callback.from_user.first_name or "mehmon"),
+            reply_markup=main_menu_keyboard(),
+        )
+    except Exception:
+        await callback.message.answer(
+            _welcome_text(callback.from_user.first_name or "mehmon"),
+            reply_markup=main_menu_keyboard(),
+        )
+    await callback.answer()
+
+
+# ─── BUYURTMA ────────────────────────────────────────────────────
 
 @router.callback_query(F.data == "new_order")
 async def start_order(callback: CallbackQuery, state: FSMContext):
     await state.clear()
     await state.set_state(OrderState.choosing_operator)
     await callback.message.edit_text(
-        "📡 <b>Operatorni tanlang:</b>\n\n"
-        "Quyidagi 5 ta operatordan birini tanlang:",
+        "🛒 <b>Tezkor buyurtma</b>\n\n"
+        "📡 Avval operatorni tanlang — keyin tarif va yetkazib berishni "
+        "bir necha bosqichda hal qilamiz.\n\n"
+        "<i>Aniq bilmasangiz, «⬅️ Bosh sahifa» → «🤖 AI yordamchi» orqali "
+        "Suxrob sizga eng mosini topib beradi.</i>",
         reply_markup=operators_keyboard(),
     )
     await callback.answer()
 
 
+# ─── AKSIYALAR ───────────────────────────────────────────────────
+
+@router.callback_query(F.data == "show_promo")
+async def show_promo(callback: CallbackQuery):
+    d = DELIVERY_TYPES
+    text = (
+        "🎁 <b>AKSIYALAR</b>\n"
+        "➖➖➖➖➖➖➖➖➖➖\n"
+        f"🔥 <b>1+1 — IKKINCHI SIM BEPUL!</b>\n"
+        f"{PROMO_1PLUS1_MIN_PRICE:,} so'm va undan qimmat har qanday tarifga "
+        "ikkinchi SIM kartani sovg'a qilamiz 🎉\n\n"
+        "🚀 <b>YETKAZIB BERISH</b>\n"
+        f"{d['tezkor']['emoji']} Tezkor — 1 soatda — {d['tezkor']['price']:,} so'm\n"
+        f"{d['standart']['emoji']} Standart — 2 soatda — {d['standart']['price']:,} so'm\n"
+        f"{d['ish_vaqti']['emoji']} Ish vaqtida — 12 soatda — <b>BEPUL</b> 🎁\n"
+        "➖➖➖➖➖➖➖➖➖➖\n"
+        "Aksiyali tarifni tanlash uchun pastdan boshlang 👇"
+    )
+    await callback.message.edit_text(text, reply_markup=back_to_main_keyboard())
+    await callback.answer()
+
+
+# ─── TARIFLAR (umumiy) ───────────────────────────────────────────
+
+@router.callback_query(F.data == "show_tariffs")
+async def show_tariffs(callback: CallbackQuery):
+    lines = ["📋 <b>TARIFLAR</b>", "➖➖➖➖➖➖➖➖➖➖", "Barcha operatorlar mavjud:\n"]
+    for op_id, op in OPERATORS.items():
+        tariffs = TARIFFS.get(op_id, [])
+        if not tariffs:
+            continue
+        min_price = min(t["price"] for t in tariffs)
+        max_price = max(t["price"] for t in tariffs)
+        promo = f" {PROMO_1PLUS1_BADGE}" if max_price >= PROMO_1PLUS1_MIN_PRICE else ""
+        lines.append(f"{op['emoji']} <b>{op['name']}</b> — {min_price:,} so'mdan{promo}")
+    lines.append(
+        "\n🤖 <b>Aniq tarif tanlash uchun «AI yordamchi»dan foydalaning</b> — "
+        "u savollaringizga javob berib, eng mosini topib beradi!"
+    )
+    await callback.message.edit_text("\n".join(lines), reply_markup=back_to_main_keyboard())
+    await callback.answer()
+
+
+# ─── BIZ HAQIMIZDA ───────────────────────────────────────────────
+
+@router.callback_query(F.data == "show_about")
+async def show_about(callback: CallbackQuery):
+    text = (
+        "ℹ️ <b>BIZ HAQIMIZDA</b>\n"
+        "➖➖➖➖➖➖➖➖➖➖\n"
+        "📲 <b>Texnoset</b> — SIM kartani uyingizgacha yetkazib beruvchi xizmat.\n\n"
+        "Qanday ishlaydi:\n"
+        "1️⃣ Operator va tarifni tanlaysiz (yoki AI yordam beradi)\n"
+        "2️⃣ Telefon va joylashuvni yuborasiz\n"
+        "3️⃣ Kuryer SIM kartalar bilan yetib keladi\n"
+        "4️⃣ Yoqqan raqamni <b>kuryer oldida</b> tanlaysiz 📱\n\n"
+        "✅ Ishonchli, tez va qulay!\n"
+        "➖➖➖➖➖➖➖➖➖➖\n"
+        "Savol bo'lsa — «📞 Aloqa» orqali yozing."
+    )
+    await callback.message.edit_text(text, reply_markup=back_to_main_keyboard())
+    await callback.answer()
+
+
+# ─── ALOQA ───────────────────────────────────────────────────────
+
 @router.callback_query(F.data == "contact")
 async def show_contact(callback: CallbackQuery):
     await callback.message.edit_text(
-        "📞 <b>Bog'lanish uchun:</b>\n\n"
-        "👨‍💼 Operator: @admin_username\n"
-        "📱 Tel: +998 90 123 45 67\n"
-        "🕐 Ish vaqti: 09:00 - 22:00\n\n"
-        "Yoki /start buyrug'i orqali qaytishingiz mumkin.",
-        reply_markup=main_menu_keyboard(),
+        "📞 <b>BIZ BILAN BOG'LANISH</b>\n"
+        "➖➖➖➖➖➖➖➖➖➖\n"
+        f"👨‍💼 Admin: {ADMIN_CONTACT}\n"
+        "🕐 Ish vaqti: 09:00 – 22:00 (dushanba–shanba)\n\n"
+        "Savol, taklif yoki muammo bo'lsa — bemalol yozing, "
+        "tez orada javob beramiz! 🤝",
+        reply_markup=back_to_main_keyboard(),
     )
     await callback.answer()
 
+
+# ─── BEKOR QILISH ────────────────────────────────────────────────
 
 @router.message(Command("cancel"))
 @router.message(F.text == "❌ Bekor qilish")
@@ -55,11 +166,10 @@ async def cancel_handler(message: Message, state: FSMContext):
 
 
 # Holatdan tashqari (restart yoki sessiya tugaganda) matn yozilsa —
-# bot jim qolmasin, menyuni (AI tugmasi bilan) ko'rsatsin.
+# bot jim qolmasin, bosh sahifani ko'rsatsin.
 @router.message(StateFilter(None), F.text & ~F.text.startswith("/"))
 async def fallback_no_state(message: Message):
     await message.answer(
-        "👋 Davom etamizmi? Quyidagilardan birini tanlang 👇\n\n"
-        "<i>SIM karta tanlash uchun «🤖 Mutaxassis yordamida tanlash» tugmasini bosing.</i>",
+        _welcome_text(message.from_user.first_name or "mehmon"),
         reply_markup=main_menu_keyboard(),
     )
