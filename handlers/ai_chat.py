@@ -367,8 +367,30 @@ async def start_ai_chat(target, state: FSMContext):
 
 # ─── ASOSIY TEXT HANDLERI ───────────────────────────────────────
 
+_INJECTION_PATTERNS = [
+    "ignore previous", "ignore all", "forget instructions", "new instructions",
+    "system prompt", "you are now", "pretend you are", "act as", "jailbreak",
+    "oldingi ko'rsatmalarni", "ko'rsatmalarni unut", "sen endi", "rolni o'zgartir",
+    "tool_call", "callFunction", "function_call", "<system>", "</system>",
+]
+
+
+def _is_injection(text: str) -> bool:
+    t = text.lower()
+    return any(p in t for p in _INJECTION_PATTERNS)
+
+
 @router.message(AIState.chatting, F.text)
 async def handle_ai_message(message: Message, state: FSMContext):
+    if _is_injection(message.text):
+        data = await state.get_data()
+        stage = data.get("ai_stage", "operator")
+        await message.answer(
+            "Men faqat SIM karta masalasida yordam bera olaman 😊",
+            reply_markup=_stage_keyboard(stage),
+        )
+        return
+
     data = await state.get_data()
     history: list = data.get("ai_history", [])
     user_name: str = data.get("user_name", message.from_user.first_name or "Mehmon")
