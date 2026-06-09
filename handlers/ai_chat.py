@@ -318,13 +318,23 @@ async def _run_plain(history, user_id, bot, ctx) -> str:
     return "Qayta urinib ko'ring."
 
 
-async def _typewriter(answer_to, text: str, reply_markup):
-    """Matnni 'yozilayotgandek' bo'lak-bo'lak ko'rsatadi (kursor effekti bilan)."""
+async def _typewriter(answer_to, text: str, reply_markup, existing_msg=None):
+    """Matnni 'yozilayotgandek' bo'lak-bo'lak ko'rsatadi (kursor effekti bilan).
+    existing_msg berilsa — o'sha xabar ustiga yoziladi (yangi xabar yaratilmaydi)."""
     words = text.split()
+    msg = existing_msg
+
     if len(words) <= 4:
+        if msg is not None:
+            try:
+                await msg.edit_text(text, reply_markup=reply_markup)
+                return msg
+            except Exception:
+                pass
         return await answer_to.answer(text, reply_markup=reply_markup)
 
-    msg = await answer_to.answer("✍️")
+    if msg is None:
+        msg = await answer_to.answer("✍️")
     steps = min(6, len(words))
     step_size = max(1, len(words) // steps)
     try:
@@ -348,6 +358,8 @@ async def _typewriter(answer_to, text: str, reply_markup):
 
 async def _respond(answer_to, state, history, user_id, bot, ctx, next_stage: str):
     """AI javobini olib, typewriter animatsiya bilan yuboradi."""
+    # Darhol "o'ylayapman" xabari — mijoz kutib qolmaydi
+    thinking = await answer_to.answer("💭 Bir lahza, javob tayyorlayapman...")
     await bot.send_chat_action(answer_to.chat.id, ChatAction.TYPING)
 
     ai_text = await _run_plain(history, user_id, bot, ctx)
@@ -365,11 +377,11 @@ async def _respond(answer_to, state, history, user_id, bot, ctx, next_stage: str
     )
 
     if ctx["waiting_for_location"]:
-        await _typewriter(answer_to, ai_text, None)
+        await _typewriter(answer_to, ai_text, None, existing_msg=thinking)
         await answer_to.answer("👇 Lokatsiyangizni yuboring:", reply_markup=_location_keyboard())
         return
 
-    await _typewriter(answer_to, ai_text, _stage_keyboard(final_stage))
+    await _typewriter(answer_to, ai_text, _stage_keyboard(final_stage), existing_msg=thinking)
 
 
 # ─── START AI CHAT ───────────────────────────────────────────────
