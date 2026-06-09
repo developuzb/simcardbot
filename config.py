@@ -7,6 +7,9 @@ BOT_TOKEN = os.getenv("BOT_TOKEN", "YOUR_BOT_TOKEN_HERE")
 ADMIN_IDS = list(map(int, os.getenv("ADMIN_IDS", "123456789").split(",")))
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 
+# Mijoz hudud tashqarisida bo'lsa ko'rsatiladigan admin aloqasi
+ADMIN_CONTACT = os.getenv("ADMIN_CONTACT", "@texnoset_admin")
+
 # Google Sheets
 GOOGLE_CREDENTIALS_FILE = os.getenv("GOOGLE_CREDENTIALS_FILE", "credentials.json")
 SPREADSHEET_ID = os.getenv("SPREADSHEET_ID", "YOUR_SPREADSHEET_ID")
@@ -35,7 +38,7 @@ DEFAULT_DELIVERY_PRICE = 35_000
 # Yetkazib berish hududi (Railway Variables dan o'rnatiladi)
 DELIVERY_LAT = float(os.getenv("DELIVERY_LAT", "41.2995"))
 DELIVERY_LON = float(os.getenv("DELIVERY_LON", "69.2401"))
-DELIVERY_RADIUS_KM = float(os.getenv("DELIVERY_RADIUS_KM", "10.0"))
+DELIVERY_RADIUS_KM = float(os.getenv("DELIVERY_RADIUS_KM", "12.0"))
 DELIVERY_ZONE_NAME = os.getenv("DELIVERY_ZONE_NAME", "Yetkazib berish hududi")
 
 # Yetkazib berish tezligi turlari

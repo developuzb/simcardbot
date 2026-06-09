@@ -13,9 +13,10 @@ from aiogram.enums import ChatAction
 from states import AIState
 from data import OPERATORS, TARIFFS
 from config import (
-    ANTHROPIC_API_KEY, ADMIN_IDS, DELIVERY_TYPES,
-    DELIVERY_LAT, DELIVERY_LON, DELIVERY_RADIUS_KM, DELIVERY_ZONE_NAME,
+    ANTHROPIC_API_KEY, ADMIN_IDS, DELIVERY_TYPES, ADMIN_CONTACT,
+    DELIVERY_ZONE_NAME,
 )
+import settings_store
 from sheets_handler import save_order
 
 router = Router()
@@ -25,7 +26,8 @@ MAX_TOKENS = 400
 
 
 def _get_delivery_zones():
-    return [(DELIVERY_ZONE_NAME, DELIVERY_LAT, DELIVERY_LON, DELIVERY_RADIUS_KM)]
+    o = settings_store.get_office()
+    return [(o["zone_name"], o["lat"], o["lon"], o["radius_km"])]
 
 
 _ai_client: anthropic.AsyncAnthropic | None = None
@@ -421,15 +423,43 @@ async def handle_ai_message(message: Message, state: FSMContext):
 @router.message(AIState.chatting, F.location)
 async def handle_location(message: Message, state: FSMContext):
     data = await state.get_data()
-    zone = _check_zone(message.location.latitude, message.location.longitude)
+    lat = message.location.latitude
+    lon = message.location.longitude
+    zone = _check_zone(lat, lon)
 
     if not zone:
-        zones_str = " va ".join(z[0] for z in _get_delivery_zones())
+        office = settings_store.get_office()
+        distance = _haversine(lat, lon, office["lat"], office["lon"])
         await message.answer(
-            f"❌ Kechirasiz, yetkazib berish faqat <b>{zones_str}</b> da amalga oshiriladi.\n\n"
-            "Siz shu hududda yashamaysizmi? Qayta urinib ko'ring.",
+            f"📍 Joylashuvingiz yetkazish hududidan biroz uzoqroqda "
+            f"(taxminan {distance:.0f} km).\n\n"
+            f"Lekin buyurtmangizni shaxsan ko'rib chiqamiz! 🤝\n"
+            f"👨‍💼 Admin tez orada bog'lanadi: {ADMIN_CONTACT}",
             reply_markup=ReplyKeyboardRemove(),
         )
+        name = data.get("user_name", message.from_user.first_name or "Mijoz")
+        phone = data.get("customer_phone", "—")
+        op_id = data.get("sel_operator", "")
+        operator = OPERATORS.get(op_id, {}).get("name", "—")
+        username = message.from_user.username
+        uname = f"@{username}" if username else f"ID: {message.from_user.id}"
+        maps = f"https://maps.google.com/?q={lat},{lon}"
+        admin_text = (
+            "🟠 <b>HUDUD TASHQARISIDAGI BUYURTMA</b> 🤖 AI\n\n"
+            f"👤 Mijoz: {name} ({uname})\n"
+            f"📞 Tel: {phone}\n"
+            f"📡 Operator: {operator}\n"
+            f"📍 Masofa: ~{distance:.1f} km (ruxsat {office['radius_km']:.0f} km)\n"
+            f"🗺 Lokatsiya: {maps}\n\n"
+            "Mijoz bilan bog'lanib, qo'lda kelishishingiz mumkin."
+        )
+        for admin_id in ADMIN_IDS:
+            try:
+                await message.bot.send_message(admin_id, admin_text)
+                await message.bot.send_location(admin_id, latitude=lat, longitude=lon)
+            except Exception:
+                pass
+        await state.update_data(ai_stage="done")
         return
 
     await state.update_data(region=zone)

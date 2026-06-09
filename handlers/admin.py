@@ -9,7 +9,9 @@ from keyboards import (
     admin_menu_keyboard, admin_orders_filter_keyboard, admin_order_detail_keyboard,
     admin_couriers_keyboard, admin_courier_detail_keyboard,
     select_courier_keyboard, orders_list_keyboard,
+    office_menu_keyboard, office_location_request_keyboard, remove_keyboard,
 )
+import settings_store
 from sheets_handler import (
     get_all_orders, get_order_by_num, update_order,
     get_all_couriers, get_courier, add_courier, remove_courier,
@@ -457,6 +459,101 @@ async def add_courier_region(message: Message, state: FSMContext, is_admin: bool
     else:
         await message.answer(f"⚠️ Bu ID ({tg_id}) allaqachon ro'yxatda. Boshqa ID kiriting.")
         await state.set_state(AdminState.adding_courier_id)
+
+
+# ─── OFIS LOKATSIYASI ────────────────────────────────────────────
+
+@router.callback_query(F.data == "adm_office")
+async def show_office(callback: CallbackQuery, state: FSMContext, is_admin: bool = False):
+    if not is_admin:
+        return await callback.answer("⛔", show_alert=True)
+    await state.set_state(AdminState.main_menu)
+    o = settings_store.get_office()
+    text = (
+        "📍 <b>Ofis lokatsiyasi va yetkazish hududi</b>\n\n"
+        f"🌐 Koordinata: <code>{o['lat']:.5f}, {o['lon']:.5f}</code>\n"
+        f"📏 Radius: <b>{o['radius_km']:.0f} km</b>\n\n"
+        "Mijoz lokatsiyasi shu nuqtadan belgilangan radius ichida bo'lsa — "
+        "buyurtma qabul qilinadi. Uzoq bo'lsa, mijoz admin bilan bog'lanishga yo'naltiriladi.\n\n"
+        "Quyidan o'zgartiring 👇"
+    )
+    await callback.message.edit_text(text, reply_markup=office_menu_keyboard())
+    await callback.answer()
+
+
+@router.callback_query(F.data == "adm_office_set")
+async def office_set_prompt(callback: CallbackQuery, state: FSMContext, is_admin: bool = False):
+    if not is_admin:
+        return await callback.answer("⛔", show_alert=True)
+    await state.set_state(AdminState.setting_office_location)
+    await callback.message.answer(
+        "📍 <b>Ofis lokatsiyasini yuboring</b>\n\n"
+        "Pastdagi tugmani bosib, ofisingiz turgan joyni yuboring. "
+        "Shu nuqta yetkazish hududining markazi bo'ladi.",
+        reply_markup=office_location_request_keyboard(),
+    )
+    await callback.answer()
+
+
+@router.message(AdminState.setting_office_location, F.location)
+async def office_set_location(message: Message, state: FSMContext, is_admin: bool = False):
+    if not is_admin:
+        return
+    lat = message.location.latitude
+    lon = message.location.longitude
+    o = settings_store.get_office()
+    ok = settings_store.set_office(lat, lon)
+    await state.set_state(AdminState.main_menu)
+    if ok:
+        await message.answer(
+            "✅ <b>Ofis lokatsiyasi saqlandi!</b>\n\n"
+            f"🌐 Koordinata: <code>{lat:.5f}, {lon:.5f}</code>\n"
+            f"📏 Radius: <b>{o['radius_km']:.0f} km</b>\n\n"
+            "Endi shu nuqtadan belgilangan radius ichidagi buyurtmalar qabul qilinadi.",
+            reply_markup=remove_keyboard(),
+        )
+        await message.answer("🔧 Admin panel:", reply_markup=admin_menu_keyboard())
+    else:
+        await message.answer(
+            "⚠️ Saqlashda xatolik. Qayta urinib ko'ring.",
+            reply_markup=remove_keyboard(),
+        )
+
+
+@router.callback_query(F.data == "adm_office_radius")
+async def office_radius_prompt(callback: CallbackQuery, state: FSMContext, is_admin: bool = False):
+    if not is_admin:
+        return await callback.answer("⛔", show_alert=True)
+    await state.set_state(AdminState.setting_office_radius)
+    o = settings_store.get_office()
+    await callback.message.edit_text(
+        f"📏 <b>Yetkazish radiusi</b>\n\n"
+        f"Joriy: <b>{o['radius_km']:.0f} km</b>\n\n"
+        "Yangi radiusni km da kiriting (faqat raqam).\n"
+        "<i>Masalan: 12</i>\n\n"
+        "/admin — bekor qilish"
+    )
+    await callback.answer()
+
+
+@router.message(AdminState.setting_office_radius)
+async def office_set_radius(message: Message, state: FSMContext, is_admin: bool = False):
+    if not is_admin:
+        return
+    raw = message.text.strip().replace(",", ".")
+    try:
+        radius = float(raw)
+        if radius <= 0 or radius > 200:
+            raise ValueError
+    except ValueError:
+        await message.answer("❗ 0 dan 200 gacha raqam kiriting. Masalan: 12")
+        return
+    settings_store.set_radius(radius)
+    await state.set_state(AdminState.main_menu)
+    await message.answer(
+        f"✅ Radius <b>{radius:.0f} km</b> qilib saqlandi.",
+        reply_markup=admin_menu_keyboard(),
+    )
 
 
 # ─── BROADCAST ───────────────────────────────────────────────────

@@ -92,7 +92,28 @@ def admin_menu_keyboard() -> InlineKeyboardMarkup:
     builder.button(text="📊 Statistika", callback_data="adm_stats")
     builder.button(text="🚴 Kuryerlar", callback_data="adm_couriers")
     builder.button(text="📢 Xabar yuborish", callback_data="adm_broadcast")
-    builder.adjust(2)
+    builder.button(text="📍 Ofis lokatsiyasi", callback_data="adm_office")
+    builder.adjust(2, 2, 1)
+    return builder.as_markup()
+
+
+def office_location_request_keyboard() -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="📍 Ofis lokatsiyasini yuborish", request_location=True)],
+            [KeyboardButton(text="❌ Bekor qilish")],
+        ],
+        resize_keyboard=True,
+        one_time_keyboard=True,
+    )
+
+
+def office_menu_keyboard() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.button(text="📍 Lokatsiyani o'zgartirish", callback_data="adm_office_set")
+    builder.button(text="📏 Radiusni o'zgartirish", callback_data="adm_office_radius")
+    builder.button(text="⬅️ Orqaga", callback_data="adm_back_menu")
+    builder.adjust(1)
     return builder.as_markup()
 
 

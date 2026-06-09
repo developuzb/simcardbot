@@ -23,6 +23,8 @@ class AdminState(StatesGroup):
     adding_courier_phone = State()
     adding_courier_region = State()
     broadcasting = State()
+    setting_office_location = State()
+    setting_office_radius = State()
 
 
 class CourierState(StatesGroup):

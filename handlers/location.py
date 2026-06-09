@@ -5,7 +5,8 @@ from states import OrderState
 from keyboards import confirm_keyboard, remove_keyboard, delivery_type_keyboard
 from utils import detect_region, get_delivery_price, build_order_summary
 from sheets_handler import save_order
-from config import DELIVERY_TYPES, DELIVERY_LAT, DELIVERY_LON, DELIVERY_RADIUS_KM, DELIVERY_ZONE_NAME
+from config import DELIVERY_TYPES, ADMIN_IDS, ADMIN_CONTACT
+import settings_store
 import math
 
 router = Router()
@@ -21,21 +22,60 @@ def _haversine(lat1, lon1, lat2, lon2) -> float:
     return R * 2 * math.asin(math.sqrt(a))
 
 
+async def _redirect_to_admin(message: Message, state: FSMContext, lat: float, lon: float, distance: float):
+    """Mijoz hudud tashqarisida — adminga xabar beradi va mijozni yo'naltiradi."""
+    data = await state.get_data()
+    office = settings_store.get_office()
+
+    await message.answer(
+        f"📍 Sizning joylashuvingiz yetkazish hududidan biroz uzoqroqda "
+        f"(taxminan {distance:.0f} km, hudud {office['radius_km']:.0f} km).\n\n"
+        f"Lekin xavotir olmang — buyurtmangizni shaxsan ko'rib chiqamiz! 🤝\n"
+        f"👨‍💼 Admin tez orada siz bilan bog'lanadi: {ADMIN_CONTACT}",
+        reply_markup=remove_keyboard(),
+    )
+
+    # Adminlarga xabar — mijoz ma'lumotlari bilan
+    name = data.get("name", message.from_user.first_name or "Mijoz")
+    phone = data.get("contact_phone", "—")
+    operator = data.get("operator_name", "—")
+    tariff = data.get("tariff_name", "—")
+    username = message.from_user.username
+    uname = f"@{username}" if username else f"ID: {message.from_user.id}"
+    maps = f"https://maps.google.com/?q={lat},{lon}"
+
+    admin_text = (
+        "🟠 <b>HUDUD TASHQARISIDAGI BUYURTMA</b>\n\n"
+        f"👤 Mijoz: {name} ({uname})\n"
+        f"📞 Tel: {phone}\n"
+        f"📡 Operator: {operator}\n"
+        f"📦 Tarif: {tariff}\n"
+        f"📍 Masofa: ~{distance:.1f} km (ruxsat {office['radius_km']:.0f} km)\n"
+        f"🗺 Lokatsiya: {maps}\n\n"
+        "Mijoz bilan bog'lanib, qo'lda kelishishingiz mumkin."
+    )
+    for admin_id in ADMIN_IDS:
+        try:
+            await message.bot.send_message(admin_id, admin_text)
+            await message.bot.send_location(admin_id, latitude=lat, longitude=lon)
+        except Exception:
+            pass
+
+    await state.clear()
+
+
 @router.message(OrderState.sharing_location, F.location)
 async def receive_location(message: Message, state: FSMContext):
     lat = message.location.latitude
     lon = message.location.longitude
 
-    distance = _haversine(lat, lon, DELIVERY_LAT, DELIVERY_LON)
-    if distance > DELIVERY_RADIUS_KM:
-        await message.answer(
-            f"❌ Kechirasiz, hozircha yetkazib berish faqat <b>{DELIVERY_ZONE_NAME}</b> (atrofida {DELIVERY_RADIUS_KM:.0f} km) da amalga oshiriladi.\n\n"
-            "📍 Siz shu hududda yashamaysizmi? Agar xato bo'lsa, qayta urinib ko'ring.",
-            reply_markup=remove_keyboard(),
-        )
+    office = settings_store.get_office()
+    distance = _haversine(lat, lon, office["lat"], office["lon"])
+    if distance > office["radius_km"]:
+        await _redirect_to_admin(message, state, lat, lon, distance)
         return
 
-    region = DELIVERY_ZONE_NAME
+    region = office["zone_name"]
     delivery_price = 0
 
     await state.update_data(
