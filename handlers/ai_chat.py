@@ -1,7 +1,7 @@
+import asyncio
 import math
 import random
 import re
-import time
 import anthropic
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery, ReplyKeyboardRemove
@@ -30,7 +30,6 @@ def _get_delivery_zones():
 
 
 _ai_client: anthropic.AsyncAnthropic | None = None
-_streaming_ok = True  # proxy stream qo'llab-quvvatlamasa, False ga o'tadi
 
 
 def _get_client() -> anthropic.AsyncAnthropic:
@@ -299,7 +298,7 @@ async def _handle_tools(content, history, user_id, bot, ctx) -> bool:
 
 
 async def _run_plain(history, user_id, bot, ctx) -> str:
-    """Streaming'siz oddiy loop (fallback)."""
+    """AI javobini to'liq oladi (tool loop bilan)."""
     client = _get_client()
     for _ in range(5):
         resp = await client.messages.create(
@@ -316,71 +315,39 @@ async def _run_plain(history, user_id, bot, ctx) -> str:
     return "Qayta urinib ko'ring."
 
 
-async def _run_stream(answer_to, history, user_id, bot, ctx):
-    """Streaming bilan javobni jonli ko'rsatadi. (text, placeholder) qaytaradi."""
-    global _streaming_ok
-    client = _get_client()
-    placeholder = None
-    last_shown = ""
-    last_edit = 0.0
+async def _typewriter(answer_to, text: str, reply_markup):
+    """Matnni 'yozilayotgandek' bo'lak-bo'lak ko'rsatadi (kursor effekti bilan)."""
+    words = text.split()
+    if len(words) <= 4:
+        return await answer_to.answer(text, reply_markup=reply_markup)
 
-    for _ in range(5):
-        full_text = ""
-        try:
-            async with client.messages.stream(
-                model=MODEL, max_tokens=MAX_TOKENS,
-                system=_get_system_prompt(), messages=history, tools=TOOLS,
-            ) as stream:
-                async for event in stream:
-                    if event.type == "text":
-                        full_text += event.text
-                        now = time.monotonic()
-                        if full_text.strip() and (now - last_edit) > 0.7 and full_text != last_shown:
-                            try:
-                                if placeholder is None:
-                                    placeholder = await answer_to.answer(full_text)
-                                else:
-                                    await placeholder.edit_text(full_text, parse_mode=None)
-                                last_shown = full_text
-                                last_edit = now
-                            except Exception:
-                                pass
-                msg = await stream.get_final_message()
-        except Exception:
-            _streaming_ok = False
-            text = await _run_plain(history, user_id, bot, ctx)
-            return text, placeholder
-
-        history.append({"role": "assistant", "content": _serialize_content(msg.content)})
-        text_part = next((b.text for b in msg.content if b.type == "text"), "")
-
-        if text_part and placeholder is not None and last_shown != text_part:
+    msg = await answer_to.answer("✍️")
+    steps = min(6, len(words))
+    step_size = max(1, len(words) // steps)
+    try:
+        for i in range(step_size, len(words), step_size):
+            partial = " ".join(words[:i])
             try:
-                await placeholder.edit_text(text_part)
-                last_shown = text_part
+                await msg.edit_text(partial + " ▌", parse_mode=None)
             except Exception:
                 pass
-
-        if msg.stop_reason == "tool_use":
-            stop = await _handle_tools(msg.content, history, user_id, bot, ctx)
-            if stop:
-                return text_part, placeholder
-        else:
-            return text_part, placeholder
-
-    return "Qayta urinib ko'ring.", placeholder
+            await asyncio.sleep(0.32)
+    finally:
+        try:
+            await msg.edit_text(text, reply_markup=reply_markup)
+        except Exception:
+            try:
+                await msg.edit_text(text, parse_mode=None)
+            except Exception:
+                pass
+    return msg
 
 
 async def _respond(answer_to, state, history, user_id, bot, ctx, next_stage: str):
-    """AI javobini olib, mos klaviatura bilan yuboradi. Streaming yoki fallback."""
+    """AI javobini olib, typewriter animatsiya bilan yuboradi."""
     await bot.send_chat_action(answer_to.chat.id, ChatAction.TYPING)
 
-    if _streaming_ok:
-        ai_text, placeholder = await _run_stream(answer_to, history, user_id, bot, ctx)
-    else:
-        ai_text = await _run_plain(history, user_id, bot, ctx)
-        placeholder = None
-
+    ai_text = await _run_plain(history, user_id, bot, ctx)
     if not ai_text:
         ai_text = "Davom etamiz..."
 
@@ -395,25 +362,11 @@ async def _respond(answer_to, state, history, user_id, bot, ctx, next_stage: str
     )
 
     if ctx["waiting_for_location"]:
-        # Reply keyboard inline emas — alohida xabar kerak
-        if placeholder is not None:
-            try:
-                await placeholder.edit_text(ai_text)
-            except Exception:
-                pass
-            await answer_to.answer("👇", reply_markup=_location_keyboard())
-        else:
-            await answer_to.answer(ai_text, reply_markup=_location_keyboard())
+        await _typewriter(answer_to, ai_text, None)
+        await answer_to.answer("👇 Lokatsiyangizni yuboring:", reply_markup=_location_keyboard())
         return
 
-    kb = _stage_keyboard(final_stage)
-    if placeholder is not None:
-        try:
-            await placeholder.edit_text(ai_text, reply_markup=kb)
-        except Exception:
-            await answer_to.answer(ai_text, reply_markup=kb)
-    else:
-        await answer_to.answer(ai_text, reply_markup=kb)
+    await _typewriter(answer_to, ai_text, _stage_keyboard(final_stage))
 
 
 # ─── START AI CHAT ───────────────────────────────────────────────
@@ -457,7 +410,7 @@ def _is_injection(text: str) -> bool:
 
 # ─── ASOSIY TEXT HANDLERI ───────────────────────────────────────
 
-@router.message(AIState.chatting, F.text)
+@router.message(AIState.chatting, F.text & ~F.text.startswith("/"))
 async def handle_ai_message(message: Message, state: FSMContext):
     data = await state.get_data()
     current_stage: str = data.get("ai_stage", "operator")
