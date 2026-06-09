@@ -81,6 +81,8 @@ def _build_system_prompt() -> str:
         "Uslub: ISHBILARMON, ANIQ, O'ZIGA ISHONCHLI. Tez gaplash, vaqtni behuda sarflama.\n"
         "O'zbek tilida, jonli, 1-2 jumla, 1-2 emoji. Zerikarli rasmiyatchilik YO'Q.\n\n"
         "QANDAY GAPLASHASAN:\n"
+        "- Mijoz salomlashsa yoki biror narsa yozsa — DOIM iliq javob ber, hech qachon jim qolma\n"
+        "- 'salom' desa: 'Salom! Qaysi operator kerak — yoki qancha internet ishlatasiz?' deb yo'naltir\n"
         "- To'g'ridan-to'g'ri ishga kir, ortiqcha so'z yo'q\n"
         "- Mijoz ehtiyojini bilsang — DARHOL aniq tarif tavsiya qil: 'Sizga X ideal — mana nega...'\n"
         "- Foydani raqam bilan ko'rsat: '70 GB, cheksiz qo'ng'iroq — oyiga 70 000, kuniga atiga 2 300 so'm'\n"
@@ -356,6 +358,19 @@ async def _typewriter(answer_to, text: str, reply_markup, existing_msg=None):
     return msg
 
 
+def _fallback_text(stage: str) -> str:
+    """AI bo'sh javob qaytarsa — bosqichga mos foydali matn."""
+    if stage == "operator":
+        return "Salom! 😊 Qaysi operator kerak — yoki qancha internet ishlatasiz? Quyidan tanlang 👇"
+    if stage.startswith("tariff:"):
+        return "Qaysi tarif sizga mos — quyidagilardan tanlang 👇"
+    if stage == "delivery":
+        return "Yetkazib berish turini tanlang 👇"
+    if stage == "phone":
+        return "📞 Telefon raqamingizni yozing:\n<i>Masalan: +998901234567</i>"
+    return "Quyidagi tugmalardan birini tanlang 👇"
+
+
 async def _respond(answer_to, state, history, user_id, bot, ctx, next_stage: str):
     """AI javobini olib, typewriter animatsiya bilan yuboradi."""
     # Darhol "o'ylayapman" xabari — mijoz kutib qolmaydi
@@ -363,8 +378,8 @@ async def _respond(answer_to, state, history, user_id, bot, ctx, next_stage: str
     await bot.send_chat_action(answer_to.chat.id, ChatAction.TYPING)
 
     ai_text = await _run_plain(history, user_id, bot, ctx)
-    if not ai_text:
-        ai_text = "Davom etamiz..."
+    if not ai_text or not ai_text.strip():
+        ai_text = _fallback_text(next_stage)
 
     if len(history) > 16:
         history = history[-16:]
