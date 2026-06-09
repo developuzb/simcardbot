@@ -20,7 +20,7 @@ from sheets_handler import save_order
 
 router = Router()
 
-MODEL = "claude-haiku-4-5"
+MODEL = "claude-sonnet-4-6"
 MAX_TOKENS = 256
 
 
@@ -63,6 +63,20 @@ def _check_zone(lat: float, lon: float) -> str | None:
 def _looks_like_phone(text: str) -> bool:
     digits = re.sub(r"\D", "", text)
     return 9 <= len(digits) <= 13
+
+
+# Mijoz operator nomini yozsa — darhol o'sha operatorga (AI'siz)
+_OP_KEYWORDS = {
+    "ucell": "ucell", "юсел": "ucell", "usell": "ucell", "uсell": "ucell",
+    "beeline": "beeline", "билайн": "beeline", "biliin": "beeline", "bilayn": "beeline",
+    "mobiuz": "ums", "mobi": "ums", "ums": "ums", "мобиуз": "ums", "mobiuz(ums)": "ums",
+    "humans": "humans", "хуманс": "humans", "human": "humans",
+    "uzmobile": "uzmobile", "узмобайл": "uzmobile", "uzmobil": "uzmobile", "uzmobayl": "uzmobile",
+}
+
+
+def _detect_operator(text: str) -> str | None:
+    return _OP_KEYWORDS.get(text.lower().strip())
 
 
 # ─── SYSTEM PROMPT (faqat maslahat uchun, tool YO'Q) ─────────────
@@ -157,12 +171,22 @@ def _location_keyboard() -> ReplyKeyboardMarkup:
 
 # ─── AI MASLAHAT (sof matn, tool YO'Q) ──────────────────────────
 
+# Few-shot priming — modelni Suxrob roliga "qulflaydi" (proxy chalkashmasin)
+_PRIMING = [
+    {"role": "user", "content": "Salom"},
+    {"role": "assistant", "content": (
+        "Salom! Men Suxrob — Texnoset SIM karta mutaxassisi 😊 "
+        "Qaysi operatorni xohlaysiz: Ucell, Beeline, Mobiuz, Humans yoki Uzmobile?"
+    )},
+]
+
+
 async def _ai_reply(history: list) -> str:
-    """AI'дан sof matn javob oladi (tool yo'q — proxy ishonchli ishlaydi)."""
+    """AI'дан sof matn javob oladi (tool yo'q + few-shot priming = ishonchli)."""
     client = _get_client()
     resp = await client.messages.create(
         model=MODEL, max_tokens=MAX_TOKENS,
-        system=_get_system_prompt(), messages=history,
+        system=_get_system_prompt(), messages=_PRIMING + history,
     )
     return "".join(b.text for b in resp.content if b.type == "text").strip()
 
@@ -331,6 +355,17 @@ async def handle_ai_message(message: Message, state: FSMContext):
         await message.answer(
             "Men faqat SIM karta bo'yicha yordam beraman 😊",
             reply_markup=_stage_keyboard(stage),
+        )
+        return
+
+    # Operator nomini yozsa — darhol tarifga (AI'siz, tez)
+    op_id = _detect_operator(message.text)
+    if op_id and (stage == "operator" or stage.startswith("tariff:")):
+        op = OPERATORS[op_id]
+        await state.update_data(ai_stage=f"tariff:{op_id}", sel_operator=op_id)
+        await message.answer(
+            f"✅ {op['emoji']} <b>{op['name']}</b> tanlandi!\n\nQaysi tarifni xohlaysiz? 👇",
+            reply_markup=_stage_keyboard(f"tariff:{op_id}"),
         )
         return
 
