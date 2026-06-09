@@ -4,6 +4,7 @@ from aiogram.types import (
 )
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from data import OPERATORS, TARIFFS
+from config import DELIVERY_TYPES
 import numbers_db
 
 # ─── MIJOZ KLAVIATURALARI ────────────────────────────────────────
@@ -47,6 +48,19 @@ def location_keyboard() -> ReplyKeyboardMarkup:
         resize_keyboard=True,
         one_time_keyboard=True,
     )
+
+
+def delivery_type_keyboard() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    for key, dt in DELIVERY_TYPES.items():
+        price_text = "Bepul" if dt["price"] == 0 else f"{dt['price']:,} so'm"
+        builder.button(
+            text=f"{dt['emoji']} {dt['desc']} — {price_text}",
+            callback_data=f"dtype_{key}",
+        )
+    builder.button(text="❌ Bekor qilish", callback_data="cancel_order")
+    builder.adjust(1)
+    return builder.as_markup()
 
 
 def confirm_keyboard() -> InlineKeyboardMarkup:

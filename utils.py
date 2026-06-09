@@ -36,6 +36,11 @@ def build_order_summary(data: dict) -> str:
     delivery_price = data.get("delivery_price", 0)
     total = tariff_price + delivery_price
 
+    dtype_name = data.get("delivery_type_name", "")
+    delivery_line = f"{format_price(delivery_price)}"
+    if dtype_name:
+        delivery_line = f"{dtype_name} — {format_price(delivery_price)}"
+
     return (
         f"📋 <b>Buyurtma tafsilotlari</b>\n\n"
         f"👤 <b>Mijoz:</b> {data.get('name', '—')}\n"
@@ -43,10 +48,10 @@ def build_order_summary(data: dict) -> str:
         f"📡 <b>Operator:</b> {data.get('operator_emoji', '')} {data.get('operator_name', '—')}\n"
         f"📦 <b>Tarif:</b> {data.get('tariff_name', '—')}\n"
         f"   └ {data.get('tariff_desc', '')}\n"
-        f"📱 <b>Sim raqami:</b> {data.get('sim_number', '—')}\n\n"
+        f"📱 <b>Sim raqami:</b> kuryer kelganida tanlanadi\n\n"
         f"📍 <b>Hudud:</b> {data.get('region', '—')}\n\n"
         f"💰 <b>Tarif narxi:</b> {format_price(tariff_price)}\n"
-        f"🚚 <b>Yetkazib berish:</b> {format_price(delivery_price)}\n"
+        f"🚀 <b>Yetkazib berish:</b> {delivery_line}\n"
         f"{'─' * 30}\n"
         f"💳 <b>Jami:</b> {format_price(total)}\n"
     )

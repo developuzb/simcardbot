@@ -10,7 +10,7 @@ from aiogram.enums import ChatAction
 
 from states import AIState
 from data import OPERATORS, TARIFFS
-from config import ANTHROPIC_API_KEY, ADMIN_IDS, DELIVERY_PRICES, DEFAULT_DELIVERY_PRICE
+from config import ANTHROPIC_API_KEY, ADMIN_IDS, DELIVERY_PRICES, DEFAULT_DELIVERY_PRICE, DELIVERY_TYPES
 from sheets_handler import save_order
 import numbers_db
 
@@ -78,10 +78,16 @@ def _build_system_prompt() -> str:
         "1. Salom + darhol ehtiyojini so'ra (ism so'rama)\n"
         "2. Mos tarifni tavsiya qil, roziligini ol\n"
         "3. Telefon raqamini so'ra\n"
-        "4. request_location chaqir (GPS lokatsiya tekshirish uchun)\n"
-        "5. Hamma ma'lumotni qisqacha takrorla va tasdiqlat\n"
-        "6. place_order chaqir\n"
-        "SIM raqam tanlash kuryer yetib kelganida bo'ladi — hozir so'rама.\n\n"
+        "4. Yetkazish tezligini so'ra va tushuntir (quyida)\n"
+        "5. request_location chaqir (GPS lokatsiya tekshirish uchun)\n"
+        "6. Hamma ma'lumotni qisqacha takrorla va tasdiqlat\n"
+        "7. place_order chaqir\n"
+        "SIM raqam tanlash kuryer yetib kelganida bo'ladi — hozir so'rama.\n\n"
+        "YETKAZIB BERISH TARIFLARI (yumshoq, chiroyli tushuntir):\n"
+        "⚡ tezkor — '1 soat ichida eshigingizga yetkazamiz, shoshilinch bo'lsa ideal!' — 10 000 so'm\n"
+        "🚗 standart — '2 soat ichida qulay narxda' — 5 000 so'm\n"
+        "🕐 ish_vaqti — 'Bugun ish vaqtida (12 soat ichida) — mutlaqo BEPUL! 🎁' — 0 so'm\n"
+        "Mijozga 3 variantni iliq tushuntir. Tejamkor bo'lsa ish_vaqti ni, shoshilsa tezkor ni tavsiya qil.\n\n"
         "MUHIM: Yetkazib berish FAQAT " + zones + " da amalga oshiriladi.\n"
         "Boshqa hudud so'rasa: 'Kechirasiz, hozircha faqat " + zones + " ga yetkazamiz' de.\n\n"
         "MAVJUD TARIFLAR:\n"
@@ -114,8 +120,13 @@ TOOLS = [
                 "customer_name": {"type": "string"},
                 "customer_phone": {"type": "string"},
                 "region": {"type": "string", "description": "GPS orqali tasdiqlangan hudud nomi"},
+                "delivery_type": {
+                    "type": "string",
+                    "enum": ["tezkor", "standart", "ish_vaqti"],
+                    "description": "Yetkazish tezligi: tezkor (1 soat, 10000), standart (2 soat, 5000), ish_vaqti (12 soat, bepul)",
+                },
             },
-            "required": ["operator_id", "tariff_id", "customer_phone", "region"],
+            "required": ["operator_id", "tariff_id", "customer_phone", "region", "delivery_type"],
         },
     },
 ]
@@ -146,10 +157,11 @@ async def _execute_tool(name: str, inputs: dict, user_id: int, bot, ctx: dict) -
     if name == "place_order":
         op_id = inputs.get("operator_id", "")
         tariff_id = inputs.get("tariff_id", "")
-        sim_number = "pending"  # kuryer yetganida mijoz tanlaydi
+        sim_number = "pending"
         customer_name = inputs.get("customer_name", "") or ctx.get("user_name", "Mehmon")
         customer_phone = inputs.get("customer_phone", "")
         region = inputs.get("region", "")
+        dtype_key = inputs.get("delivery_type", "ish_vaqti")
 
         tariff = next((t for t in TARIFFS.get(op_id, []) if t["id"] == tariff_id), None)
         if not tariff:
@@ -159,9 +171,12 @@ async def _execute_tool(name: str, inputs: dict, user_id: int, bot, ctx: dict) -
             )
 
         operator = OPERATORS.get(op_id, {"name": op_id})
-        delivery_price = DELIVERY_PRICES.get(region, DEFAULT_DELIVERY_PRICE)
+        dtype = DELIVERY_TYPES.get(dtype_key, DELIVERY_TYPES["ish_vaqti"])
+        delivery_type_price = dtype["price"]
+        delivery_type_name = f"{dtype['emoji']} {dtype['name']} ({dtype['desc']})"
         tariff_price = tariff.get("price", 0) if tariff else 0
         tariff_name = tariff.get("name", tariff_id) if tariff else tariff_id
+        total = tariff_price + delivery_type_price
 
         order_num = await save_order({
             "name": customer_name,
@@ -171,17 +186,14 @@ async def _execute_tool(name: str, inputs: dict, user_id: int, bot, ctx: dict) -
             "tariff_name": tariff_name,
             "sim_number": sim_number,
             "region": region,
-            "delivery_price": delivery_price,
+            "delivery_price": delivery_type_price,
+            "delivery_type_name": delivery_type_name,
             "tariff_price": tariff_price,
         })
         if order_num is None:
             order_num = random.randint(1000, 9999)
 
-        # Raqamni sotildi deb belgilaymiz
-        numbers_db.mark_sold(op_id, sim_number)
-
         ctx["order_placed"] = True
-        total = delivery_price + tariff_price
 
         admin_text = (
             f"🆕 <b>Yangi buyurtma #{order_num}</b> 🤖 AI orqali\n\n"
@@ -189,9 +201,9 @@ async def _execute_tool(name: str, inputs: dict, user_id: int, bot, ctx: dict) -
             f"📞 <b>Tel:</b> <code>{customer_phone}</code>\n"
             f"📡 <b>Operator:</b> {operator['name']}\n"
             f"📦 <b>Tarif:</b> {tariff_name} — {tariff_price:,} so'm/oy\n"
-            f"📱 <b>Raqam:</b> <code>{sim_number}</code>\n"
+            f"📱 <b>Raqam:</b> kuryer kelganida tanlanadi\n"
             f"📍 <b>Hudud:</b> {region}\n"
-            f"🚚 <b>Yetkazish:</b> {delivery_price:,} so'm\n"
+            f"🚀 <b>Yetkazish:</b> {delivery_type_name} — {delivery_type_price:,} so'm\n"
             f"💰 <b>Jami:</b> {total:,} so'm"
         )
         for admin_id in ADMIN_IDS:

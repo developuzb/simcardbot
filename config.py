@@ -31,3 +31,25 @@ DELIVERY_PRICES = {
 }
 
 DEFAULT_DELIVERY_PRICE = 35_000
+
+# Yetkazib berish tezligi turlari
+DELIVERY_TYPES = {
+    "tezkor": {
+        "name": "Tezkor yetkazish",
+        "desc": "1 soat ichida",
+        "price": 10_000,
+        "emoji": "⚡",
+    },
+    "standart": {
+        "name": "Standart yetkazish",
+        "desc": "2 soat ichida",
+        "price": 5_000,
+        "emoji": "🚗",
+    },
+    "ish_vaqti": {
+        "name": "Ish vaqtida yetkazish",
+        "desc": "12 soat ichida (bepul)",
+        "price": 0,
+        "emoji": "🕐",
+    },
+}

@@ -8,6 +8,7 @@ class OrderState(StatesGroup):
     entering_name = State()
     entering_phone = State()
     sharing_location = State()
+    choosing_delivery_type = State()
     confirming_order = State()
 
 
