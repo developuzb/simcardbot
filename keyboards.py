@@ -4,7 +4,7 @@ from aiogram.types import (
 )
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from data import OPERATORS, TARIFFS
-from config import DELIVERY_TYPES
+from config import DELIVERY_TYPES, PROMO_1PLUS1_MIN_PRICE, PROMO_1PLUS1_BADGE
 import numbers_db
 
 # ─── MIJOZ KLAVIATURALARI ────────────────────────────────────────
@@ -20,8 +20,9 @@ def operators_keyboard() -> InlineKeyboardMarkup:
 def tariffs_keyboard(operator_id: str) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     for tariff in TARIFFS.get(operator_id, []):
+        badge = f" {PROMO_1PLUS1_BADGE}" if tariff["price"] >= PROMO_1PLUS1_MIN_PRICE else ""
         builder.button(
-            text=f"📦 {tariff['name']} — {tariff['price']:,} so'm",
+            text=f"📦 {tariff['name']} — {tariff['price']:,} so'm{badge}",
             callback_data=f"tariff_{tariff['id']}",
         )
     builder.button(text="⬅️ Orqaga", callback_data="back_to_operators")

@@ -10,6 +10,11 @@ ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 # Mijoz hudud tashqarisida bo'lsa ko'rsatiladigan admin aloqasi
 ADMIN_CONTACT = os.getenv("ADMIN_CONTACT", "@texnoset_admin")
 
+# 1+1 aksiya: shu narx va undan qimmat tariflarga 2-SIM/raqam bepul
+PROMO_1PLUS1_MIN_PRICE = int(os.getenv("PROMO_1PLUS1_MIN_PRICE", "70000"))
+PROMO_1PLUS1_BADGE = "🎁 1+1"
+PROMO_1PLUS1_TEXT = "🎁 <b>1+1 AKSIYA:</b> bu tarifga ikkinchi SIM karta BEPUL!"
+
 # Google Sheets
 GOOGLE_CREDENTIALS_FILE = os.getenv("GOOGLE_CREDENTIALS_FILE", "credentials.json")
 SPREADSHEET_ID = os.getenv("SPREADSHEET_ID", "YOUR_SPREADSHEET_ID")

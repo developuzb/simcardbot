@@ -1,6 +1,9 @@
 import math
 from data import REGIONS_COORDS
-from config import DELIVERY_PRICES, DEFAULT_DELIVERY_PRICE
+from config import (
+    DELIVERY_PRICES, DEFAULT_DELIVERY_PRICE,
+    PROMO_1PLUS1_MIN_PRICE, PROMO_1PLUS1_TEXT,
+)
 
 
 def haversine(lat1, lon1, lat2, lon2) -> float:
@@ -41,6 +44,10 @@ def build_order_summary(data: dict) -> str:
     if dtype_name:
         delivery_line = f"{dtype_name} — {format_price(delivery_price)}"
 
+    promo_line = ""
+    if tariff_price >= PROMO_1PLUS1_MIN_PRICE:
+        promo_line = f"{PROMO_1PLUS1_TEXT}\n"
+
     return (
         f"📋 <b>Buyurtma tafsilotlari</b>\n\n"
         f"👤 <b>Mijoz:</b> {data.get('name', '—')}\n"
@@ -48,6 +55,7 @@ def build_order_summary(data: dict) -> str:
         f"📡 <b>Operator:</b> {data.get('operator_emoji', '')} {data.get('operator_name', '—')}\n"
         f"📦 <b>Tarif:</b> {data.get('tariff_name', '—')}\n"
         f"   └ {data.get('tariff_desc', '')}\n"
+        f"{promo_line}"
         f"📱 <b>Sim raqami:</b> kuryer kelganida tanlanadi\n\n"
         f"📍 <b>Hudud:</b> {data.get('region', '—')}\n\n"
         f"💰 <b>Tarif narxi:</b> {format_price(tariff_price)}\n"

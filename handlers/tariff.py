@@ -4,6 +4,7 @@ from aiogram.fsm.context import FSMContext
 from states import OrderState
 from keyboards import numbers_keyboard, tariffs_keyboard
 from data import TARIFFS
+from config import PROMO_1PLUS1_MIN_PRICE, PROMO_1PLUS1_TEXT
 
 router = Router()
 
@@ -38,9 +39,14 @@ async def choose_tariff(callback: CallbackQuery, state: FSMContext):
     lines = [ln.strip() for ln in selected_tariff["desc"].split("•") if ln.strip()]
     desc_block = "<blockquote>" + "\n".join(lines) + "</blockquote>"
 
+    promo_line = ""
+    if selected_tariff["price"] >= PROMO_1PLUS1_MIN_PRICE:
+        promo_line = f"\n{PROMO_1PLUS1_TEXT}\n"
+
     await callback.message.edit_text(
         f"✅ <b>{op_emoji} {op_name}</b> — <b>{selected_tariff['name']}</b> tanlandi\n"
-        f"💰 <b>{selected_tariff['price']:,} so'm</b>/oy\n\n"
+        f"💰 <b>{selected_tariff['price']:,} so'm</b>/oy\n"
+        f"{promo_line}\n"
         f"{desc_block}\n\n"
         f"📱 <b>Sim raqamni tanlang:</b>\n"
         f"Mavjud raqamlardan birini tanlang yoki tasodifiy raqam oling 👇",

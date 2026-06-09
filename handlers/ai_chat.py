@@ -15,6 +15,7 @@ from data import OPERATORS, TARIFFS
 from config import (
     ANTHROPIC_API_KEY, ADMIN_IDS, DELIVERY_TYPES, ADMIN_CONTACT,
     DELIVERY_ZONE_NAME,
+    PROMO_1PLUS1_MIN_PRICE, PROMO_1PLUS1_BADGE, PROMO_1PLUS1_TEXT,
 )
 import settings_store
 from sheets_handler import save_order
@@ -87,8 +88,9 @@ def _build_system_prompt() -> str:
     tariff_lines = []
     for op_id, op in OPERATORS.items():
         for t in TARIFFS.get(op_id, []):
+            promo = " [1+1 AKSIYA: 2-SIM bepul]" if t["price"] >= PROMO_1PLUS1_MIN_PRICE else ""
             tariff_lines.append(
-                f"{op['emoji']} {op['name']} | {t['name']} | {t['price']:,} so'm/oy | {t['desc']}"
+                f"{op['emoji']} {op['name']} | {t['name']} | {t['price']:,} so'm/oy | {t['desc']}{promo}"
             )
     zones = " va ".join(z[0] for z in _get_delivery_zones())
     return (
@@ -101,6 +103,8 @@ def _build_system_prompt() -> str:
         "• 'YouTube/TikTok/Telegram' desa → o'sha ilovani bepul beruvchi operatorni ayt\n"
         "• 'Cheksiz qo'ng'iroq' desa → cheksiz qo'ng'iroqli eng arzon tarifni tavsiya qil\n"
         "• 'Qaysi yaxshi?' desa → 2 ta eng ommabop tarifni solishtir\n"
+        "• 70 000 so'm va undan qimmat tariflarda 🎁 1+1 AKSIYA bor "
+        "(ikkinchi SIM karta BEPUL) — bularni tavsiya qilganda shuni ALBATTA ayt\n"
         "• Har javob oxirida: 'Pastdagi tugmadan tanlang 👇'\n\n"
         "NARQ FORMATI: '70 000 so'm/oy (kuniga ~2 333 so'm)'\n"
         "YETKAZISH: 1 soat=10000 | 2 soat=5000 | 12 soat=BEPUL\n"
@@ -135,8 +139,9 @@ def _stage_keyboard(stage: str) -> object:
     elif stage.startswith("tariff:"):
         op_id = stage.split(":", 1)[1]
         for t in TARIFFS.get(op_id, []):
+            badge = f" {PROMO_1PLUS1_BADGE}" if t["price"] >= PROMO_1PLUS1_MIN_PRICE else ""
             b.button(
-                text=f"📦 {t['name']} — {t['price']:,} so'm",
+                text=f"📦 {t['name']} — {t['price']:,} so'm{badge}",
                 callback_data=f"ai_tf_{op_id}__{t['id']}",
             )
         b.button(text="⬅️ Operator o'zgartirish", callback_data="ai_back_op")
@@ -192,7 +197,8 @@ _PRIMING = [
     {"role": "assistant", "content": (
         "Ko'p internet uchun eng yaxshilari: Mobiuz ORZU 90 — 180 GB (90 000 so'm/oy), "
         "Ucell Bor 90 — 90 GB + hafta oxiri cheksiz (90 000 so'm/oy) 📶 "
-        "Budget muhimmi yoki hajm? Quyidan operatorni tanlang 👇"
+        "Bonus: ikkalasiga 🎁 1+1 aksiya — ikkinchi SIM karta BEPUL! "
+        "Quyidan operatorni tanlang 👇"
     )},
     {"role": "user", "content": "YouTube ko'p ishlataman"},
     {"role": "assistant", "content": (
@@ -294,12 +300,17 @@ async def _place_order(data: dict, user_id: int, bot) -> int:
     if order_num is None:
         order_num = random.randint(1000, 9999)
 
+    promo_line = ""
+    if tariff_price >= PROMO_1PLUS1_MIN_PRICE:
+        promo_line = "🎁 <b>1+1 AKSIYA:</b> 2 ta SIM karta tayyorlang!\n"
+
     admin_text = (
         f"🆕 <b>Yangi buyurtma #{order_num}</b> 🤖 AI orqali\n\n"
         f"👤 <b>Mijoz:</b> {customer_name}\n"
         f"📞 <b>Tel:</b> <code>{customer_phone}</code>\n"
         f"📡 <b>Operator:</b> {operator['name']}\n"
         f"📦 <b>Tarif:</b> {tariff_name} — {tariff_price:,} so'm/oy\n"
+        f"{promo_line}"
         f"📱 <b>Raqam:</b> kuryer kelganida tanlanadi\n"
         f"📍 <b>Hudud:</b> {region}\n"
         f"🚀 <b>Yetkazish:</b> {delivery_name} — {delivery_price:,} so'm\n"
@@ -524,8 +535,12 @@ async def ai_pick_tariff(callback: CallbackQuery, state: FSMContext):
     except Exception:
         pass
     await callback.answer("📦 Tanlandi!")
+    promo_line = ""
+    if tariff["price"] >= PROMO_1PLUS1_MIN_PRICE:
+        promo_line = f"{PROMO_1PLUS1_TEXT}\n\n"
     await callback.message.answer(
         f"✅ <b>{tariff['name']}</b> — {tariff['price']:,} so'm/oy\n\n"
+        f"{promo_line}"
         "Yetkazib berish turini tanlang 👇",
         reply_markup=_stage_keyboard("delivery"),
     )
