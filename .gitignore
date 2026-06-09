@@ -1,0 +1,8 @@
+.env
+credentials.json
+__pycache__/
+*.pyc
+*.pyo
+*.log
+bot_log.txt
+numbers_db.json
