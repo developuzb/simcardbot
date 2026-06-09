@@ -396,7 +396,24 @@ async def handle_ai_message(message: Message, state: FSMContext):
     user_name: str = data.get("user_name", message.from_user.first_name or "Mehmon")
     current_stage: str = data.get("ai_stage", "operator")
 
-    history.append({"role": "user", "content": message.text})
+    # Telefon bosqichida barcha tanlangan ma'lumotlar AI ga bitta kontekst sifatida yuboriladi
+    if current_stage == "phone":
+        op_id = data.get("sel_operator", "")
+        tariff_id = data.get("sel_tariff", "")
+        delivery_key = data.get("sel_delivery", "ish_vaqti")
+        op_name = OPERATORS.get(op_id, {}).get("name", op_id)
+        tariff = next((t for t in TARIFFS.get(op_id, []) if t["id"] == tariff_id), None)
+        tariff_name = tariff["name"] if tariff else tariff_id
+        dtype = DELIVERY_TYPES.get(delivery_key, {})
+        dtype_name = dtype.get("name", delivery_key)
+        history.append({"role": "user", "content": (
+            f"Tanlovlarim: operator={op_id} ({op_name}), tarif={tariff_id} ({tariff_name}), "
+            f"yetkazish={delivery_key} ({dtype_name}). "
+            f"Mening telefon raqamim: {message.text}"
+        )})
+    else:
+        history.append({"role": "user", "content": message.text})
+
     await message.bot.send_chat_action(message.chat.id, ChatAction.TYPING)
 
     ctx = {"waiting_for_location": False, "order_placed": False, "user_name": user_name}
@@ -446,7 +463,8 @@ async def handle_location(message: Message, state: FSMContext):
         )
         return
 
-    await message.answer(f"✅ Joylashuv tasdiqlandi: <b>{zone}</b>", reply_markup=ReplyKeyboardRemove())
+    # Keyboard ni olib tash (alohida xabarsiz)
+    await message.answer(f"✅ <b>{zone}</b>", reply_markup=ReplyKeyboardRemove())
 
     history: list = data.get("ai_history", [])
     history.append({"role": "user", "content": f"Mening hududim tasdiqlandi: {zone}"})
@@ -461,7 +479,7 @@ async def handle_location(message: Message, state: FSMContext):
     try:
         ai_text, history = await _run_ai_loop(history, message.from_user.id, message.bot, ctx)
         if not ai_text:
-            ai_text = "Zo'r! Buyurtma rasmiylashtirilmoqda..."
+            ai_text = "Buyurtma rasmiylashtirilmoqda..."
 
         if len(history) > 14:
             history = history[-14:]
@@ -483,11 +501,15 @@ async def ai_pick_operator(callback: CallbackQuery, state: FSMContext):
     if not op:
         return await callback.answer("Xatolik.", show_alert=True)
 
-    await _inject_and_respond(
-        callback, state,
-        injected_msg=f"Men {op['emoji']} {op['name']} operatorini tanladim",
-        new_stage=f"tariff:{op_id}",
-        fallback_text=f"{op['name']} tariflarini ko'rsataman 👇",
+    await state.update_data(ai_stage=f"tariff:{op_id}", sel_operator=op_id)
+    try:
+        await callback.message.edit_reply_markup(reply_markup=None)
+    except Exception:
+        pass
+    await callback.answer(f"{op['emoji']} Tanlandi!")
+    await callback.message.answer(
+        f"✅ {op['emoji']} <b>{op['name']}</b> tanlandi!\n\nQaysi tarifni xohlaysiz? 👇",
+        reply_markup=_stage_keyboard(f"tariff:{op_id}"),
     )
 
 
@@ -497,16 +519,20 @@ async def ai_pick_tariff(callback: CallbackQuery, state: FSMContext):
     if len(parts) < 2:
         return await callback.answer("Xatolik.", show_alert=True)
     op_id, tariff_id = parts
-
     tariff = next((t for t in TARIFFS.get(op_id, []) if t["id"] == tariff_id), None)
     if not tariff:
         return await callback.answer("Tarif topilmadi.", show_alert=True)
 
-    await _inject_and_respond(
-        callback, state,
-        injected_msg=f"📦 {tariff['name']} tarifini tanladim ({tariff['price']:,} so'm/oy)",
-        new_stage="delivery",
-        fallback_text="Ajoyib! Yetkazib berish turini tanlang 👇",
+    await state.update_data(ai_stage="delivery", sel_tariff=tariff_id, sel_operator=op_id)
+    try:
+        await callback.message.edit_reply_markup(reply_markup=None)
+    except Exception:
+        pass
+    await callback.answer("📦 Tanlandi!")
+    await callback.message.answer(
+        f"✅ <b>{tariff['name']}</b> — {tariff['price']:,} so'm/oy\n\n"
+        "Yetkazib berish turini tanlang 👇",
+        reply_markup=_stage_keyboard("delivery"),
     )
 
 
@@ -517,21 +543,23 @@ async def ai_pick_delivery(callback: CallbackQuery, state: FSMContext):
     if not dtype:
         return await callback.answer("Xatolik.", show_alert=True)
 
-    price_text = "Bepul" if dtype["price"] == 0 else f"{dtype['price']:,} so'm"
-    await _inject_and_respond(
-        callback, state,
-        injected_msg=f"{dtype['emoji']} {dtype['name']} ({dtype['desc']}) — {price_text}",
-        new_stage="phone",
-        fallback_text="Telefon raqamingizni yozing 📞",
+    price_text = "Bepul 🎁" if dtype["price"] == 0 else f"{dtype['price']:,} so'm"
+    await state.update_data(ai_stage="phone", sel_delivery=dtype_key)
+    try:
+        await callback.message.edit_reply_markup(reply_markup=None)
+    except Exception:
+        pass
+    await callback.answer(f"{dtype['emoji']} Tanlandi!")
+    await callback.message.answer(
+        f"✅ {dtype['emoji']} <b>{dtype['name']}</b> ({dtype['desc']}) — {price_text}\n\n"
+        "📞 Telefon raqamingizni yozing:\n<i>Masalan: +998901234567</i>",
+        reply_markup=_stage_keyboard("phone"),
     )
 
 
 @router.callback_query(AIState.chatting, F.data == "ai_back_op")
 async def ai_back_operator(callback: CallbackQuery, state: FSMContext):
-    data = await state.get_data()
-    history: list = data.get("ai_history", [])
-    history.append({"role": "user", "content": "Operatorni o'zgartirmoqchiman"})
-    await state.update_data(ai_history=history, ai_stage="operator")
+    await state.update_data(ai_stage="operator", sel_operator=None, sel_tariff=None)
     try:
         await callback.message.edit_reply_markup(reply_markup=None)
     except Exception:

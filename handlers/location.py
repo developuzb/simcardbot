@@ -46,7 +46,6 @@ async def receive_location(message: Message, state: FSMContext):
     )
     await state.set_state(OrderState.choosing_delivery_type)
 
-    await message.answer("Klaviatura o'chirildi.", reply_markup=remove_keyboard())
     await message.answer(
         f"✅ <b>Joylashuv tasdiqlandi:</b> {region}\n\n"
         "🚀 <b>Yetkazib berish tezligini tanlang:</b>\n\n"
