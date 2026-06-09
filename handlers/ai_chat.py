@@ -1,5 +1,7 @@
 import math
 import random
+import re
+import time
 import anthropic
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery, ReplyKeyboardRemove
@@ -19,12 +21,16 @@ import numbers_db
 
 router = Router()
 
+MODEL = "claude-haiku-4-5"
+MAX_TOKENS = 300
+
 
 def _get_delivery_zones():
     return [(DELIVERY_ZONE_NAME, DELIVERY_LAT, DELIVERY_LON, DELIVERY_RADIUS_KM)]
 
 
 _ai_client: anthropic.AsyncAnthropic | None = None
+_streaming_ok = True  # proxy stream qo'llab-quvvatlamasa, False ga o'tadi
 
 
 def _get_client() -> anthropic.AsyncAnthropic:
@@ -33,6 +39,8 @@ def _get_client() -> anthropic.AsyncAnthropic:
         _ai_client = anthropic.AsyncAnthropic(
             api_key=ANTHROPIC_API_KEY,
             base_url="https://aiprimetech.io",
+            timeout=60.0,
+            max_retries=2,
         )
     return _ai_client
 
@@ -52,6 +60,11 @@ def _check_zone(lat: float, lon: float) -> str | None:
         if _haversine(lat, lon, zlat, zlon) <= radius:
             return name
     return None
+
+
+def _looks_like_phone(text: str) -> bool:
+    digits = re.sub(r"\D", "", text)
+    return 9 <= len(digits) <= 13
 
 
 # ─── SYSTEM PROMPT ──────────────────────────────────────────────
@@ -84,7 +97,7 @@ def _build_system_prompt() -> str:
     )
 
 
-_SYSTEM_PROMPT: str | None = None  # restart bo'lganda qayta quriladi
+_SYSTEM_PROMPT: str | None = None
 
 
 def _get_system_prompt() -> str:
@@ -92,6 +105,22 @@ def _get_system_prompt() -> str:
     if _SYSTEM_PROMPT is None:
         _SYSTEM_PROMPT = _build_system_prompt()
     return _SYSTEM_PROMPT
+
+
+def _context_note(data: dict) -> str | None:
+    """Mijoz hozirgacha tanlagan ma'lumotlarni AI ga eslatuvchi qisqa kontekst."""
+    op_id = data.get("sel_operator")
+    if not op_id:
+        return None
+    parts = [f"operator={OPERATORS.get(op_id, {}).get('name', op_id)}"]
+    tariff_id = data.get("sel_tariff")
+    if tariff_id:
+        tariff = next((t for t in TARIFFS.get(op_id, []) if t["id"] == tariff_id), None)
+        parts.append(f"tarif={tariff['name'] if tariff else tariff_id} ({tariff_id})")
+    dkey = data.get("sel_delivery")
+    if dkey:
+        parts.append(f"yetkazish={DELIVERY_TYPES.get(dkey, {}).get('name', dkey)} ({dkey})")
+    return "[Mijoz tanlovlari: " + ", ".join(parts) + "]"
 
 
 # ─── TOOLS ──────────────────────────────────────────────────────
@@ -132,7 +161,6 @@ def _stage_keyboard(stage: str) -> object:
     if stage == "operator":
         for op_id, op in OPERATORS.items():
             b.button(text=f"{op['emoji']} {op['name']}", callback_data=f"ai_op_{op_id}")
-        b.adjust(2, 2, 1)
         b.button(text="❌ Chiqish", callback_data="ai_exit")
         b.adjust(2, 2, 1, 1)
 
@@ -177,7 +205,7 @@ def _location_keyboard() -> ReplyKeyboardMarkup:
     )
 
 
-# ─── AI LOOP ────────────────────────────────────────────────────
+# ─── AI YADROSI ─────────────────────────────────────────────────
 
 def _serialize_content(blocks) -> list:
     result = []
@@ -195,12 +223,12 @@ async def _execute_tool(name: str, inputs: dict, user_id: int, bot, ctx: dict) -
         return "Mijozdan GPS lokatsiya kutilmoqda."
 
     if name == "place_order":
-        op_id = inputs.get("operator_id", "")
-        tariff_id = inputs.get("tariff_id", "")
+        op_id = inputs.get("operator_id", "") or ctx.get("sel_operator", "")
+        tariff_id = inputs.get("tariff_id", "") or ctx.get("sel_tariff", "")
         customer_name = inputs.get("customer_name", "") or ctx.get("user_name", "Mehmon")
         customer_phone = inputs.get("customer_phone", "")
-        region = inputs.get("region", "")
-        dtype_key = inputs.get("delivery_type", "ish_vaqti")
+        region = inputs.get("region", "") or DELIVERY_ZONE_NAME
+        dtype_key = inputs.get("delivery_type", "") or ctx.get("sel_delivery", "ish_vaqti")
 
         tariff = next((t for t in TARIFFS.get(op_id, []) if t["id"] == tariff_id), None)
         if not tariff:
@@ -256,89 +284,136 @@ async def _execute_tool(name: str, inputs: dict, user_id: int, bot, ctx: dict) -
     return "Noma'lum amal."
 
 
-async def _run_ai_loop(history: list, user_id: int, bot, ctx: dict) -> tuple[str, list]:
+async def _handle_tools(content, history, user_id, bot, ctx) -> bool:
+    """Tool natijalarini bajaradi. waiting_for_location bo'lsa True qaytaradi (loop to'xtaydi)."""
+    tool_results = []
+    for block in content:
+        if block.type == "tool_use":
+            result = await _execute_tool(block.name, block.input, user_id, bot, ctx)
+            tool_results.append({"type": "tool_result", "tool_use_id": block.id, "content": result})
+            if ctx.get("waiting_for_location"):
+                history.append({"role": "user", "content": tool_results})
+                return True
+    history.append({"role": "user", "content": tool_results})
+    return False
+
+
+async def _run_plain(history, user_id, bot, ctx) -> str:
+    """Streaming'siz oddiy loop (fallback)."""
     client = _get_client()
     for _ in range(5):
         resp = await client.messages.create(
-            model="claude-haiku-4-5",
-            max_tokens=250,
-            system=_get_system_prompt(),
-            messages=history,
-            tools=TOOLS,
+            model=MODEL, max_tokens=MAX_TOKENS,
+            system=_get_system_prompt(), messages=history, tools=TOOLS,
         )
         history.append({"role": "assistant", "content": _serialize_content(resp.content)})
-
         if resp.stop_reason == "tool_use":
-            tool_results = []
-            for block in resp.content:
-                if block.type == "tool_use":
-                    result = await _execute_tool(block.name, block.input, user_id, bot, ctx)
-                    tool_results.append({"type": "tool_result", "tool_use_id": block.id, "content": result})
-                    if ctx.get("waiting_for_location"):
-                        ai_text = next((b.text for b in resp.content if b.type == "text"), "")
-                        history.append({"role": "user", "content": tool_results})
-                        return ai_text, history
-            history.append({"role": "user", "content": tool_results})
+            stop = await _handle_tools(resp.content, history, user_id, bot, ctx)
+            if stop:
+                return next((b.text for b in resp.content if b.type == "text"), "")
         else:
-            ai_text = next((b.text for b in resp.content if b.type == "text"), "")
-            return ai_text, history
-
-    return "Qayta urinib ko'ring.", history
+            return next((b.text for b in resp.content if b.type == "text"), "")
+    return "Qayta urinib ko'ring."
 
 
-# ─── HELPER: INJECT MESSAGE TO AI ───────────────────────────────
+async def _run_stream(answer_to, history, user_id, bot, ctx):
+    """Streaming bilan javobni jonli ko'rsatadi. (text, placeholder) qaytaradi."""
+    global _streaming_ok
+    client = _get_client()
+    placeholder = None
+    last_shown = ""
+    last_edit = 0.0
 
-async def _inject_and_respond(
-    callback: CallbackQuery,
-    state: FSMContext,
-    injected_msg: str,
-    new_stage: str,
-    fallback_text: str = "Davom etamiz...",
-):
-    """Tugma bosilganda xabarni AI ga yuborish va javob olish."""
-    data = await state.get_data()
-    history: list = data.get("ai_history", [])
-    user_name: str = data.get("user_name", callback.from_user.first_name or "Mehmon")
+    for _ in range(5):
+        full_text = ""
+        try:
+            async with client.messages.stream(
+                model=MODEL, max_tokens=MAX_TOKENS,
+                system=_get_system_prompt(), messages=history, tools=TOOLS,
+            ) as stream:
+                async for event in stream:
+                    if event.type == "text":
+                        full_text += event.text
+                        now = time.monotonic()
+                        if full_text.strip() and (now - last_edit) > 0.7 and full_text != last_shown:
+                            try:
+                                if placeholder is None:
+                                    placeholder = await answer_to.answer(full_text)
+                                else:
+                                    await placeholder.edit_text(full_text, parse_mode=None)
+                                last_shown = full_text
+                                last_edit = now
+                            except Exception:
+                                pass
+                msg = await stream.get_final_message()
+        except Exception:
+            _streaming_ok = False
+            text = await _run_plain(history, user_id, bot, ctx)
+            return text, placeholder
 
-    history.append({"role": "user", "content": injected_msg})
-    await state.update_data(ai_history=history, ai_stage=new_stage)
+        history.append({"role": "assistant", "content": _serialize_content(msg.content)})
+        text_part = next((b.text for b in msg.content if b.type == "text"), "")
 
-    try:
-        await callback.message.edit_reply_markup(reply_markup=None)
-    except Exception:
-        pass
+        if text_part and placeholder is not None and last_shown != text_part:
+            try:
+                await placeholder.edit_text(text_part)
+                last_shown = text_part
+            except Exception:
+                pass
 
-    await callback.answer()
-    await callback.bot.send_chat_action(callback.message.chat.id, ChatAction.TYPING)
-
-    ctx = {"waiting_for_location": False, "order_placed": False, "user_name": user_name}
-
-    try:
-        ai_text, history = await _run_ai_loop(history, callback.from_user.id, callback.bot, ctx)
-        if not ai_text:
-            ai_text = fallback_text
-
-        if len(history) > 14:
-            history = history[-14:]
-
-        final_stage = "done" if ctx["order_placed"] else new_stage
-        await state.update_data(
-            ai_history=history,
-            ai_stage=final_stage,
-            waiting_for_location=ctx["waiting_for_location"],
-        )
-
-        if ctx["waiting_for_location"]:
-            await callback.message.answer(ai_text, reply_markup=_location_keyboard())
+        if msg.stop_reason == "tool_use":
+            stop = await _handle_tools(msg.content, history, user_id, bot, ctx)
+            if stop:
+                return text_part, placeholder
         else:
-            await callback.message.answer(ai_text, reply_markup=_stage_keyboard(final_stage))
+            return text_part, placeholder
 
-    except anthropic.AuthenticationError:
-        await callback.message.answer("⚠️ AI kalit xato.")
-    except anthropic.RateLimitError:
-        await callback.message.answer("⚠️ AI band. Bir oz kuting.")
-    except Exception:
-        await callback.message.answer("⚠️ Xatolik. /start bosing.")
+    return "Qayta urinib ko'ring.", placeholder
+
+
+async def _respond(answer_to, state, history, user_id, bot, ctx, next_stage: str):
+    """AI javobini olib, mos klaviatura bilan yuboradi. Streaming yoki fallback."""
+    await bot.send_chat_action(answer_to.chat.id, ChatAction.TYPING)
+
+    if _streaming_ok:
+        ai_text, placeholder = await _run_stream(answer_to, history, user_id, bot, ctx)
+    else:
+        ai_text = await _run_plain(history, user_id, bot, ctx)
+        placeholder = None
+
+    if not ai_text:
+        ai_text = "Davom etamiz..."
+
+    if len(history) > 16:
+        history = history[-16:]
+
+    final_stage = "done" if ctx["order_placed"] else next_stage
+    await state.update_data(
+        ai_history=history,
+        ai_stage=final_stage,
+        waiting_for_location=ctx["waiting_for_location"],
+    )
+
+    if ctx["waiting_for_location"]:
+        # Reply keyboard inline emas — alohida xabar kerak
+        if placeholder is not None:
+            try:
+                await placeholder.edit_text(ai_text)
+            except Exception:
+                pass
+            await answer_to.answer("👇", reply_markup=_location_keyboard())
+        else:
+            await answer_to.answer(ai_text, reply_markup=_location_keyboard())
+        return
+
+    kb = _stage_keyboard(final_stage)
+    if placeholder is not None:
+        try:
+            await placeholder.edit_text(ai_text, reply_markup=kb)
+        except Exception:
+            await answer_to.answer(ai_text, reply_markup=kb)
+    else:
+        await answer_to.answer(ai_text, reply_markup=kb)
 
 
 # ─── START AI CHAT ───────────────────────────────────────────────
@@ -365,13 +440,13 @@ async def start_ai_chat(target, state: FSMContext):
         await target.answer()
 
 
-# ─── ASOSIY TEXT HANDLERI ───────────────────────────────────────
+# ─── INJECTION FILTER ───────────────────────────────────────────
 
 _INJECTION_PATTERNS = [
     "ignore previous", "ignore all", "forget instructions", "new instructions",
     "system prompt", "you are now", "pretend you are", "act as", "jailbreak",
     "oldingi ko'rsatmalarni", "ko'rsatmalarni unut", "sen endi", "rolni o'zgartir",
-    "tool_call", "callFunction", "function_call", "<system>", "</system>",
+    "tool_call", "callfunction", "function_call", "<system>", "</system>",
 ]
 
 
@@ -380,63 +455,43 @@ def _is_injection(text: str) -> bool:
     return any(p in t for p in _INJECTION_PATTERNS)
 
 
+# ─── ASOSIY TEXT HANDLERI ───────────────────────────────────────
+
 @router.message(AIState.chatting, F.text)
 async def handle_ai_message(message: Message, state: FSMContext):
+    data = await state.get_data()
+    current_stage: str = data.get("ai_stage", "operator")
+
     if _is_injection(message.text):
-        data = await state.get_data()
-        stage = data.get("ai_stage", "operator")
         await message.answer(
             "Men faqat SIM karta masalasida yordam bera olaman 😊",
-            reply_markup=_stage_keyboard(stage),
+            reply_markup=_stage_keyboard(current_stage),
         )
         return
 
-    data = await state.get_data()
     history: list = data.get("ai_history", [])
     user_name: str = data.get("user_name", message.from_user.first_name or "Mehmon")
-    current_stage: str = data.get("ai_stage", "operator")
 
-    # Telefon bosqichida barcha tanlangan ma'lumotlar AI ga bitta kontekst sifatida yuboriladi
+    # Telefon bosqichida raqamni tekshiramiz (API ni tejaymiz)
     if current_stage == "phone":
-        op_id = data.get("sel_operator", "")
-        tariff_id = data.get("sel_tariff", "")
-        delivery_key = data.get("sel_delivery", "ish_vaqti")
-        op_name = OPERATORS.get(op_id, {}).get("name", op_id)
-        tariff = next((t for t in TARIFFS.get(op_id, []) if t["id"] == tariff_id), None)
-        tariff_name = tariff["name"] if tariff else tariff_id
-        dtype = DELIVERY_TYPES.get(delivery_key, {})
-        dtype_name = dtype.get("name", delivery_key)
-        history.append({"role": "user", "content": (
-            f"Tanlovlarim: operator={op_id} ({op_name}), tarif={tariff_id} ({tariff_name}), "
-            f"yetkazish={delivery_key} ({dtype_name}). "
-            f"Mening telefon raqamim: {message.text}"
-        )})
+        if not _looks_like_phone(message.text):
+            await message.answer(
+                "📞 Iltimos, to'g'ri telefon raqam kiriting.\n<i>Masalan: +998901234567</i>",
+                reply_markup=_stage_keyboard("phone"),
+            )
+            return
+        note = _context_note(data) or ""
+        history.append({"role": "user", "content": f"{note}\nMening telefon raqamim: {message.text}"})
     else:
         history.append({"role": "user", "content": message.text})
 
-    await message.bot.send_chat_action(message.chat.id, ChatAction.TYPING)
-
-    ctx = {"waiting_for_location": False, "order_placed": False, "user_name": user_name}
+    ctx = {
+        "waiting_for_location": False, "order_placed": False, "user_name": user_name,
+        "sel_operator": data.get("sel_operator"), "sel_tariff": data.get("sel_tariff"),
+        "sel_delivery": data.get("sel_delivery"),
+    }
     try:
-        ai_text, history = await _run_ai_loop(history, message.from_user.id, message.bot, ctx)
-        if not ai_text:
-            ai_text = "Uzr, tushunmadim. Boshqacha yozing."
-
-        if len(history) > 14:
-            history = history[-14:]
-
-        final_stage = "done" if ctx["order_placed"] else current_stage
-        await state.update_data(
-            ai_history=history,
-            ai_stage=final_stage,
-            waiting_for_location=ctx["waiting_for_location"],
-        )
-
-        if ctx["waiting_for_location"]:
-            await message.answer(ai_text, reply_markup=_location_keyboard())
-        else:
-            await message.answer(ai_text, reply_markup=_stage_keyboard(final_stage))
-
+        await _respond(message, state, history, message.from_user.id, message.bot, ctx, current_stage)
     except anthropic.AuthenticationError:
         await message.answer("⚠️ AI kalit xato. Admin bilan bog'laning.")
     except anthropic.RateLimitError:
@@ -463,31 +518,20 @@ async def handle_location(message: Message, state: FSMContext):
         )
         return
 
-    # Keyboard ni olib tash (alohida xabarsiz)
     await message.answer(f"✅ <b>{zone}</b>", reply_markup=ReplyKeyboardRemove())
 
     history: list = data.get("ai_history", [])
-    history.append({"role": "user", "content": f"Mening hududim tasdiqlandi: {zone}"})
+    note = _context_note(data) or ""
+    history.append({"role": "user", "content": f"{note}\nMening hududim tasdiqlandi: {zone}"})
 
-    await message.bot.send_chat_action(message.chat.id, ChatAction.TYPING)
     ctx = {
-        "waiting_for_location": False,
-        "order_placed": False,
+        "waiting_for_location": False, "order_placed": False,
         "user_name": data.get("user_name", message.from_user.first_name or "Mehmon"),
+        "sel_operator": data.get("sel_operator"), "sel_tariff": data.get("sel_tariff"),
+        "sel_delivery": data.get("sel_delivery"),
     }
-
     try:
-        ai_text, history = await _run_ai_loop(history, message.from_user.id, message.bot, ctx)
-        if not ai_text:
-            ai_text = "Buyurtma rasmiylashtirilmoqda..."
-
-        if len(history) > 14:
-            history = history[-14:]
-
-        final_stage = "done" if ctx["order_placed"] else "phone"
-        await state.update_data(ai_history=history, waiting_for_location=False, ai_stage=final_stage)
-        await message.answer(ai_text, reply_markup=_stage_keyboard(final_stage))
-
+        await _respond(message, state, history, message.from_user.id, message.bot, ctx, "phone")
     except Exception:
         await message.answer("⚠️ Xatolik. /start bosib qayta boshlang.")
 
