@@ -25,6 +25,8 @@ def _defaults() -> dict:
         "lon": DELIVERY_LON,
         "radius_km": DELIVERY_RADIUS_KM,
         "zone_name": DELIVERY_ZONE_NAME,
+        # Kuryerlar guruhi (env COURIER_GROUP_ID birinchi, keyin /setgroup)
+        "courier_group_id": int(os.getenv("COURIER_GROUP_ID", "0")),
     }
 
 
@@ -73,3 +75,28 @@ def set_office(lat: float, lon: float, radius_km: float | None = None,
 def set_radius(radius_km: float) -> bool:
     o = _load()
     return set_office(o["lat"], o["lon"], radius_km=radius_km)
+
+
+def get_courier_group() -> int:
+    """Kuryerlar guruhi chat ID. Env COURIER_GROUP_ID ustun, keyin /setgroup."""
+    env = os.getenv("COURIER_GROUP_ID", "")
+    if env.lstrip("-").isdigit() and int(env) != 0:
+        return int(env)
+    try:
+        return int(_load().get("courier_group_id") or 0)
+    except (ValueError, TypeError):
+        return 0
+
+
+def set_courier_group(chat_id: int) -> bool:
+    global _cache
+    current = _load()
+    current["courier_group_id"] = int(chat_id)
+    try:
+        with open(_SETTINGS_FILE, "w", encoding="utf-8") as f:
+            json.dump(current, f, ensure_ascii=False, indent=2)
+        _cache = current
+        return True
+    except Exception as e:
+        logger.error(f"set_courier_group xatolik: {e}")
+        return False

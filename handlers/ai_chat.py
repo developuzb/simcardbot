@@ -1,6 +1,6 @@
 import asyncio
+import logging
 import math
-import random
 import re
 import anthropic
 from aiogram import Router, F
@@ -19,8 +19,10 @@ from config import (
 import settings_store
 import analytics_store
 import tariff_advice
-from sheets_handler import save_order
+import orders_db
+from handlers import dispatch
 
+logger = logging.getLogger(__name__)
 router = Router()
 
 MODEL = "claude-sonnet-4-6"
@@ -307,8 +309,10 @@ def _fallback_text(stage: str) -> str:
 
 # ─── BUYURTMANI KOD ORQALI RASMIYLASHTIRISH ─────────────────────
 
-async def _place_order(data: dict, user_id: int, bot) -> int:
-    """Tanlangan ma'lumotlar asosida buyurtma yaratadi (AI'siz, to'liq kod)."""
+async def _place_order(data: dict, user_id: int, bot,
+                       lat: float | None = None, lon: float | None = None) -> int:
+    """Buyurtmani lokal bazaga yozadi va adminga tasdiqlash tugmalari
+    bilan yuboradi. Admin tasdiqlagach kuryerlar guruhiga tushadi."""
     op_id = data.get("sel_operator", "")
     tariff_id = data.get("sel_tariff", "")
     dtype_key = data.get("sel_delivery", "ish_vaqti")
@@ -325,40 +329,33 @@ async def _place_order(data: dict, user_id: int, bot) -> int:
     tariff_name = tariff.get("name", tariff_id) if tariff else tariff_id
     total = tariff_price + delivery_price
 
-    order_num = await save_order({
+    order_num = await orders_db.create_order({
         "name": customer_name,
         "user_id": user_id,
-        "contact_phone": customer_phone,
-        "operator_name": operator["name"],
-        "tariff_name": tariff_name,
-        "sim_number": "pending",
+        "phone": customer_phone,
+        "operator": operator["name"],
+        "op_id": op_id,
+        "tariff": tariff_name,
         "region": region,
+        "lat": lat,
+        "lon": lon,
         "delivery_price": delivery_price,
-        "delivery_type_name": delivery_name,
+        "delivery_type": delivery_name,
         "tariff_price": tariff_price,
+        "promo": tariff_price >= PROMO_1PLUS1_MIN_PRICE,
     })
-    if order_num is None:
-        order_num = random.randint(1000, 9999)
 
-    promo_line = ""
-    if tariff_price >= PROMO_1PLUS1_MIN_PRICE:
-        promo_line = "🎁 <b>1+1 AKSIYA:</b> 2 ta SIM karta tayyorlang!\n"
-
-    admin_text = (
-        f"🆕 <b>Yangi buyurtma #{order_num}</b> 🤖 AI orqali\n\n"
-        f"👤 <b>Mijoz:</b> {customer_name}\n"
-        f"📞 <b>Tel:</b> <code>{customer_phone}</code>\n"
-        f"📡 <b>Operator:</b> {operator['name']}\n"
-        f"📦 <b>Tarif:</b> {tariff_name} — {tariff_price:,} so'm/oy\n"
-        f"{promo_line}"
-        f"📱 <b>Raqam:</b> kuryer kelganida tanlanadi\n"
-        f"📍 <b>Hudud:</b> {region}\n"
-        f"🚀 <b>Yetkazish:</b> {delivery_name} — {delivery_price:,} so'm\n"
-        f"💰 <b>Jami:</b> {total:,} so'm"
-    )
+    # Adminga tasdiqlash kartochkasi (pin bilan)
+    order = await orders_db.get_order_by_num(order_num)
     for admin_id in ADMIN_IDS:
         try:
-            await bot.send_message(admin_id, admin_text)
+            await bot.send_message(
+                admin_id,
+                dispatch.order_card(order, f"🆕 <b>YANGI BUYURTMA #{order_num}</b> — tasdiqlang"),
+                reply_markup=dispatch.kb_admin_confirm(order_num),
+            )
+            if lat and lon:
+                await bot.send_location(admin_id, latitude=lat, longitude=lon)
         except Exception:
             pass
 
@@ -500,6 +497,25 @@ async def handle_ai_message(message: Message, state: FSMContext):
 @router.message(AIState.chatting, F.location)
 async def handle_location(message: Message, state: FSMContext):
     data = await state.get_data()
+    stage: str = data.get("ai_stage", "operator")
+
+    # Faqat "location" bosqichida buyurtma yaratiladi — dublikat va
+    # "bo'sh buyurtma" (tarif/telefonsiz) himoyasi.
+    if stage != "location":
+        if stage == "done":
+            await message.answer(
+                "✅ Buyurtmangiz allaqachon qabul qilingan!\n"
+                "Yana buyurtma kerak bo'lsa, quyidagi tugmani bosing 👇",
+                reply_markup=_stage_keyboard("done"),
+            )
+        else:
+            await message.answer(
+                "Avval tarif va telefon raqamini hal qilaylik 😊 "
+                "Quyidan davom etamiz 👇",
+                reply_markup=_stage_keyboard(stage),
+            )
+        return
+
     lat = message.location.latitude
     lon = message.location.longitude
     zone = _check_zone(lat, lon)
@@ -546,23 +562,28 @@ async def handle_location(message: Message, state: FSMContext):
     # Buyurtmani KOD orqali rasmiylashtiramiz (AI'siz, ishonchli)
     data = await state.get_data()
     try:
-        order_num = await _place_order(data, message.from_user.id, message.bot)
+        order_num = await _place_order(data, message.from_user.id, message.bot, lat=lat, lon=lon)
         tariff = next((t for t in TARIFFS.get(data.get("sel_operator", ""), [])
                        if t["id"] == data.get("sel_tariff", "")), None)
         dtype = DELIVERY_TYPES.get(data.get("sel_delivery", "ish_vaqti"), {})
         tariff_name = tariff["name"] if tariff else "—"
+        tariff_price = tariff["price"] if tariff else 0
+        total = tariff_price + dtype.get("price", 0)
         cust_name = data.get("user_name", "")
         await state.update_data(ai_stage="done")
         await message.answer(
-            f"🎉 <b>Tabriklayman{', ' + cust_name if cust_name else ''}! Buyurtmangiz qabul qilindi</b> (#{order_num})\n\n"
+            f"🎉 <b>Rahmat{', ' + cust_name if cust_name else ''}! Buyurtmangiz qabul qilindi</b> (#{order_num})\n\n"
             f"📦 Tarif: <b>{tariff_name}</b>\n"
             f"🚀 Yetkazish: <b>{dtype.get('desc', '—')}</b>\n"
             f"📍 Hudud: <b>{zone}</b>\n"
+            f"💰 Jami: <b>{total:,} so'm</b>\n"
             f"📱 SIM raqam: kuryer kelganda o'zingiz tanlaysiz\n\n"
-            "Kuryerimiz tez orada qo'ng'iroq qiladi. Sizga xizmat qilish biz uchun rohat! 🙏",
+            "⏳ Buyurtmangiz tasdiqlanishi bilan kuryer yo'lga chiqadi — "
+            "har bosqichda sizga xabar beramiz! 🙏",
             reply_markup=_stage_keyboard("done"),
         )
     except Exception:
+        logger.exception("Buyurtma yaratishda xatolik")
         await message.answer("⚠️ Buyurtmani saqlashda xatolik. /start bosib qayta urinib ko'ring.")
 
 

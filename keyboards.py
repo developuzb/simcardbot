@@ -144,13 +144,15 @@ def office_menu_keyboard() -> InlineKeyboardMarkup:
 def admin_orders_filter_keyboard() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.button(text="🆕 Yangi", callback_data="adm_filter_Yangi")
-    builder.button(text="✅ Tayinlandi", callback_data="adm_filter_Tayinlandi")
+    builder.button(text="📢 Tasdiqlangan", callback_data="adm_filter_Tasdiqlangan")
+    builder.button(text="🚴 Kuryerda", callback_data="adm_filter_Kuryerda")
     builder.button(text="🚗 Yo'lda", callback_data="adm_filter_Yo'lda")
-    builder.button(text="✔️ Yetkazildi", callback_data="adm_filter_Yetkazildi")
+    builder.button(text="✅ Yetkazildi", callback_data="adm_filter_Yetkazildi")
+    builder.button(text="🚫 Mijoz yo'q", callback_data="adm_filter_Mijoz yo'q")
     builder.button(text="❌ Bekor", callback_data="adm_filter_Bekor")
     builder.button(text="📋 Barchasi", callback_data="adm_filter_all")
     builder.button(text="⬅️ Orqaga", callback_data="adm_back_menu")
-    builder.adjust(2, 2, 2, 1)
+    builder.adjust(2, 2, 2, 2, 1)
     return builder.as_markup()
 
 
@@ -216,8 +218,8 @@ def orders_list_keyboard(orders: list, page: int = 0) -> InlineKeyboardMarkup:
     chunk = orders[start: start + page_size]
 
     status_icons = {
-        "Yangi": "🆕", "Tayinlandi": "✅", "Yo'lda": "🚗",
-        "Yetkazildi": "✔️", "Bekor": "❌",
+        "Yangi": "🆕", "Tasdiqlangan": "📢", "Kuryerda": "🚴",
+        "Yo'lda": "🚗", "Yetkazildi": "✅", "Mijoz yo'q": "🚫", "Bekor": "❌",
     }
 
     for o in chunk:

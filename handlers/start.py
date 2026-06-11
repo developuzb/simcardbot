@@ -31,7 +31,7 @@ def _welcome_text(name: str) -> str:
     )
 
 
-@router.message(CommandStart())
+@router.message(CommandStart(), F.chat.type == "private")
 async def cmd_start(message: Message, state: FSMContext):
     await state.clear()
     await message.answer(
@@ -155,8 +155,9 @@ async def cancel_handler(message: Message, state: FSMContext):
 
 
 # Holatdan tashqari (restart yoki sessiya tugaganda) matn yozilsa —
-# bot jim qolmasin, bosh sahifani ko'rsatsin.
-@router.message(StateFilter(None), F.text & ~F.text.startswith("/"))
+# bot jim qolmasin, bosh sahifani ko'rsatsin. Faqat shaxsiy chatda —
+# kuryerlar guruhidagi suhbatlarga aralashmaydi.
+@router.message(StateFilter(None), F.chat.type == "private", F.text & ~F.text.startswith("/"))
 async def fallback_no_state(message: Message):
     await message.answer(
         _welcome_text(message.from_user.first_name or "mehmon"),

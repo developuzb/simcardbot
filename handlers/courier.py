@@ -9,10 +9,8 @@ from keyboards import (
     courier_menu_keyboard, courier_order_list_keyboard,
     courier_order_actions_keyboard,
 )
-from sheets_handler import (
-    get_orders_by_courier, get_order_by_num,
-    update_order, update_courier_completed,
-)
+from sheets_handler import update_courier_completed
+from orders_db import get_orders_by_courier, get_order_by_num, update_order
 from config import ADMIN_IDS
 from utils import format_price
 import numbers_db

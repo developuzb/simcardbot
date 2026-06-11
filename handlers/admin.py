@@ -15,10 +15,12 @@ from keyboards import (
 import settings_store
 import ai_analytics
 from sheets_handler import (
-    get_all_orders, get_order_by_num, update_order,
     get_all_couriers, get_courier, add_courier, remove_courier,
-    get_stats, update_courier_completed, invalidate_courier_cache,
-    get_orders_by_courier,
+    update_courier_completed, invalidate_courier_cache,
+)
+from orders_db import (
+    get_all_orders, get_order_by_num, update_order,
+    get_stats, get_orders_by_courier,
 )
 from utils import format_price
 import logging
@@ -62,15 +64,18 @@ async def show_stats(callback: CallbackQuery, is_admin: bool = False):
     if not is_admin:
         return await callback.answer("⛔", show_alert=True)
     stats = await get_stats()
-    yolda = stats["Yo'lda"]
+    icons = {
+        "Yangi": "🆕", "Tasdiqlangan": "📢", "Kuryerda": "🚴",
+        "Yo'lda": "🚗", "Yetkazildi": "✅", "Mijoz yo'q": "🚫", "Bekor": "❌",
+    }
+    status_lines = "\n".join(
+        f"{icons.get(s, '•')} {s}: <b>{c}</b>"
+        for s, c in stats["by_status"].items()
+    )
     text = (
         "📊 <b>Statistika</b>\n\n"
         f"📦 Jami buyurtmalar: <b>{stats['total']}</b>\n\n"
-        f"🆕 Yangi: <b>{stats['Yangi']}</b>\n"
-        f"✅ Tayinlandi: <b>{stats['Tayinlandi']}</b>\n"
-        f"🚗 Yo'lda: <b>{yolda}</b>\n"
-        f"✔️ Yetkazildi: <b>{stats['Yetkazildi']}</b>\n"
-        f"❌ Bekor: <b>{stats['Bekor']}</b>\n\n"
+        f"{status_lines}\n\n"
         f"💰 Jami daromad: <b>{format_price(stats['revenue'])}</b>"
     )
     kb = InlineKeyboardBuilder()

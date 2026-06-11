@@ -9,7 +9,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 
 from config import BOT_TOKEN, ADMIN_IDS
 from middlewares.auth import RoleMiddleware
-from handlers import start, operator, tariff, number, location, admin, courier, ai_chat
+from handlers import start, operator, tariff, number, location, admin, courier, ai_chat, dispatch
 import ai_analytics
 
 logging.basicConfig(
@@ -57,7 +57,8 @@ async def main():
     dp.message.middleware(RoleMiddleware())
     dp.callback_query.middleware(RoleMiddleware())
 
-    # Routerlar: admin va courier birinchi (prioritet)
+    # Routerlar: dispatch (guruh + statuslar) va admin birinchi (prioritet)
+    dp.include_router(dispatch.router)
     dp.include_router(admin.router)
     dp.include_router(courier.router)
     dp.include_router(ai_chat.router)
