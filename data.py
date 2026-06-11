@@ -19,27 +19,37 @@ OPERATORS = {
 #   desc     — mijozga ko'rsatiladigan qisqa tavsif
 
 TARIFFS = {
-    # ucell.uz/uz/tariffs → "Bor" seriyasi (rasmiy sayt bilan tasdiqlangan)
+    # ucell.uz/uz/tariffs → Foydali + Bor seriyalari (rasmiy saytdan tasdiqlangan)
     "ucell": [
         {
+            "id": "ucell_foydali_45", "name": "Foydali 45", "price": 45_000,
+            "gb": 25, "minutes": 700, "sms": 700, "apps": [],
+            "desc": "10 GB + 15 GB Tas-IX • 700 daqiqa • 700 SMS",
+        },
+        {
+            "id": "ucell_foydali_55", "name": "Foydali 55", "price": 55_000,
+            "gb": 40, "minutes": 700, "sms": 700, "apps": [],
+            "desc": "15 GB + 25 GB Tas-IX • 700 daqiqa • 700 SMS",
+        },
+        {
             "id": "ucell_bor_70", "name": "Bor 70", "price": 70_000,
-            "gb": 70, "minutes": None, "sms": 1500, "apps": ["yandex"],
-            "desc": "70 GB • Cheksiz qo'ng'iroq • 1 500 SMS • Hafta oxiri & kecha cheksiz • Yandex Plus",
+            "gb": 140, "minutes": None, "sms": 1500, "apps": [],
+            "desc": "70 + 70 GB (aksiya) • Cheksiz qo'ng'iroq • 1 500 SMS",
         },
         {
             "id": "ucell_bor_90", "name": "Bor 90", "price": 90_000,
-            "gb": 90, "minutes": None, "sms": 2000, "apps": ["yandex"],
-            "desc": "90 GB • Cheksiz qo'ng'iroq • 2 000 SMS • Hafta oxiri & kecha cheksiz • Yandex Plus",
+            "gb": 180, "minutes": None, "sms": 2000, "apps": ["yandex"],
+            "desc": "90 + 90 GB (aksiya) • Cheksiz qo'ng'iroq • 2 000 SMS • Yandex Plus",
         },
         {
             "id": "ucell_bor_110", "name": "Bor 110", "price": 110_000,
             "gb": 300, "minutes": None, "sms": 2500, "apps": ["yandex"],
-            "desc": "200 GB + 100 GB 5G • Cheksiz qo'ng'iroq • 2 500 SMS • Yandex Plus",
+            "desc": "200 GB + 100 GB 5G tarmog'ida • Cheksiz qo'ng'iroq • 2 500 SMS • Yandex Plus",
         },
         {
             "id": "ucell_bor_160", "name": "Bor 160", "price": 160_000,
-            "gb": 500, "minutes": None, "sms": 3000, "apps": ["yandex", "tv"],
-            "desc": "350 GB + 150 GB 5G • Cheksiz qo'ng'iroq • 3 000 SMS • OVVA TV • Yandex Plus",
+            "gb": 500, "minutes": None, "sms": 3000, "apps": ["yandex"],
+            "desc": "350 GB + 150 GB 5G tarmog'ida • Cheksiz qo'ng'iroq • 3 000 SMS • Yandex Plus (VIP)",
         },
     ],
 
