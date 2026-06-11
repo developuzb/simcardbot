@@ -605,13 +605,13 @@ async def ai_pick_tariff(callback: CallbackQuery, state: FSMContext):
     except Exception:
         pass
     await callback.answer("📦 Tanlandi!")
-    promo_line = ""
-    if tariff["price"] >= PROMO_1PLUS1_MIN_PRICE:
-        promo_line = f"{PROMO_1PLUS1_TEXT}\n\n"
+    op_name = OPERATORS.get(op_id, {}).get("name", op_id)
+    detail = tariff_advice.tariff_detail_block(tariff)
     await callback.message.answer(
-        f"Zo'r tanlov! 🙌 <b>{tariff['name']}</b> — {tariff['price']:,} so'm/oy\n\n"
-        f"{promo_line}"
-        "Buyurtmangizni qanchalik tez yetkazib beray? 👇",
+        f"Zo'r tanlov! 🙌 <b>{op_name} — {tariff['name']}</b>\n\n"
+        f"📋 <b>Sizga beriladigan imkoniyatlar:</b>\n"
+        f"{detail}\n\n"
+        "Endi buyurtmani qanchalik tez yetkazib beray? 👇",
         reply_markup=_stage_keyboard("delivery"),
     )
 

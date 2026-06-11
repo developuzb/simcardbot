@@ -65,7 +65,10 @@ async def back_to_main(callback: CallbackQuery, state: FSMContext):
 
 @router.callback_query(F.data == "show_promo")
 async def show_promo(callback: CallbackQuery):
-    d = DELIVERY_TYPES
+    delivery_lines = []
+    for dt in DELIVERY_TYPES.values():
+        price = "<b>BEPUL</b> 🎁" if dt["price"] == 0 else f"{dt['price']:,} so'm"
+        delivery_lines.append(f"{dt['emoji']} {dt['name']} — {dt['desc']} — {price}")
     text = (
         "🎁 <b>AKSIYALAR</b>\n"
         "➖➖➖➖➖➖➖➖➖➖\n"
@@ -73,9 +76,7 @@ async def show_promo(callback: CallbackQuery):
         f"{PROMO_1PLUS1_MIN_PRICE:,} so'm va undan qimmat har qanday tarifga "
         "ikkinchi SIM kartani sovg'a qilamiz 🎉\n\n"
         "🚀 <b>YETKAZIB BERISH</b>\n"
-        f"{d['tezkor']['emoji']} Tezkor — 1 soatda — {d['tezkor']['price']:,} so'm\n"
-        f"{d['standart']['emoji']} Standart — 2 soatda — {d['standart']['price']:,} so'm\n"
-        f"{d['ish_vaqti']['emoji']} Ish vaqtida — 12 soatda — <b>BEPUL</b> 🎁\n"
+        + "\n".join(delivery_lines) + "\n"
         "➖➖➖➖➖➖➖➖➖➖\n"
         "Aksiyali tarifni tanlash uchun pastdan boshlang 👇"
     )

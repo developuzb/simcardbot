@@ -46,8 +46,14 @@ DELIVERY_LON = float(os.getenv("DELIVERY_LON", "69.2401"))
 DELIVERY_RADIUS_KM = float(os.getenv("DELIVERY_RADIUS_KM", "12.0"))
 DELIVERY_ZONE_NAME = os.getenv("DELIVERY_ZONE_NAME", "Yetkazib berish hududi")
 
-# Yetkazib berish tezligi turlari
+# Yetkazib berish tezligi turlari (bepul birinchi o'rinda)
 DELIVERY_TYPES = {
+    "ish_vaqti": {
+        "name": "Bepul yetkazish",
+        "desc": "6 soat ichida",
+        "price": 0,
+        "emoji": "🆓",
+    },
     "tezkor": {
         "name": "Tezkor yetkazish",
         "desc": "1 soat ichida",
@@ -59,11 +65,5 @@ DELIVERY_TYPES = {
         "desc": "2 soat ichida",
         "price": 5_000,
         "emoji": "🚗",
-    },
-    "ish_vaqti": {
-        "name": "Ish vaqtida yetkazish",
-        "desc": "12 soat ichida (bepul)",
-        "price": 0,
-        "emoji": "🕐",
     },
 }

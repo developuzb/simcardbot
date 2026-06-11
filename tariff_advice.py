@@ -84,6 +84,17 @@ _CLOSING = (
 )
 
 
+def tariff_detail_block(t: dict) -> str:
+    """Mijoz tarifni tanlaganda — beriladigan limitlarni blok ko'rinishida."""
+    parts = [p.strip() for p in t.get("desc", "").split("•") if p.strip()]
+    body = "\n".join(f"• {p}" for p in parts) if parts else "—"
+    block = f"<blockquote>{body}</blockquote>"
+    extra = f"\n💰 <b>{t['price']:,} so'm/oy</b>"
+    if t["price"] >= PROMO_1PLUS1_MIN_PRICE:
+        extra += "\n🎁 <b>1+1 AKSIYA:</b> ikkinchi SIM karta BEPUL!"
+    return f"{block}{extra}"
+
+
 def format_comparison(category: str) -> str:
     intro = _INTRO.get(category, "Mana har operatordan eng mos variant 👇")
     blocks = []
