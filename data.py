@@ -98,27 +98,58 @@ TARIFFS = {
         },
     ],
 
-    # mobi.uz/uz/tariff/ → Connect, Mazza, ORZU
+    # mobi.uz/uz/tariff/ → Connect, Mazza, ORZU, Xotirjam (rasmiy saytdan, 2026-iyun)
     "ums": [
         {
             "id": "ums_connect_m", "name": "Connect M", "price": 45_000,
-            "gb": 25, "minutes": 700, "sms": 500, "apps": [],
-            "desc": "10 GB + 15 GB TAS-IX • 700 daqiqa • 500 SMS",
+            "gb": 25, "minutes": 700, "sms": 700, "apps": [],
+            "desc": "10 GB + 15 GB TAS-IX • 700 daqiqa • 700 SMS",
         },
         {
             "id": "ums_connect_l", "name": "Connect L", "price": 55_000,
-            "gb": 40, "minutes": 700, "sms": 500, "apps": [],
-            "desc": "15 GB + 25 GB TAS-IX • 700 daqiqa • 500 SMS",
+            "gb": 40, "minutes": 700, "sms": 700, "apps": [],
+            "desc": "15 GB + 25 GB TAS-IX • 700 daqiqa • 700 SMS",
+        },
+        {
+            "id": "ums_connect_xl", "name": "Connect XL", "price": 65_000,
+            "gb": 55, "minutes": 900, "sms": 1000, "apps": [],
+            "desc": "20 GB + 35 GB TAS-IX • 900 daqiqa • 1 000 SMS",
         },
         {
             "id": "ums_mazza_70", "name": "Mazza 70", "price": 70_000,
-            "gb": 150, "minutes": None, "sms": 5000, "apps": [],
-            "desc": "150 GB • Cheksiz qo'ng'iroq • 5 000 SMS • Kid Security & MobiMusic",
+            "gb": 150, "minutes": None, "sms": 5000,
+            "apps": ["telegram", "instagram", "facebook", "tv"],
+            "desc": "150 GB • Cheksiz qo'ng'iroq • 5 000 SMS • Ijtimoiy tarmoqlar cheksiz • MobiTV",
         },
         {
             "id": "ums_orzu_90", "name": "ORZU 90", "price": 90_000,
-            "gb": 180, "minutes": None, "sms": 5000, "apps": [],
-            "desc": "180 GB • Cheksiz qo'ng'iroq • 5 000 SMS • Kid Security & MobiMusic",
+            "gb": 180, "minutes": None, "sms": 5000,
+            "apps": ["telegram", "instagram", "facebook", "tv"],
+            "desc": "180 GB • Cheksiz qo'ng'iroq • 5 000 SMS • Ijtimoiy tarmoqlar cheksiz • MobiTV",
+        },
+        {
+            "id": "ums_orzu_110", "name": "ORZU 110", "price": 110_000,
+            "gb": 250, "minutes": None, "sms": 5000,
+            "apps": ["telegram", "instagram", "facebook", "tv"],
+            "desc": "250 GB • Cheksiz qo'ng'iroq • 5 000 SMS • Ijtimoiy tarmoqlar cheksiz • MobiTV (50+ kanal)",
+        },
+        {
+            "id": "ums_orzu_150", "name": "ORZU 150", "price": 150_000,
+            "gb": 400, "minutes": None, "sms": 5000,
+            "apps": ["telegram", "instagram", "facebook", "tv"],
+            "desc": "400 GB • Cheksiz qo'ng'iroq • 5 000 SMS • Ijtimoiy tarmoqlar cheksiz • MobiTV +Sport",
+        },
+        {
+            "id": "ums_xotirjam_80", "name": "Xotirjam 80", "price": 80_000,
+            "gb": 80, "minutes": None, "sms": 3500,
+            "apps": ["youtube", "telegram", "instagram", "facebook", "whatsapp"],
+            "desc": "80 GB • Cheksiz qo'ng'iroq • 3 500 SMS • YouTube va 10+ ilova cheksiz",
+        },
+        {
+            "id": "ums_xotirjam_100", "name": "Xotirjam 100", "price": 100_000,
+            "gb": 200, "minutes": None, "sms": 5000,
+            "apps": ["youtube", "telegram", "instagram", "facebook", "whatsapp"],
+            "desc": "200 GB • Cheksiz qo'ng'iroq • 5 000 SMS • YouTube va 10+ ilova cheksiz",
         },
     ],
 
