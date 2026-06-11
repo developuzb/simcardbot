@@ -391,7 +391,16 @@ async def start_ai_chat(target, state: FSMContext, quick: bool = False):
     if isinstance(target, Message):
         await target.answer(text, reply_markup=keyboard)
     else:
-        await target.message.edit_text(text, reply_markup=keyboard)
+        # Rasmli (caption) xabarni edit_text qilib bo'lmaydi — o'chirib,
+        # yangi matnli xabar yuboramiz.
+        try:
+            await target.message.edit_text(text, reply_markup=keyboard)
+        except Exception:
+            try:
+                await target.message.delete()
+            except Exception:
+                pass
+            await target.message.answer(text, reply_markup=keyboard)
         await target.answer()
 
 
