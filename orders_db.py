@@ -106,6 +106,24 @@ async def update_order(order_num, updates: dict) -> bool:
     return False
 
 
+async def update_order_if(order_num, expected_status, updates: dict) -> bool:
+    """Atomik: holat kutilganidek bo'lsagina yangilaydi (poyga himoyasi).
+
+    expected_status — str yoki tuple.
+    """
+    if isinstance(expected_status, str):
+        expected_status = (expected_status,)
+    with _lock:
+        for o in _load():
+            if str(o.get("num")) == str(order_num):
+                if o.get("status") not in expected_status:
+                    return False
+                o.update(updates)
+                _save()
+                return True
+    return False
+
+
 async def get_all_orders(status: str | None = None) -> list:
     with _lock:
         orders = [dict(o) for o in _load()]
