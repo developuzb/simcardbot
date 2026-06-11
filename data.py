@@ -53,27 +53,48 @@ TARIFFS = {
         },
     ],
 
-    # beeline.uz/uz/products/tariffs
+    # beeline.uz/uz/products/tariffs (rasmiy saytdan tasdiqlangan, 2026-iyun)
     "beeline": [
         {
             "id": "bee_standart", "name": "Standart", "price": 45_000,
             "gb": 25, "minutes": 700, "sms": 500, "apps": [],
-            "desc": "10 GB + 15 GB TAS-IX • 700 daqiqa • 500 SMS • KINOM & riitm",
+            "desc": "10 GB + 15 GB TAS-IX • 700 daqiqa • 500 SMS",
         },
         {
             "id": "bee_optimal", "name": "Optimal", "price": 55_000,
             "gb": 40, "minutes": 700, "sms": 500, "apps": [],
-            "desc": "15 GB + 25 GB TAS-IX • 700 daqiqa • 500 SMS • KINOM, riitm & Setanta",
+            "desc": "15 GB + 25 GB TAS-IX • 700 daqiqa • 500 SMS",
         },
         {
             "id": "bee_multi_plus", "name": "Multi Plus", "price": 65_000,
-            "gb": 40, "minutes": None, "sms": 500, "apps": ["chatgpt"],
-            "desc": "40 GB • Cheksiz qo'ng'iroq • 500 SMS • Kecha cheksiz • AI xizmatlar bepul",
+            "gb": 40, "minutes": None, "sms": 500,
+            "apps": ["chatgpt", "telegram", "instagram", "facebook"],
+            "desc": "40 GB • Cheksiz qo'ng'iroq • 500 SMS • ChatGPT, Claude cheksiz • +100 GB Telegram/Instagram/Facebook",
         },
         {
-            "id": "bee_status_silver", "name": "Status Silver", "price": 110_000,
-            "gb": 200, "minutes": None, "sms": 1500, "apps": [],
-            "desc": "200 GB • Cheksiz qo'ng'iroq • 1 500 SMS • Ustunlik xizmatlari",
+            "id": "bee_yorqin", "name": "Yorqin", "price": 70_000,
+            "gb": 70, "minutes": 45000, "sms": 2000, "apps": [],
+            "desc": "70 GB + Cheksiz internet • 45 000 daqiqa • 2 000 SMS",
+        },
+        {
+            "id": "bee_vibe", "name": "Vibe", "price": 80_000,
+            "gb": 80, "minutes": 45000, "sms": 500, "apps": ["instagram", "telegram"],
+            "desc": "80 GB + Cheksiz internet • 45 000 daqiqa • 500 SMS • Ijtimoiy tarmoqlar bepul",
+        },
+        {
+            "id": "bee_oila_max", "name": "Oila Max", "price": 90_000, "family": True,
+            "gb": 225, "minutes": None, "sms": 1000, "apps": [],
+            "desc": "3 raqamgacha • 225 GB • Cheksiz qo'ng'iroq • 1 000 SMS • Cheksiz tungi internet",
+        },
+        {
+            "id": "bee_oila_ultra", "name": "Oila Ultra+", "price": 150_000, "family": True,
+            "gb": 450, "minutes": None, "sms": 1000, "apps": [],
+            "desc": "5 raqamgacha • 450 GB • Cheksiz qo'ng'iroq • 1 000 SMS • ZTE Blade A56 sovg'a",
+        },
+        {
+            "id": "bee_oila_mega", "name": "Oila Mega+", "price": 180_000, "family": True,
+            "gb": 700, "minutes": None, "sms": 1000, "apps": [],
+            "desc": "7 raqamgacha • 700 GB • Cheksiz qo'ng'iroq • 1 000 SMS • ZTE Blade A56 sovg'a",
         },
     ],
 

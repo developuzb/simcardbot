@@ -30,7 +30,8 @@ def detect_category(text: str) -> str | None:
 
 
 def _best_for(op_id: str, category: str) -> dict | None:
-    tariffs = TARIFFS.get(op_id, [])
+    # Oilaviy (ko'p raqamli) tariflarni bitta mijoz taqqoslashidan chiqaramiz
+    tariffs = [t for t in TARIFFS.get(op_id, []) if not t.get("family")]
     if not tariffs:
         return None
     if category == "arzon":
