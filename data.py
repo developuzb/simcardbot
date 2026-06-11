@@ -153,31 +153,18 @@ TARIFFS = {
         },
     ],
 
-    # humans.uz/calculator/ → ilovalar cheksiz paketlari
+    # humans.uz → cheksiz aloqa yo'nalishi (mijoz tasdiqlagan)
     "humans": [
         {
-            "id": "hum_standart", "name": "Standart", "price": 48_000,
-            "gb": 40, "minutes": None, "sms": 500,
-            "apps": ["telegram", "instagram", "whatsapp", "facebook", "chatgpt"],
-            "desc": "40 GB • Cheksiz qo'ng'iroq • Telegram, Instagram, WhatsApp, Facebook, ChatGPT bepul",
+            # 3 oylik aksiya — oylik tariflar bilan taqqoslanmaydi
+            "id": "hum_cheksiz_qongiroq", "name": "Cheksiz qo'ng'iroq (3 oy)", "price": 50_000,
+            "gb": 0, "minutes": None, "sms": None, "apps": [], "no_compare": True,
+            "desc": "🎁 AKSIYA: 3 oyga cheksiz qo'ng'iroq • O'zbekiston bo'ylab • atigi 50 000 so'm",
         },
         {
-            "id": "hum_youtube", "name": "YouTube+", "price": 56_000,
-            "gb": 40, "minutes": None, "sms": 500,
-            "apps": ["youtube", "telegram", "instagram"],
-            "desc": "40 GB + Cheksiz YouTube • Cheksiz qo'ng'iroq • Ijtimoiy tarmoqlar bepul",
-        },
-        {
-            "id": "hum_multi", "name": "Multi", "price": 61_000,
-            "gb": 40, "minutes": None, "sms": 500,
-            "apps": ["youtube", "tiktok", "telegram", "instagram"],
-            "desc": "40 GB + Cheksiz YouTube & TikTok • Cheksiz qo'ng'iroq • Kecha cheksiz",
-        },
-        {
-            "id": "hum_premium", "name": "Premium", "price": 75_000,
-            "gb": 40, "minutes": None, "sms": None,
-            "apps": ["youtube", "tiktok", "telegram", "instagram", "whatsapp", "facebook"],
-            "desc": "40 GB + Barcha ilovalar cheksiz • Cheksiz qo'ng'iroq • Cheksiz SMS • Kecha cheksiz",
+            "id": "hum_aloqa_internet", "name": "Aloqa + Internet", "price": 65_000,
+            "gb": 30, "minutes": None, "sms": 500, "apps": [],
+            "desc": "Cheksiz qo'ng'iroq + internet • 1 oy",
         },
     ],
 

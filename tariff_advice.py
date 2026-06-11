@@ -30,8 +30,10 @@ def detect_category(text: str) -> str | None:
 
 
 def _best_for(op_id: str, category: str) -> dict | None:
-    # Oilaviy (ko'p raqamli) tariflarni bitta mijoz taqqoslashidan chiqaramiz
-    tariffs = [t for t in TARIFFS.get(op_id, []) if not t.get("family")]
+    # Oilaviy yoki boshqa muddatli (3 oylik) tariflarni bitta-oylik
+    # taqqoslashdan chiqaramiz
+    tariffs = [t for t in TARIFFS.get(op_id, [])
+               if not t.get("family") and not t.get("no_compare")]
     if not tariffs:
         return None
     if category == "arzon":
