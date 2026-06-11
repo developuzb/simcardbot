@@ -184,6 +184,23 @@ def _stage_keyboard(stage: str) -> object:
     return b.as_markup()
 
 
+def _comparison_keyboard(category: str) -> object:
+    """Taqqoslashдан keyin — aynan tavsiya qilingan tariflar tugmasi.
+    Har tugma bevosita o'sha tarifni tanlaydi (ai_tf_ → ai_pick_tariff)."""
+    b = InlineKeyboardBuilder()
+    for p in tariff_advice.comparison_picks(category):
+        op, t = p["op"], p["tariff"]
+        badge = f" {PROMO_1PLUS1_BADGE}" if t["price"] >= PROMO_1PLUS1_MIN_PRICE else ""
+        b.button(
+            text=f"{op['emoji']} {op['name']} {t['name']} — {t['price']:,}{badge}",
+            callback_data=f"ai_tf_{p['op_id']}__{t['id']}",
+        )
+    b.button(text="📋 Barcha operatorlar", callback_data="ai_back_op")
+    b.button(text="❌ Chiqish", callback_data="ai_exit")
+    b.adjust(1)
+    return b.as_markup()
+
+
 def _location_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         keyboard=[[KeyboardButton(text="📍 Lokatsiyamni yuborish", request_location=True)]],
@@ -465,13 +482,13 @@ async def handle_ai_message(message: Message, state: FSMContext):
     analytics_store.advice_query(message.text)
 
     # Tarif maslahati — har kompaniyadan eng mos variantni KOD orqali
-    # taqqoslab ko'rsatamiz (tez, ishonchli, chiroyli format).
+    # taqqoslab ko'rsatamiz. Tugmalar AYNAN tavsiya qilingan tariflar.
     category = tariff_advice.detect_category(message.text)
     if category and (stage == "operator" or stage.startswith("tariff:")):
         await state.update_data(ai_stage="operator")
         await message.answer(
             tariff_advice.format_comparison(category),
-            reply_markup=_stage_keyboard("operator"),
+            reply_markup=_comparison_keyboard(category),
         )
         return
 

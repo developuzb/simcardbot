@@ -108,3 +108,14 @@ def format_comparison(category: str) -> str:
         )
     body = f"\n{_DIVIDER}\n".join(blocks)
     return f"{intro}\n\n{body}{_CLOSING}"
+
+
+def comparison_picks(category: str) -> list:
+    """Taqqoslashда ko'rsatilgan aniq tavsiyalar — har operatordan bittadan.
+    Tugma qilish uchun: [{op_id, op, tariff}]."""
+    picks = []
+    for op_id, op in OPERATORS.items():
+        t = _best_for(op_id, category)
+        if t:
+            picks.append({"op_id": op_id, "op": op, "tariff": t})
+    return picks
