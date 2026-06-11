@@ -18,6 +18,7 @@ from config import (
 )
 import settings_store
 import analytics_store
+import tariff_advice
 from sheets_handler import save_order
 
 router = Router()
@@ -455,8 +456,20 @@ async def handle_ai_message(message: Message, state: FSMContext):
         )
         return
 
-    # Operator/tarif/delivery bosqichlari — AI maslahat (sof matn)
     analytics_store.advice_query(message.text)
+
+    # Tarif maslahati — har kompaniyadan eng mos variantni KOD orqali
+    # taqqoslab ko'rsatamiz (tez, ishonchli, chiroyli format).
+    category = tariff_advice.detect_category(message.text)
+    if category and (stage == "operator" or stage.startswith("tariff:")):
+        await state.update_data(ai_stage="operator")
+        await message.answer(
+            tariff_advice.format_comparison(category),
+            reply_markup=_stage_keyboard("operator"),
+        )
+        return
+
+    # Boshqa/erkin savollar — AI maslahat (sof matn)
     history: list = data.get("ai_history", [])
     history.append({"role": "user", "content": message.text})
 

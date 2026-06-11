@@ -8,145 +8,137 @@ OPERATORS = {
 
 # ─── TARIF REJALARI ─────────────────────────────────────────────
 # Manba: ucell.uz | beeline.uz | mobi.uz | humans.uz | uztelecom.uz
-# Yangilangan: 2026-iyun (faqat hozirgi aktiv tariflar)
+# Yangilangan: 2026-iyun (rasmiy saytlardan tekshirilgan aktiv tariflar)
+#
+# Tuzilgan maydonlar (kod orqali taqqoslash uchun):
+#   gb       — oylik internet (GB, taxminiy umumiy)
+#   minutes  — qo'ng'iroq daqiqasi (None = cheksiz)
+#   sms      — SMS soni (None = cheksiz)
+#   apps     — bepul/cheksiz ilovalar tegi: youtube, tiktok, telegram,
+#              instagram, whatsapp, facebook, chatgpt, tv, yandex
+#   desc     — mijozga ko'rsatiladigan qisqa tavsif
 
 TARIFFS = {
-    # ucell.uz/uz/tariffs → "Bor" tarif seriyasi (hozirgi aktiv)
+    # ucell.uz/uz/tariffs → "Bor" seriyasi (rasmiy sayt bilan tasdiqlangan)
     "ucell": [
         {
-            "id": "ucell_bor_70",
-            "name": "Bor 70",
-            "price": 70_000,
+            "id": "ucell_bor_70", "name": "Bor 70", "price": 70_000,
+            "gb": 70, "minutes": None, "sms": 1500, "apps": ["yandex"],
             "desc": "70 GB • Cheksiz qo'ng'iroq • 1 500 SMS • Hafta oxiri & kecha cheksiz • Yandex Plus",
         },
         {
-            "id": "ucell_bor_90",
-            "name": "Bor 90",
-            "price": 90_000,
+            "id": "ucell_bor_90", "name": "Bor 90", "price": 90_000,
+            "gb": 90, "minutes": None, "sms": 2000, "apps": ["yandex"],
             "desc": "90 GB • Cheksiz qo'ng'iroq • 2 000 SMS • Hafta oxiri & kecha cheksiz • Yandex Plus",
         },
         {
-            "id": "ucell_bor_110",
-            "name": "Bor 110",
-            "price": 110_000,
+            "id": "ucell_bor_110", "name": "Bor 110", "price": 110_000,
+            "gb": 300, "minutes": None, "sms": 2500, "apps": ["yandex"],
             "desc": "200 GB + 100 GB 5G • Cheksiz qo'ng'iroq • 2 500 SMS • Yandex Plus",
         },
         {
-            "id": "ucell_bor_160",
-            "name": "Bor 160",
-            "price": 160_000,
+            "id": "ucell_bor_160", "name": "Bor 160", "price": 160_000,
+            "gb": 500, "minutes": None, "sms": 3000, "apps": ["yandex", "tv"],
             "desc": "350 GB + 150 GB 5G • Cheksiz qo'ng'iroq • 3 000 SMS • OVVA TV • Yandex Plus",
         },
     ],
 
-    # beeline.uz/uz/products/tariffs → aktiv tariflar
+    # beeline.uz/uz/products/tariffs
     "beeline": [
         {
-            "id": "bee_standart",
-            "name": "Standart",
-            "price": 45_000,
+            "id": "bee_standart", "name": "Standart", "price": 45_000,
+            "gb": 25, "minutes": 700, "sms": 500, "apps": [],
             "desc": "10 GB + 15 GB TAS-IX • 700 daqiqa • 500 SMS • KINOM & riitm",
         },
         {
-            "id": "bee_optimal",
-            "name": "Optimal",
-            "price": 55_000,
-            "desc": "15 GB + 25 GB TAS-IX • 700 daqiqa • 500 SMS • KINOM, riitm & Setanta Sports",
+            "id": "bee_optimal", "name": "Optimal", "price": 55_000,
+            "gb": 40, "minutes": 700, "sms": 500, "apps": [],
+            "desc": "15 GB + 25 GB TAS-IX • 700 daqiqa • 500 SMS • KINOM, riitm & Setanta",
         },
         {
-            "id": "bee_multi_plus",
-            "name": "Multi Plus",
-            "price": 65_000,
-            "desc": "40 GB • Cheksiz qo'ng'iroq • 500 SMS • Kecha cheksiz (01:00-08:00) • AI xizmatlar bepul",
+            "id": "bee_multi_plus", "name": "Multi Plus", "price": 65_000,
+            "gb": 40, "minutes": None, "sms": 500, "apps": ["chatgpt"],
+            "desc": "40 GB • Cheksiz qo'ng'iroq • 500 SMS • Kecha cheksiz • AI xizmatlar bepul",
         },
         {
-            "id": "bee_status_silver",
-            "name": "Status Silver",
-            "price": 110_000,
+            "id": "bee_status_silver", "name": "Status Silver", "price": 110_000,
+            "gb": 200, "minutes": None, "sms": 1500, "apps": [],
             "desc": "200 GB • Cheksiz qo'ng'iroq • 1 500 SMS • Ustunlik xizmatlari",
         },
     ],
 
-    # mobi.uz/uz/tariff/ → Connect va ORZU seriyalari (aktiv)
+    # mobi.uz/uz/tariff/ → Connect, Mazza, ORZU
     "ums": [
         {
-            "id": "ums_connect_m",
-            "name": "Connect M",
-            "price": 45_000,
+            "id": "ums_connect_m", "name": "Connect M", "price": 45_000,
+            "gb": 25, "minutes": 700, "sms": 500, "apps": [],
             "desc": "10 GB + 15 GB TAS-IX • 700 daqiqa • 500 SMS",
         },
         {
-            "id": "ums_connect_l",
-            "name": "Connect L",
-            "price": 55_000,
+            "id": "ums_connect_l", "name": "Connect L", "price": 55_000,
+            "gb": 40, "minutes": 700, "sms": 500, "apps": [],
             "desc": "15 GB + 25 GB TAS-IX • 700 daqiqa • 500 SMS",
         },
         {
-            "id": "ums_mazza_70",
-            "name": "Mazza 70",
-            "price": 70_000,
+            "id": "ums_mazza_70", "name": "Mazza 70", "price": 70_000,
+            "gb": 150, "minutes": None, "sms": 5000, "apps": [],
             "desc": "150 GB • Cheksiz qo'ng'iroq • 5 000 SMS • Kid Security & MobiMusic",
         },
         {
-            "id": "ums_orzu_90",
-            "name": "ORZU 90",
-            "price": 90_000,
+            "id": "ums_orzu_90", "name": "ORZU 90", "price": 90_000,
+            "gb": 180, "minutes": None, "sms": 5000, "apps": [],
             "desc": "180 GB • Cheksiz qo'ng'iroq • 5 000 SMS • Kid Security & MobiMusic",
         },
     ],
 
-    # humans.uz/calculator/ → konstruktor asosida paketlar
+    # humans.uz/calculator/ → ilovalar cheksiz paketlari
     "humans": [
         {
-            "id": "hum_standart",
-            "name": "Standart",
-            "price": 48_000,
+            "id": "hum_standart", "name": "Standart", "price": 48_000,
+            "gb": 40, "minutes": None, "sms": 500,
+            "apps": ["telegram", "instagram", "whatsapp", "facebook", "chatgpt"],
             "desc": "40 GB • Cheksiz qo'ng'iroq • Telegram, Instagram, WhatsApp, Facebook, ChatGPT bepul",
         },
         {
-            "id": "hum_youtube",
-            "name": "YouTube+",
-            "price": 56_000,
+            "id": "hum_youtube", "name": "YouTube+", "price": 56_000,
+            "gb": 40, "minutes": None, "sms": 500,
+            "apps": ["youtube", "telegram", "instagram"],
             "desc": "40 GB + Cheksiz YouTube • Cheksiz qo'ng'iroq • Ijtimoiy tarmoqlar bepul",
         },
         {
-            "id": "hum_multi",
-            "name": "Multi",
-            "price": 61_000,
-            "desc": "40 GB + Cheksiz YouTube & TikTok • Cheksiz qo'ng'iroq • Kecha cheksiz (01:00-07:00)",
+            "id": "hum_multi", "name": "Multi", "price": 61_000,
+            "gb": 40, "minutes": None, "sms": 500,
+            "apps": ["youtube", "tiktok", "telegram", "instagram"],
+            "desc": "40 GB + Cheksiz YouTube & TikTok • Cheksiz qo'ng'iroq • Kecha cheksiz",
         },
         {
-            "id": "hum_premium",
-            "name": "Premium",
-            "price": 75_000,
+            "id": "hum_premium", "name": "Premium", "price": 75_000,
+            "gb": 40, "minutes": None, "sms": None,
+            "apps": ["youtube", "tiktok", "telegram", "instagram", "whatsapp", "facebook"],
             "desc": "40 GB + Barcha ilovalar cheksiz • Cheksiz qo'ng'iroq • Cheksiz SMS • Kecha cheksiz",
         },
     ],
 
-    # uztelecom.uz → Uzmobile Mobile seriyasi (aktiv)
+    # uztelecom.uz → Uzmobile "Mobile" seriyasi
     "uzmobile": [
         {
-            "id": "uzm_mobile_mini",
-            "name": "Mobile Mini",
-            "price": 45_000,
+            "id": "uzm_mobile_mini", "name": "Mobile Mini", "price": 45_000,
+            "gb": 30, "minutes": 1000, "sms": 1000, "apps": ["tv"],
             "desc": "30 GB • 1 000 daqiqa • 1 000 SMS • TelecomTV kanallar",
         },
         {
-            "id": "uzm_mobile_optimal",
-            "name": "Mobile Optimal",
-            "price": 61_000,
+            "id": "uzm_mobile_optimal", "name": "Mobile Optimal", "price": 61_000,
+            "gb": 45, "minutes": None, "sms": 1000, "apps": ["tv"],
             "desc": "45 GB • Cheksiz qo'ng'iroq • 1 000 SMS • TelecomTV kanallar",
         },
         {
-            "id": "uzm_mobile_ideal",
-            "name": "Mobile Ideal",
-            "price": 77_000,
+            "id": "uzm_mobile_ideal", "name": "Mobile Ideal", "price": 77_000,
+            "gb": 100, "minutes": None, "sms": None, "apps": ["tv"],
             "desc": "100 GB • Cheksiz qo'ng'iroq • Cheksiz SMS • 120+ TelecomTV kanali",
         },
         {
-            "id": "uzm_barakali_xxl",
-            "name": "Barakali Plus XXL",
-            "price": 115_000,
+            "id": "uzm_barakali_xxl", "name": "Barakali Plus XXL", "price": 115_000,
+            "gb": 150, "minutes": None, "sms": None, "apps": ["tv"],
             "desc": "150 GB • Cheksiz qo'ng'iroq • Cheksiz SMS • 120+ TelecomTV kanali",
         },
     ],
