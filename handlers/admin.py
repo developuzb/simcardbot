@@ -21,7 +21,9 @@ from sheets_handler import (
     get_orders_by_courier,
 )
 from utils import format_price
+import logging
 
+logger = logging.getLogger(__name__)
 router = Router()
 
 
@@ -554,12 +556,15 @@ async def office_set_location(message: Message, state: FSMContext, is_admin: boo
     lon = message.location.longitude
     o = settings_store.get_office()
     ok = settings_store.set_office(lat, lon)
+    logger.info("OFIS_LOKATSIYASI_SET lat=%s lon=%s radius=%s", lat, lon, o["radius_km"])
     await state.set_state(AdminState.main_menu)
     if ok:
         await message.answer(
             "✅ <b>Ofis lokatsiyasi saqlandi!</b>\n\n"
-            f"🌐 Koordinata: <code>{lat:.5f}, {lon:.5f}</code>\n"
+            f"🌐 Koordinata: <code>{lat:.6f}, {lon:.6f}</code>\n"
             f"📏 Radius: <b>{o['radius_km']:.0f} km</b>\n\n"
+            "⚠️ <i>Eslatma: bu doimiy bo'lishi uchun koordinatani "
+            "tizimga (config) ham yozish kerak. Ushbu koordinatani adminga yuboring.</i>\n\n"
             "Endi shu nuqtadan belgilangan radius ichidagi buyurtmalar qabul qilinadi.",
             reply_markup=remove_keyboard(),
         )
