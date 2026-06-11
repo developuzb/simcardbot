@@ -10,6 +10,7 @@ from data import OPERATORS, TARIFFS
 from config import (
     ADMIN_CONTACT, DELIVERY_TYPES, PROMO_1PLUS1_MIN_PRICE, PROMO_1PLUS1_BADGE,
 )
+import settings_store
 
 router = Router()
 
@@ -31,28 +32,48 @@ def _welcome_text(name: str) -> str:
     )
 
 
+async def _send_home(message: Message, name: str):
+    """Bosh sahifa: rasm o'rnatilgan bo'lsa — rasm + matn, aks holda matn."""
+    text = _welcome_text(name)
+    photo_id = settings_store.get_welcome_photo()
+    if photo_id:
+        try:
+            await message.answer_photo(
+                photo_id, caption=text, reply_markup=main_menu_keyboard(),
+            )
+            return
+        except Exception:
+            pass
+    await message.answer(text, reply_markup=main_menu_keyboard())
+
+
 @router.message(CommandStart(), F.chat.type == "private")
 async def cmd_start(message: Message, state: FSMContext):
     await state.clear()
-    await message.answer(
-        _welcome_text(message.from_user.first_name or "mehmon"),
-        reply_markup=main_menu_keyboard(),
-    )
+    await _send_home(message, message.from_user.first_name or "mehmon")
 
 
 @router.callback_query(F.data == "back_to_main")
 async def back_to_main(callback: CallbackQuery, state: FSMContext):
     await state.clear()
     try:
-        await callback.message.edit_text(
-            _welcome_text(callback.from_user.first_name or "mehmon"),
-            reply_markup=main_menu_keyboard(),
-        )
+        await callback.message.delete()
     except Exception:
-        await callback.message.answer(
-            _welcome_text(callback.from_user.first_name or "mehmon"),
-            reply_markup=main_menu_keyboard(),
-        )
+        pass
+    await _send_home(callback.message, callback.from_user.first_name or "mehmon")
+    await callback.answer()
+
+
+async def _show_section(callback: CallbackQuery, text: str, kb):
+    """Bo'limni ochadi — rasm-xabardan ham (edit ishlamasa, yangi xabar)."""
+    try:
+        await callback.message.edit_text(text, reply_markup=kb)
+    except Exception:
+        try:
+            await callback.message.delete()
+        except Exception:
+            pass
+        await callback.message.answer(text, reply_markup=kb)
     await callback.answer()
 
 
@@ -80,8 +101,7 @@ async def show_promo(callback: CallbackQuery):
         "➖➖➖➖➖➖➖➖➖➖\n"
         "Aksiyali tarifni tanlash uchun pastdan boshlang 👇"
     )
-    await callback.message.edit_text(text, reply_markup=back_to_main_keyboard())
-    await callback.answer()
+    await _show_section(callback, text, back_to_main_keyboard())
 
 
 # ─── TARIFLAR (umumiy) ───────────────────────────────────────────
@@ -101,8 +121,7 @@ async def show_tariffs(callback: CallbackQuery):
         "\n🤖 <b>Aniq tarif tanlash uchun «AI yordamchi»dan foydalaning</b> — "
         "u savollaringizga javob berib, eng mosini topib beradi!"
     )
-    await callback.message.edit_text("\n".join(lines), reply_markup=back_to_main_keyboard())
-    await callback.answer()
+    await _show_section(callback, "\n".join(lines), back_to_main_keyboard())
 
 
 # ─── BIZ HAQIMIZDA ───────────────────────────────────────────────
@@ -122,24 +141,22 @@ async def show_about(callback: CallbackQuery):
         "➖➖➖➖➖➖➖➖➖➖\n"
         "Savol bo'lsa — «📞 Aloqa» orqali yozing."
     )
-    await callback.message.edit_text(text, reply_markup=back_to_main_keyboard())
-    await callback.answer()
+    await _show_section(callback, text, back_to_main_keyboard())
 
 
 # ─── ALOQA ───────────────────────────────────────────────────────
 
 @router.callback_query(F.data == "contact")
 async def show_contact(callback: CallbackQuery):
-    await callback.message.edit_text(
+    text = (
         "📞 <b>BIZ BILAN BOG'LANISH</b>\n"
         "➖➖➖➖➖➖➖➖➖➖\n"
         f"👨‍💼 Admin: {ADMIN_CONTACT}\n"
         "🕐 Ish vaqti: 09:00 – 22:00 (dushanba–shanba)\n\n"
         "Savol, taklif yoki muammo bo'lsa — bemalol yozing, "
-        "tez orada javob beramiz! 🤝",
-        reply_markup=back_to_main_keyboard(),
+        "tez orada javob beramiz! 🤝"
     )
-    await callback.answer()
+    await _show_section(callback, text, back_to_main_keyboard())
 
 
 # ─── BEKOR QILISH ────────────────────────────────────────────────
@@ -159,7 +176,4 @@ async def cancel_handler(message: Message, state: FSMContext):
 # kuryerlar guruhidagi suhbatlarga aralashmaydi.
 @router.message(StateFilter(None), F.chat.type == "private", F.text & ~F.text.startswith("/"))
 async def fallback_no_state(message: Message):
-    await message.answer(
-        _welcome_text(message.from_user.first_name or "mehmon"),
-        reply_markup=main_menu_keyboard(),
-    )
+    await _send_home(message, message.from_user.first_name or "mehmon")

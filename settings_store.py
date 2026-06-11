@@ -27,6 +27,8 @@ def _defaults() -> dict:
         "zone_name": DELIVERY_ZONE_NAME,
         # Kuryerlar guruhi (env COURIER_GROUP_ID birinchi, keyin /setgroup)
         "courier_group_id": int(os.getenv("COURIER_GROUP_ID", "0")),
+        # Bosh sahifa rasmi (Telegram file_id)
+        "welcome_photo_id": os.getenv("WELCOME_PHOTO_ID", ""),
     }
 
 
@@ -75,6 +77,28 @@ def set_office(lat: float, lon: float, radius_km: float | None = None,
 def set_radius(radius_km: float) -> bool:
     o = _load()
     return set_office(o["lat"], o["lon"], radius_km=radius_km)
+
+
+def get_welcome_photo() -> str:
+    """Bosh sahifa rasmi file_id (env WELCOME_PHOTO_ID ustun)."""
+    env = os.getenv("WELCOME_PHOTO_ID", "")
+    if env:
+        return env
+    return str(_load().get("welcome_photo_id") or "")
+
+
+def set_welcome_photo(file_id: str) -> bool:
+    global _cache
+    current = _load()
+    current["welcome_photo_id"] = file_id
+    try:
+        with open(_SETTINGS_FILE, "w", encoding="utf-8") as f:
+            json.dump(current, f, ensure_ascii=False, indent=2)
+        _cache = current
+        return True
+    except Exception as e:
+        logger.error(f"set_welcome_photo xatolik: {e}")
+        return False
 
 
 def get_courier_group() -> int:

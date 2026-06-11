@@ -617,6 +617,57 @@ async def office_set_radius(message: Message, state: FSMContext, is_admin: bool 
     )
 
 
+# ─── FILE ID OLISH (rasm/fayl yuborilsa) ────────────────────────
+
+@router.message(F.photo, F.chat.type == "private")
+async def photo_file_id(message: Message, state: FSMContext, is_admin: bool = False):
+    if not is_admin:
+        return
+    fid = message.photo[-1].file_id
+    await state.update_data(last_photo_id=fid)
+    kb = InlineKeyboardBuilder()
+    kb.button(text="🖼 Bosh sahifa rasmi qilish", callback_data="adm_set_welcome_photo")
+    kb.adjust(1)
+    await message.reply(
+        "🆔 <b>File ID:</b>\n"
+        f"<code>{fid}</code>\n\n"
+        "Bosh sahifaga qo'yish uchun tugmani bosing 👇",
+        reply_markup=kb.as_markup(),
+    )
+
+
+@router.message(F.document, F.chat.type == "private")
+async def document_file_id(message: Message, is_admin: bool = False):
+    if not is_admin:
+        return
+    await message.reply(
+        "🆔 <b>File ID:</b>\n"
+        f"<code>{message.document.file_id}</code>"
+    )
+
+
+@router.callback_query(F.data == "adm_set_welcome_photo")
+async def set_welcome_photo(callback: CallbackQuery, state: FSMContext, is_admin: bool = False):
+    if not is_admin:
+        return await callback.answer("⛔", show_alert=True)
+    data = await state.get_data()
+    fid = data.get("last_photo_id")
+    if not fid:
+        return await callback.answer("Avval rasm yuboring.", show_alert=True)
+    ok = settings_store.set_welcome_photo(fid)
+    if ok:
+        logger.info("WELCOME_PHOTO_SET file_id=%s", fid)
+        await callback.answer("✅ O'rnatildi!")
+        await callback.message.answer(
+            "✅ <b>Bosh sahifa rasmi o'rnatildi!</b>\n\n"
+            "/start bosib ko'ring.\n\n"
+            "⚠️ <i>Doimiy bo'lishi uchun bu file_id ni WELCOME_PHOTO_ID "
+            "env o'zgaruvchisiga yozish kerak — aks holda keyingi deployда yo'qoladi.</i>"
+        )
+    else:
+        await callback.answer("Saqlashda xatolik.", show_alert=True)
+
+
 # ─── BROADCAST ───────────────────────────────────────────────────
 
 @router.callback_query(F.data == "adm_broadcast")
