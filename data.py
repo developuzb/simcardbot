@@ -129,27 +129,57 @@ TARIFFS = {
         },
     ],
 
-    # uztelecom.uz → Uzmobile "Mobile" seriyasi
+    # uztelecom.uz → Uzmobile (rasmiy saytdan tasdiqlangan, 2026-iyun)
     "uzmobile": [
         {
-            "id": "uzm_mobile_mini", "name": "Mobile Mini", "price": 45_000,
-            "gb": 30, "minutes": 1000, "sms": 1000, "apps": ["tv"],
-            "desc": "30 GB • 1 000 daqiqa • 1 000 SMS • TelecomTV kanallar",
+            "id": "uzm_mini_m", "name": "Mobile Mini M", "price": 45_000,
+            "gb": 10, "minutes": 700, "sms": 700, "apps": [],
+            "desc": "10 GB • 700 daqiqa • 700 SMS",
         },
         {
-            "id": "uzm_mobile_optimal", "name": "Mobile Optimal", "price": 61_000,
-            "gb": 45, "minutes": None, "sms": 1000, "apps": ["tv"],
-            "desc": "45 GB • Cheksiz qo'ng'iroq • 1 000 SMS • TelecomTV kanallar",
+            "id": "uzm_optimal", "name": "Optimal", "price": 55_000,
+            "gb": 15, "minutes": 700, "sms": 700, "apps": [],
+            "desc": "15 GB • 700 daqiqa • 700 SMS",
         },
         {
-            "id": "uzm_mobile_ideal", "name": "Mobile Ideal", "price": 77_000,
-            "gb": 100, "minutes": None, "sms": None, "apps": ["tv"],
-            "desc": "100 GB • Cheksiz qo'ng'iroq • Cheksiz SMS • 120+ TelecomTV kanali",
+            "id": "uzm_balance", "name": "Balance", "price": 65_000,
+            "gb": 20, "minutes": 800, "sms": 800, "apps": [],
+            "desc": "20 GB • 800 daqiqa • 800 SMS",
         },
         {
-            "id": "uzm_barakali_xxl", "name": "Barakali Plus XXL", "price": 115_000,
-            "gb": 150, "minutes": None, "sms": None, "apps": ["tv"],
-            "desc": "150 GB • Cheksiz qo'ng'iroq • Cheksiz SMS • 120+ TelecomTV kanali",
+            "id": "uzm_bonus_salom", "name": "Bonus Super Salom", "price": 70_000,
+            "gb": 100, "minutes": None, "sms": 1000, "apps": ["youtube"],
+            "desc": "100 GB • Cheksiz qo'ng'iroq • 1 000 SMS • YouTube va ilovalar bepul",
+        },
+        {
+            "id": "uzm_super_lux", "name": "Super Lux", "price": 77_000,
+            "gb": 200, "minutes": None, "sms": 3000, "apps": [],
+            "desc": "200 GB • Cheksiz qo'ng'iroq • 3 000 SMS • Bepul ilovalar",
+        },
+        {
+            "id": "uzm_bonus_super_lux", "name": "Bonus Super Lux", "price": 77_000,
+            "gb": 200, "minutes": None, "sms": 3000, "apps": [],
+            "desc": "200 GB • Cheksiz qo'ng'iroq • 3 000 SMS • Bepul ilovalar",
+        },
+        {
+            "id": "uzm_ideal_plus", "name": "Ideal Plus", "price": 85_000,
+            "gb": 150, "minutes": None, "sms": 2000, "apps": [],
+            "desc": "150 GB • Cheksiz qo'ng'iroq • 2 000 SMS • Bepul ilovalar",
+        },
+        {
+            "id": "uzm_bonus_ideal_plus", "name": "Bonus Ideal Plus", "price": 85_000,
+            "gb": 150, "minutes": None, "sms": 2000, "apps": [],
+            "desc": "150 GB • Cheksiz qo'ng'iroq • 2 000 SMS • Bepul ilovalar",
+        },
+        {
+            "id": "uzm_mobile_lux", "name": "Mobile Lux", "price": 101_000,
+            "gb": 200, "minutes": None, "sms": 3000, "apps": [],
+            "desc": "200 GB • Cheksiz qo'ng'iroq • 3 000 SMS • Bepul ilovalar",
+        },
+        {
+            "id": "uzm_mobile_elite", "name": "Mobile Elite", "price": 150_000,
+            "gb": 350, "minutes": None, "sms": 3000, "apps": [],
+            "desc": "350 GB • Cheksiz qo'ng'iroq • 3 000 SMS • Bepul ilovalar",
         },
     ],
 }
