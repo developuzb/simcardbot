@@ -3,8 +3,15 @@ import logging
 from data import OPERATORS, TARIFFS
 import analytics_store
 import ai_client
+import followups_store
 
 logger = logging.getLogger(__name__)
+
+_DROP_LABELS = {
+    "tariff": "Tarif tanlashda", "delivery": "Yetkazishni tanlashda",
+    "phone": "Telefon so'ralganda", "location": "Lokatsiya so'ralganda",
+    "confirm": "Tasdiqlash oldidan",
+}
 
 
 def _tariff_name(key: str) -> str:
@@ -30,6 +37,7 @@ def format_stats() -> str:
     ai_orders = s["ai_orders"]
     conv = (ai_orders / sessions * 100) if sessions else 0
 
+    fu = followups_store.snapshot()
     lines = [
         "🤖 <b>AI suhbat statistikasi</b>",
         f"<i>(hisob boshlanishi: {s['since']})</i>\n",
@@ -39,7 +47,13 @@ def format_stats() -> str:
         f"📦 Jami buyurtma: <b>{s['orders']}</b>",
         f"💰 Jami summa: <b>{s['revenue']:,} so'm</b>",
         f"🟠 Hudud tashqarisida: <b>{s['out_of_zone']}</b>",
+        f"🚪 Tugatmagan (abandon): <b>{fu['abandoned']}</b>",
+        f"📩 Fikr so'rovi: <b>{s.get('followups_sent', 0)}</b> · javob: <b>{s.get('feedbacks', 0)}</b>",
     ]
+    if fu["drop_stages"]:
+        lines.append("\n<b>Qayerda tashlab ketishadi:</b>")
+        for st, c in _top(fu["drop_stages"]):
+            lines.append(f"  • {_DROP_LABELS.get(st, st)} — {c}")
 
     if s["operators"]:
         lines.append("\n<b>So'ralgan operatorlar:</b>")
@@ -65,30 +79,43 @@ def format_stats() -> str:
 
 def _build_data_summary() -> str:
     s = analytics_store.snapshot()
+    fu = followups_store.snapshot()
+    sessions = s["ai_sessions"] or 1
+    conv = s["ai_orders"] / sessions * 100
     ops = ", ".join(f"{OPERATORS.get(k, {}).get('name', k)}={v}"
                     for k, v in _top(s["operators"])) or "—"
     tariffs = ", ".join(f"{_tariff_name(k)}={v}" for k, v in _top(s["tariffs"])) or "—"
     advice = ", ".join(f"{k}={v}" for k, v in _top(s["advice"])) or "—"
+    drops = ", ".join(f"{_DROP_LABELS.get(st, st)}={c}" for st, c in _top(fu["drop_stages"])) or "—"
+    feedbacks = " | ".join(f"«{f[:80]}»" for f in fu["feedbacks"][-6:]) or "—"
     return (
-        f"Jami AI suhbat: {s['ai_sessions']}\n"
-        f"AI orqali buyurtma: {s['ai_orders']}\n"
-        f"Jami buyurtma: {s['orders']}\n"
-        f"Jami daromad: {s['revenue']} so'm\n"
+        f"AI suhbatlar: {s['ai_sessions']}\n"
+        f"Buyurtmalar: {s['orders']} (AI orqali {s['ai_orders']})\n"
+        f"Konversiya: {conv:.0f}%\n"
+        f"Daromad: {s['revenue']} so'm\n"
         f"Hudud tashqarisida: {s['out_of_zone']}\n"
+        f"Tugatmaganlar (abandon): {fu['abandoned']}\n"
+        f"Eng ko'p tashlab ketilgan bosqich: {drops}\n"
         f"So'ralgan operatorlar: {ops}\n"
         f"Tanlangan tariflar: {tariffs}\n"
-        f"So'rov mavzulari: {advice}"
+        f"So'rov mavzulari: {advice}\n"
+        f"Mijoz fikrlari (tugatmaganlar): {feedbacks}"
     )
 
 
 _INSIGHT_SYSTEM = (
-    "Sen Texnoset SIM karta biznesining tahlilchisisan. "
-    "Senga statistika beriladi. FAQAT o'zbek tilida, qisqa va aniq javob ber.\n"
-    "Format:\n"
-    "1) 📊 Holat — 1-2 jumla umumiy ahvol\n"
-    "2) 🔍 Kuzatuvlar — 2-3 ta eng muhim nuqta (bullet)\n"
-    "3) 💡 Tavsiyalar — 2-3 ta amaliy, sotuvni oshiradigan tavsiya (bullet)\n"
-    "Inglizcha yozma. Raqamlarni izohla. Ortiqcha gap yo'q."
+    "Sen Texnoset SIM karta yetkazib berish biznesi uchun tajribali sotuv va "
+    "marketing tahlilchisisan. Senga real statistika beriladi.\n"
+    "FAQAT O'ZBEK TILIDA, aniq va amaliy yoz. Inglizcha/umumiy gaplar YO'Q.\n\n"
+    "Format (qat'iy):\n"
+    "📊 <b>Holat:</b> 1-2 jumla — biznes qanday ketyapti (konversiya, daromad).\n"
+    "🔍 <b>Kuzatuvlar:</b> 3 tagacha aniq nuqta — RAQAMGA tayanib (masalan "
+    "'konversiya 20% — past, 10 mijozdan 8 tasi tarif tanlashda ketib qolgan').\n"
+    "💡 <b>Tavsiyalar:</b> 3 tagacha ANIQ, bajariladigan qadam — har biri qaysi "
+    "muammoni hal qilishini ko'rsat (masalan 'tarif bosqichida ketishyapti → "
+    "shu yerда chegirma yoki sodda taqqoslash qo'shing'). Mijoz fikrlariga tayan.\n\n"
+    "Umumiy maslahat berma — faqat shu raqamlardan kelib chiqqan, sotuvni "
+    "oshiradigan aniq harakatlar. Har tavsiya bitta jumla."
 )
 
 
@@ -101,8 +128,8 @@ async def generate_insight() -> str:
     try:
         return await ai_client.complete(
             system=_INSIGHT_SYSTEM,
-            messages=[{"role": "user", "content": f"Statistika:\n{summary}\n\nTahlil qil."}],
-            max_tokens=500,
+            messages=[{"role": "user", "content": f"Real statistika:\n{summary}\n\nShu raqamlar asosida tahlil va aniq tavsiyalar ber."}],
+            max_tokens=600,
         )
     except Exception as e:
         logger.error(f"generate_insight xatolik: {e}")

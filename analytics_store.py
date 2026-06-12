@@ -25,6 +25,8 @@ def _empty() -> dict:
         "orders": 0,           # jami buyurtma (AI + oddiy)
         "revenue": 0,          # jami buyurtma summasi (so'm)
         "out_of_zone": 0,      # hudud tashqarisidagi urinishlar
+        "followups_sent": 0,   # tugatmaganlarga yuborilgan fikr so'rovlari
+        "feedbacks": 0,        # qaytib kelgan fikrlar
         "operators": {},       # {op_id: count}
         "tariffs": {},         # {"op_id:tariff_id": count}
         "advice": {},          # {kategoriya: count}
@@ -127,6 +129,18 @@ def out_of_zone():
     d = _load()
     d["out_of_zone"] += 1
     _today_bucket()["out_of_zone"] += 1
+    _save()
+
+
+def followup_sent():
+    d = _load()
+    d["followups_sent"] = d.get("followups_sent", 0) + 1
+    _save()
+
+
+def feedback_received():
+    d = _load()
+    d["feedbacks"] = d.get("feedbacks", 0) + 1
     _save()
 
 

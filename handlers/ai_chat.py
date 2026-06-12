@@ -23,6 +23,8 @@ import settings_store
 import analytics_store
 import tariff_advice
 import orders_db
+import followups_store
+import ai_client
 from handlers import dispatch
 
 # ─── Yordamchilar: ish vaqti, rate-limit ────────────────────────
@@ -121,10 +123,22 @@ def _build_system_prompt() -> str:
             )
     zones = " va ".join(z[0] for z in _get_delivery_zones())
     return (
-        "Sen Suxrob — Texnoset SIM karta mutaxassisi. Mijoz bilan ILIQ, SAMIMIY, "
-        "do'stona gaplash — xuddi yaqin tanishingga yordam berayotgandek.\n"
+        "Sen Suxrob — Texnoset SIM karta xizmatining TAJRIBALI, PROFESSIONAL sotuvchisisan. "
+        "Mijoz bilan ILIQ, SAMIMIY, ishonchli gaplash — xuddi yaqin tanishingga yordam "
+        "berayotgandek. Maqsading: mijozga chin dildan yordam berib, uni buyurtma berishgacha "
+        "yumshoq yetaklash. Hech qachon bosim o'tkazma, lekin har javobda keyingi qadamга undaymiz.\n"
         "Faqat O'ZBEK TILIDA. Inglizcha, metamatn, texnik izoh — YO'Q. "
         "Qisqa: 2-4 qator, 1-2 emoji.\n\n"
+        "🎯 KAYFIYATGA QARAB SOTUV TAKTIKASI (professional sotuvchidek):\n"
+        "• IKKILANAYOTGAN mijoz → tinchlantir, soddalashtir, BITTA aniq tavsiya ber, "
+        "«ko'pchilik shuni oladi» de. Tanlash yukini yengillashtir.\n"
+        "• NARXGA SEZGIR mijoz → qiymatni ko'rsat: kunlik narx, BEPUL yetkazish, 1+1 aksiya. "
+        "«Bu narxga bundan yaxshisi yo'q» tarzida.\n"
+        "• QIZIQQAN/TAYYOR mijoz → maqtab tasdiqla va darhol tugmaga yo'naltir, kechiktirma.\n"
+        "• SHOSHAYOTGAN mijoz → tezkor yetkazishni eslat, 1 soatda yetadi de.\n"
+        "• SHUBHALANAYOTGAN mijoz → ishonch ber: uyga yetkazamiz, raqamni o'zingiz tanlaysiz, "
+        "kuryer keladi. Xavotirini yo'qot.\n"
+        "Har javob mijozni TANLOVGA yaqinlashtirsin — lekin samimiy, bosimsiz.\n\n"
         "🚫 ENG MUHIM QOIDA — MIJOZNI CHALKASHTIRMA:\n"
         "• HAR DOIM FAQAT BITTA eng mos tarifni tavsiya qil. Ro'yxat tashlama!\n"
         "• 3-4 tarifni vergul bilan sanab ketma — bu mijozni zeriktiradi va chalkashtiradi.\n"
@@ -462,6 +476,7 @@ async def start_ai_chat(target, state: FSMContext, quick: bool = False):
     user_name = target.from_user.first_name or "Mehmon"
     await state.update_data(ai_history=[], user_name=user_name, ai_stage="operator")
     analytics_store.ai_session()
+    followups_store.touch(target.from_user.id, "operator", user_name)
 
     if quick:
         text = (
@@ -517,6 +532,18 @@ async def handle_ai_message(message: Message, state: FSMContext):
     data = await state.get_data()
     stage: str = data.get("ai_stage", "operator")
 
+    # Follow-up'dan keyin kelgan fikr (mijoz hali shu suhbatda bo'lsa ham)
+    if followups_store.is_awaiting_feedback(message.from_user.id):
+        await _record_and_analyze_feedback(
+            message.bot, message.from_user.id,
+            data.get("user_name", "Mijoz"), message.text.strip(),
+        )
+        await message.answer(
+            "Rahmat fikringiz uchun! 🙏 Tayyor bo'lsangiz, davom etamiz 👇",
+            reply_markup=_stage_keyboard(stage if stage in ("operator", "done") else "operator"),
+        )
+        return
+
     # Telefon bosqichi — AI EMAS, to'g'ridan-to'g'ri kod
     if stage == "phone":
         if not _looks_like_phone(message.text):
@@ -526,9 +553,10 @@ async def handle_ai_message(message: Message, state: FSMContext):
             )
             return
         await state.update_data(customer_phone=message.text.strip(), ai_stage="location")
+        followups_store.touch(message.from_user.id, "location", data.get("user_name", ""))
         await message.answer(
             "Rahmat! Raqamingizni oldim ✅\n\n"
-            "Endi joylashuvingizni yuboring — eshigingizgacha yetkazib beramiz 📍👇",
+            "Oxirgi qadam! 🏁 Joylashuvingizni yuboring — eshigingizgacha yetkazib beramiz 📍👇",
             reply_markup=_location_keyboard(),
         )
         return
@@ -648,6 +676,7 @@ async def handle_location(message: Message, state: FSMContext):
 
     # Hudud ichida — lokatsiyani saqlab, TASDIQLASH bosqichiga o'tamiz
     await state.update_data(region=zone, cust_lat=lat, cust_lon=lon, ai_stage="confirm")
+    followups_store.touch(message.from_user.id, "confirm", data.get("user_name", ""))
     await message.answer(f"✅ Joylashuv tasdiqlandi: <b>{zone}</b>", reply_markup=ReplyKeyboardRemove())
     data = await state.get_data()
     await message.answer(_order_summary(data, zone), reply_markup=_confirm_keyboard())
@@ -707,6 +736,52 @@ async def _handle_out_of_zone(message: Message, state: FSMContext, data: dict, l
     await state.update_data(ai_stage="done")
 
 
+def _customer_questions(data: dict) -> list:
+    return [m["content"] for m in data.get("ai_history", []) if m.get("role") == "user"]
+
+
+async def _send_admin_chat_summary(bot, data: dict, order_num, outcome: str):
+    """Har bir mijoz bilan chat xulosasi + AI sotuv tavsiyasini adminga yuboradi."""
+    op = OPERATORS.get(data.get("sel_operator", ""), {}).get("name", "—")
+    tariff = data.get("sel_tariff", "—")
+    questions = _customer_questions(data)
+    q_block = "\n".join(f"  • «{q[:90]}»" for q in questions[-5:]) if questions else "  (faqat tugmalar, savol yo'q)"
+    name = data.get("user_name", "Mijoz")
+    phone = data.get("customer_phone", "—")
+
+    # AI sotuv tahlili (admin uchun) — best-effort
+    recommendation = ""
+    try:
+        sys = (
+            "Sen sotuv bo'yicha maslahatchisan. Senga mijozning bot bilan suhbati "
+            "(savollari va tanlovi) beriladi. Admin uchun O'ZBEK TILIDA juda qisqa "
+            "(1-2 jumla) amaliy TAVSIYA yoz: mijoz qanday kayfiyatda edi va keyingi "
+            "safar bunday mijozni qanday ushlab qolish/ko'proq sotish mumkin. Inglizcha yozma."
+        )
+        usr = (
+            f"Mijoz: {name}\nTanlovi: {op}, tarif {tariff}, natija: {outcome}\n"
+            f"Savollari:\n{q_block}"
+        )
+        recommendation = await ai_client.complete(sys, [{"role": "user", "content": usr}], max_tokens=200)
+    except Exception:
+        recommendation = ""
+
+    rec_line = f"\n\n💡 <b>Tavsiya:</b> {recommendation}" if recommendation else ""
+    text = (
+        f"🧠 <b>MIJOZ XULOSASI — #{order_num}</b> ({outcome})\n"
+        f"➖➖➖➖➖➖➖➖➖➖\n"
+        f"👤 {name} · <code>{phone}</code>\n"
+        f"📡 Tanlovi: {op} — {tariff}\n"
+        f"💬 <b>Savollari:</b>\n{q_block}"
+        f"{rec_line}"
+    )
+    for admin_id in ADMIN_IDS:
+        try:
+            await bot.send_message(admin_id, text)
+        except Exception:
+            pass
+
+
 @router.callback_query(AIState.chatting, F.data == "ai_confirm")
 async def ai_confirm_order(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
@@ -733,6 +808,9 @@ async def ai_confirm_order(callback: CallbackQuery, state: FSMContext):
             "⚠️ Buyurtmani saqlashda xatolik. Qayta urinib ko'ring.",
             reply_markup=_confirm_keyboard(),
         )
+
+    followups_store.complete(callback.from_user.id)
+    asyncio.create_task(_send_admin_chat_summary(callback.bot, data, order_num, "BUYURTMA BERDI ✅"))
 
     op_id = data.get("sel_operator", "")
     hint = operator_number_hint(op_id)
@@ -771,13 +849,18 @@ async def ai_pick_operator(callback: CallbackQuery, state: FSMContext):
 
     analytics_store.operator_asked(op_id)
     await state.update_data(ai_stage=f"tariff:{op_id}", sel_operator=op_id)
+    followups_store.touch(callback.from_user.id, f"tariff:{op_id}",
+                          (await state.get_data()).get("user_name", ""))
     try:
         await callback.message.edit_reply_markup(reply_markup=None)
     except Exception:
         pass
     await callback.answer(f"{op['emoji']} Tanlandi!")
     await callback.message.answer(
-        f"✅ {op['emoji']} <b>{op['name']}</b> tanlandi!\n\nQaysi tarifni xohlaysiz? 👇",
+        f"✅ {op['emoji']} <b>{op['name']}</b> tanlandi! Ajoyib tanlov 👌\n\n"
+        "Quyidagi tariflardan sizga mosini birga tanlaymiz. "
+        "Aniq bilmasangiz — «internet ko'p» yoki «arzonroq» deb yozing, mosini topib beraman 😊\n\n"
+        "Qaysi tarif yoqdi? 👇",
         reply_markup=_stage_keyboard(f"tariff:{op_id}"),
     )
 
@@ -794,6 +877,8 @@ async def ai_pick_tariff(callback: CallbackQuery, state: FSMContext):
 
     analytics_store.tariff_chosen(op_id, tariff_id)
     await state.update_data(ai_stage="delivery", sel_tariff=tariff_id, sel_operator=op_id)
+    followups_store.touch(callback.from_user.id, "delivery",
+                          (await state.get_data()).get("user_name", ""))
     try:
         await callback.message.edit_reply_markup(reply_markup=None)
     except Exception:
@@ -801,11 +886,16 @@ async def ai_pick_tariff(callback: CallbackQuery, state: FSMContext):
     await callback.answer("📦 Tanlandi!")
     op_name = OPERATORS.get(op_id, {}).get("name", op_id)
     detail = tariff_advice.tariff_detail_block(tariff)
+    promo_extra = ""
+    if tariff["price"] >= PROMO_1PLUS1_MIN_PRICE:
+        promo_extra = "🎁 Bu tarifга <b>1+1</b> — ikkinchi SIM BEPUL, yaqinlaringizga ham oling!\n"
     await callback.message.answer(
-        f"Zo'r tanlov! 🙌 <b>{op_name} — {tariff['name']}</b>\n\n"
+        f"Zo'r tanlov! 🙌 <b>{op_name} — {tariff['name']}</b> — ko'pchilik aynan shuni oladi 👍\n\n"
         f"📋 <b>Sizga beriladigan imkoniyatlar:</b>\n"
-        f"{detail}\n\n"
-        "Endi buyurtmani qanchalik tez yetkazib beray? 👇",
+        f"{detail}\n"
+        f"{promo_extra}\n"
+        "Eshigingizgacha bepul yetkazib beramiz 🚚 Atigi 2 qadam qoldi!\n"
+        "Qanchalik tez yetkazib beray? 👇",
         reply_markup=_stage_keyboard("delivery"),
     )
 
@@ -819,6 +909,8 @@ async def ai_pick_delivery(callback: CallbackQuery, state: FSMContext):
 
     price_text = "Bepul 🎁" if dtype["price"] == 0 else f"{dtype['price']:,} so'm"
     await state.update_data(ai_stage="phone", sel_delivery=dtype_key)
+    followups_store.touch(callback.from_user.id, "phone",
+                          (await state.get_data()).get("user_name", ""))
     try:
         await callback.message.edit_reply_markup(reply_markup=None)
     except Exception:
@@ -833,8 +925,9 @@ async def ai_pick_delivery(callback: CallbackQuery, state: FSMContext):
     await callback.message.answer(
         f"Bo'ldi! {dtype['emoji']} <b>{dtype['name']}</b> ({dtype['desc']}) — {price_text} ✅"
         f"{work_note}\n\n"
-        "Sizga qo'ng'iroq qilishimiz uchun telefon raqamingizni yozing 📞\n"
-        "<i>Masalan: +998901234567</i>",
+        "Deyarli tayyor! 🎯 Sizga qo'ng'iroq qilishimiz uchun telefon raqamingizni yozing 📞\n"
+        "<i>Masalan: +998901234567</i>\n\n"
+        "<i>Xavotir olmang — raqamingiz faqat siz bilan bog'lanish uchun.</i>",
         reply_markup=_stage_keyboard("phone"),
     )
 
@@ -918,6 +1011,20 @@ def _home_help_keyboard() -> object:
 async def home_assistant(message: Message):
     if message.text.strip() in ("❌ Bekor qilish", "❌ Bekor"):
         return await message.answer("Bosh sahifa uchun /start bosing 😊", reply_markup=ReplyKeyboardRemove())
+
+    # Abandonment follow-up'dan keyingi fikr — alohida ko'rib chiqamiz
+    if followups_store.is_awaiting_feedback(message.from_user.id):
+        await _record_and_analyze_feedback(
+            message.bot, message.from_user.id,
+            message.from_user.first_name or "Mijoz", message.text.strip(),
+        )
+        await message.answer(
+            "Rahmat fikringiz uchun! 🙏 Albatta inobatga olamiz.\n\n"
+            "Tayyor bo'lsangiz, buyurtmani bir necha soniyada yakunlaymiz 👇",
+            reply_markup=_home_help_keyboard(),
+        )
+        return
+
     if _is_injection(message.text):
         await message.answer(
             "Men faqat SIM karta xizmati bo'yicha yordam beraman 😊",
@@ -948,3 +1055,107 @@ async def home_assistant(message: Message):
                 "Kechirasiz, «📞 Aloqa» orqali bog'laning.",
                 reply_markup=_home_help_keyboard(),
             )
+
+
+# ─── ABANDONMENT FOLLOW-UP (2 soat) ─────────────────────────────
+
+_FB_REASONS = {
+    "narx": "Narx qimmat tuyuldi",
+    "keyin": "Keyinroq olmoqchiman",
+    "boshqa": "Boshqa joydan oldim",
+    "kordim": "Shunchaki ko'rib chiqdim",
+}
+
+
+def _feedback_keyboard() -> object:
+    b = InlineKeyboardBuilder()
+    for code, label in _FB_REASONS.items():
+        b.button(text=label, callback_data=f"fb_reason_{code}")
+    b.button(text="🛒 Buyurtmani yakunlash", callback_data="new_order")
+    b.adjust(1)
+    return b.as_markup()
+
+
+async def send_followup(bot, user_id, name: str):
+    """2 soatdan beri tugatmagan mijozga fikr so'rab xabar yuboradi."""
+    try:
+        await bot.send_message(
+            int(user_id),
+            f"Salom{', ' + name if name else ''}! 😊 Men Suxrob — Texnoset'dan.\n\n"
+            "Buyurtmangizni yakunlamabsiz — biror narsa xalaqit berdimi yoki "
+            "savol qoldimi? 🤔\n"
+            "Fikringizni yozing yoki quyidan tanlang — sizga yordam beraman 👇\n\n"
+            "<i>(Tarif hali ham sizni kutmoqda — bir necha soniyada yakunlaymiz)</i>",
+            reply_markup=_feedback_keyboard(),
+        )
+        return True
+    except Exception as e:
+        logger.warning("Follow-up yuborilmadi (%s): %s", user_id, e)
+        return False
+
+
+async def _record_and_analyze_feedback(bot, user_id, name: str, feedback: str):
+    followups_store.save_feedback(user_id, feedback)
+    analytics_store.feedback_received()
+    # AI tahlili — admin uchun
+    rec = ""
+    try:
+        sys = (
+            "Sen sotuv tahlilchisisan. Mijoz buyurtmani tugatmadi va sababini yozdi. "
+            "Admin uchun O'ZBEK TILIDA juda qisqa (1-2 jumla) amaliy tavsiya yoz: "
+            "shu mijozni qanday qaytarish va bunday holatni kamaytirish mumkin. Inglizcha yozma."
+        )
+        rec = await ai_client.complete(
+            sys, [{"role": "user", "content": f"Mijoz fikri: «{feedback}»"}], max_tokens=180,
+        )
+    except Exception:
+        rec = ""
+    rec_line = f"\n\n💡 <b>Tavsiya:</b> {rec}" if rec else ""
+    text = (
+        f"📝 <b>MIJOZ FIKRI (tugatmagan buyurtma)</b>\n"
+        f"➖➖➖➖➖➖➖➖➖➖\n"
+        f"👤 {name} (ID: {user_id})\n"
+        f"💬 «{feedback}»"
+        f"{rec_line}"
+    )
+    for admin_id in ADMIN_IDS:
+        try:
+            await bot.send_message(admin_id, text)
+        except Exception:
+            pass
+
+
+@router.callback_query(F.data.startswith("fb_reason_"))
+async def feedback_reason(callback: CallbackQuery):
+    code = callback.data.replace("fb_reason_", "")
+    reason = _FB_REASONS.get(code, code)
+    await callback.answer("Rahmat! 🙏")
+    try:
+        await callback.message.edit_reply_markup(reply_markup=None)
+    except Exception:
+        pass
+    await _record_and_analyze_feedback(
+        callback.bot, callback.from_user.id,
+        callback.from_user.first_name or "Mijoz", reason,
+    )
+    await callback.message.answer(
+        "Rahmat fikringiz uchun! 🙏\n\n"
+        "Agar fikringiz o'zgarsa — biz shu yerdamiz. Buyurtmani istalgan vaqt "
+        "yakunlashingiz mumkin 👇",
+        reply_markup=_home_help_keyboard(),
+    )
+
+
+async def followup_loop(bot):
+    """Har 10 daqiqada tugatmagan mijozlarni tekshirib, fikr so'raydi."""
+    while True:
+        await asyncio.sleep(600)
+        try:
+            for item in followups_store.due_for_followup(hours=2.0):
+                ok = await send_followup(bot, item["user_id"], item["name"])
+                followups_store.mark_followed(item["user_id"])
+                if ok:
+                    analytics_store.followup_sent()
+                await asyncio.sleep(0.3)
+        except Exception as e:
+            logger.error("followup_loop xatolik: %s", e)

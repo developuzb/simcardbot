@@ -67,10 +67,12 @@ async def main():
 
     logger.info("Bot ishga tushmoqda...")
     report_task = asyncio.create_task(daily_report_loop(bot))
+    followup_task = asyncio.create_task(ai_chat.followup_loop(bot))
     try:
         await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
     finally:
         report_task.cancel()
+        followup_task.cancel()
         await bot.session.close()
 
 
