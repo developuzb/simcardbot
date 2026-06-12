@@ -7,7 +7,9 @@ from keyboards import (
 )
 from data import OPERATORS, TARIFFS
 from config import (
-    ADMIN_CONTACT, DELIVERY_TYPES, PROMO_1PLUS1_MIN_PRICE, PROMO_1PLUS1_BADGE,
+    ADMIN_CONTACT, ADMIN_PHONE, DELIVERY_TYPES,
+    PROMO_1PLUS1_MIN_PRICE, PROMO_1PLUS1_BADGE,
+    WORK_START_HOUR, WORK_END_HOUR,
 )
 import settings_store
 
@@ -150,9 +152,10 @@ async def show_contact(callback: CallbackQuery):
     text = (
         "📞 <b>BIZ BILAN BOG'LANISH</b>\n"
         "➖➖➖➖➖➖➖➖➖➖\n"
-        f"👨‍💼 Admin: {ADMIN_CONTACT}\n"
-        "🕐 Ish vaqti: 09:00 – 22:00 (dushanba–shanba)\n\n"
-        "Savol, taklif yoki muammo bo'lsa — bemalol yozing, "
+        f"📱 Telefon: <code>{ADMIN_PHONE}</code>\n"
+        f"💬 Telegram: {ADMIN_CONTACT}\n"
+        f"🕐 Ish vaqti: {WORK_START_HOUR:02d}:00 – {WORK_END_HOUR:02d}:00 (dushanba–shanba)\n\n"
+        "Savol, taklif yoki muammo bo'lsa — bemalol yozing yoki qo'ng'iroq qiling, "
         "tez orada javob beramiz! 🤝"
     )
     await _show_section(callback, text, back_to_main_keyboard())

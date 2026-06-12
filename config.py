@@ -7,8 +7,9 @@ BOT_TOKEN = os.getenv("BOT_TOKEN", "YOUR_BOT_TOKEN_HERE")
 ADMIN_IDS = list(map(int, os.getenv("ADMIN_IDS", "123456789").split(",")))
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 
-# Mijoz hudud tashqarisida bo'lsa ko'rsatiladigan admin aloqasi
-ADMIN_CONTACT = os.getenv("ADMIN_CONTACT", "@texnoset_admin")
+# Mijoz aloqasi (Telegram username va telefon)
+ADMIN_CONTACT = os.getenv("ADMIN_CONTACT", "@texnoset_digital")
+ADMIN_PHONE = os.getenv("ADMIN_PHONE", "+998770097171")
 
 # Ish vaqti (Toshkent, soat). Tezkor yetkazish faqat shu oraliqda.
 WORK_START_HOUR = int(os.getenv("WORK_START_HOUR", "9"))
