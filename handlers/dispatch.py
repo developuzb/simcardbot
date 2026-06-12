@@ -309,8 +309,9 @@ async def courier_claim(callback: CallbackQuery):
         await orders_db.update_order_if(num, "Kuryerda", {
             "status": "Tasdiqlangan", "courier_id": "", "courier_name": "",
         })
+        me = await callback.bot.get_me()
         return await callback.answer(
-            "⚠️ Avval botga kirib /start bosing (@texnoset_hamkorbot), keyin qayta urinib ko'ring.",
+            f"⚠️ Avval botga kirib /start bosing (@{me.username}), keyin qayta urinib ko'ring.",
             show_alert=True,
         )
 
