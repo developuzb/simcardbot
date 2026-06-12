@@ -7,10 +7,11 @@ from keyboards import (
 )
 from data import OPERATORS, TARIFFS
 from config import (
-    ADMIN_CONTACT, ADMIN_PHONE, DELIVERY_TYPES,
-    PROMO_1PLUS1_MIN_PRICE, PROMO_1PLUS1_BADGE,
+    ADMIN_CONTACT, ADMIN_PHONE, FOUNDER_CONTACT, OFFICE_ADDRESS, WORK_DAYS,
+    DELIVERY_TYPES, PROMO_1PLUS1_MIN_PRICE, PROMO_1PLUS1_BADGE,
     WORK_START_HOUR, WORK_END_HOUR,
 )
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 import settings_store
 
 router = Router()
@@ -147,6 +148,15 @@ async def show_about(callback: CallbackQuery):
 
 # ─── ALOQA ───────────────────────────────────────────────────────
 
+def _contact_keyboard() -> object:
+    b = InlineKeyboardBuilder()
+    b.button(text="📍 Ofis lokatsiyasi", callback_data="show_office_loc")
+    b.button(text="🤖 AI yordamchi", callback_data="open_ai_chat")
+    b.button(text="⬅️ Bosh sahifa", callback_data="back_to_main")
+    b.adjust(1, 2)
+    return b.as_markup()
+
+
 @router.callback_query(F.data == "contact")
 async def show_contact(callback: CallbackQuery):
     text = (
@@ -154,11 +164,27 @@ async def show_contact(callback: CallbackQuery):
         "➖➖➖➖➖➖➖➖➖➖\n"
         f"📱 Telefon: <code>{ADMIN_PHONE}</code>\n"
         f"💬 Telegram: {ADMIN_CONTACT}\n"
-        f"🕐 Ish vaqti: {WORK_START_HOUR:02d}:00 – {WORK_END_HOUR:02d}:00 (dushanba–shanba)\n\n"
-        "Savol, taklif yoki muammo bo'lsa — bemalol yozing yoki qo'ng'iroq qiling, "
-        "tez orada javob beramiz! 🤝"
+        f"👤 Asoschi: Suxrob — {FOUNDER_CONTACT}\n\n"
+        f"🏢 <b>Manzil:</b> {OFFICE_ADDRESS}\n"
+        f"🕐 <b>Ish vaqti:</b> {WORK_DAYS}, {WORK_START_HOUR:02d}:00 – {WORK_END_HOUR:02d}:00\n\n"
+        "Ofis joylashuvini ko'rish uchun pastdagi tugmani bosing 👇"
     )
-    await _show_section(callback, text, back_to_main_keyboard())
+    await _show_section(callback, text, _contact_keyboard())
+
+
+@router.callback_query(F.data == "show_office_loc")
+async def show_office_location(callback: CallbackQuery):
+    o = settings_store.get_office()
+    try:
+        await callback.message.answer_location(latitude=o["lat"], longitude=o["lon"])
+    except Exception:
+        pass
+    await callback.message.answer(
+        f"📍 <b>Texnoset ofisi</b>\n🏢 {OFFICE_ADDRESS}\n\n"
+        f"📱 {ADMIN_PHONE} · {ADMIN_CONTACT}",
+        reply_markup=back_to_main_keyboard(),
+    )
+    await callback.answer()
 
 
 # ─── BEKOR QILISH ────────────────────────────────────────────────

@@ -10,6 +10,13 @@ ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 # Mijoz aloqasi (Telegram username va telefon)
 ADMIN_CONTACT = os.getenv("ADMIN_CONTACT", "@texnoset_digital")
 ADMIN_PHONE = os.getenv("ADMIN_PHONE", "+998770097171")
+FOUNDER_CONTACT = os.getenv("FOUNDER_CONTACT", "@aflafa_s")
+OFFICE_ADDRESS = os.getenv(
+    "OFFICE_ADDRESS",
+    "Qashqadaryo, Qarshi tumani, Qovchin shaharchasi — markaziy yo'lning "
+    "4-km qismida (har ikki tomondan kirishda), Eski garaj yaqinida.",
+)
+WORK_DAYS = os.getenv("WORK_DAYS", "har kuni")
 
 # Ish vaqti (Toshkent, soat). Tezkor yetkazish faqat shu oraliqda.
 WORK_START_HOUR = int(os.getenv("WORK_START_HOUR", "9"))
