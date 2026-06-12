@@ -10,6 +10,10 @@ ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 # Mijoz hudud tashqarisida bo'lsa ko'rsatiladigan admin aloqasi
 ADMIN_CONTACT = os.getenv("ADMIN_CONTACT", "@texnoset_admin")
 
+# Ish vaqti (Toshkent, soat). Tezkor yetkazish faqat shu oraliqda.
+WORK_START_HOUR = int(os.getenv("WORK_START_HOUR", "9"))
+WORK_END_HOUR = int(os.getenv("WORK_END_HOUR", "21"))
+
 # 1+1 aksiya: shu narx va undan qimmat tariflarga 2-SIM/raqam bepul
 PROMO_1PLUS1_MIN_PRICE = int(os.getenv("PROMO_1PLUS1_MIN_PRICE", "70000"))
 PROMO_1PLUS1_BADGE = "🎁 1+1"

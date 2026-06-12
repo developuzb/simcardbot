@@ -9,7 +9,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 
 from config import BOT_TOKEN, ADMIN_IDS
 from middlewares.auth import RoleMiddleware
-from handlers import start, operator, tariff, number, location, admin, courier, ai_chat, dispatch
+from handlers import start, admin, ai_chat, dispatch
 import ai_analytics
 
 logging.basicConfig(
@@ -35,12 +35,14 @@ async def daily_report_loop(bot: Bot):
             report = ai_analytics.daily_report_text()
             insight = await ai_analytics.generate_insight()
             full = f"{report}\n\n🤖 <b>AI tahlil:</b>\n{insight}"
+            sent = 0
             for admin_id in ADMIN_IDS:
                 try:
                     await bot.send_message(admin_id, full)
-                except Exception:
-                    pass
-            logger.info("Kunlik hisobot yuborildi.")
+                    sent += 1
+                except Exception as e:
+                    logger.warning("Kunlik hisobot %s ga yuborilmadi: %s", admin_id, e)
+            logger.info("Kunlik hisobot yuborildi (%s admin).", sent)
         except Exception as e:
             logger.error(f"daily_report xatolik: {e}")
 
@@ -60,13 +62,8 @@ async def main():
     # Routerlar: dispatch (guruh + statuslar) va admin birinchi (prioritet)
     dp.include_router(dispatch.router)
     dp.include_router(admin.router)
-    dp.include_router(courier.router)
     dp.include_router(ai_chat.router)
     dp.include_router(start.router)
-    dp.include_router(operator.router)
-    dp.include_router(tariff.router)
-    dp.include_router(number.router)
-    dp.include_router(location.router)
 
     logger.info("Bot ishga tushmoqda...")
     report_task = asyncio.create_task(daily_report_loop(bot))

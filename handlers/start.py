@@ -2,9 +2,8 @@ from aiogram import Router, F
 from aiogram.filters import CommandStart, Command, StateFilter
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
-from states import OrderState
 from keyboards import (
-    operators_keyboard, main_menu_keyboard, remove_keyboard, back_to_main_keyboard,
+    main_menu_keyboard, remove_keyboard, back_to_main_keyboard,
 )
 from data import OPERATORS, TARIFFS
 from config import (

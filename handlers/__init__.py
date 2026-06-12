@@ -1,3 +1,3 @@
-from handlers import start, operator, tariff, number, location, admin, courier, ai_chat
+from handlers import start, admin, ai_chat, dispatch
 
-__all__ = ["start", "operator", "tariff", "number", "location", "admin", "courier", "ai_chat"]
+__all__ = ["start", "admin", "ai_chat", "dispatch"]

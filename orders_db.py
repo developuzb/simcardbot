@@ -7,6 +7,7 @@ DATA_DIR=/data (volume) ulansa doimiy bo'ladi.
 import json
 import os
 import logging
+import secrets
 from threading import Lock
 from datetime import datetime
 
@@ -19,13 +20,14 @@ _orders: list | None = None
 
 # Buyurtma holatlari
 STATUSES = [
-    "Yangi",          # admin tasdig'ini kutmoqda
-    "Tasdiqlangan",   # guruhda, kuryer kutilmoqda
-    "Kuryerda",       # kuryer qabul qildi
-    "Yo'lda",         # kuryer yo'lga chiqdi
+    "Yangi",                # admin tasdig'ini kutmoqda
+    "Tasdiqlangan",         # guruhda, kuryer kutilmoqda
+    "Kuryerda",             # kuryer qabul qildi
+    "Yo'lda",               # kuryer yo'lga chiqdi
     "Yetkazildi",
     "Mijoz yo'q",
     "Bekor",
+    "Hudud tashqarisida",   # zona tashqarisidagi lead (admin qo'lda hal qiladi)
 ]
 
 
@@ -52,14 +54,20 @@ def _save():
         logger.error(f"orders_db save xatolik: {e}")
 
 
-async def create_order(data: dict) -> int:
-    """Yangi buyurtma yaratadi, ketma-ket raqam qaytaradi."""
+async def create_order(data: dict, status: str = "Yangi") -> int:
+    """Yangi buyurtma yaratadi, ketma-ket raqam qaytaradi.
+
+    Har buyurtmaga qisqa noyob `token` beriladi — bu Heroku wipe'dan
+    keyin raqamlar takrorlansa ham, eski Telegram tugmasi YANGI
+    buyurtmaga ta'sir qilmasligini ta'minlaydi (callback'da tekshiriladi).
+    """
     with _lock:
         orders = _load()
         num = max((int(o.get("num", 0)) for o in orders), default=1000) + 1
         now = datetime.now()
         order = {
             "num": num,
+            "token": secrets.token_hex(3),  # 6 hex belgi — noyob kalit
             "date": now.strftime("%Y-%m-%d"),
             "time": now.strftime("%H:%M:%S"),
             "name": data.get("name", ""),
@@ -68,24 +76,38 @@ async def create_order(data: dict) -> int:
             "operator": data.get("operator", ""),
             "op_id": data.get("op_id", ""),
             "tariff": data.get("tariff", ""),
-            "sim": data.get("sim", "tanlanmagan"),
             "region": data.get("region", ""),
             "lat": data.get("lat"),
             "lon": data.get("lon"),
+            "distance_km": data.get("distance_km"),
             "delivery_price": int(data.get("delivery_price", 0)),
             "delivery_type": data.get("delivery_type", ""),
             "tariff_price": int(data.get("tariff_price", 0)),
             "total": int(data.get("tariff_price", 0)) + int(data.get("delivery_price", 0)),
             "promo": bool(data.get("promo", False)),
-            "status": "Yangi",
+            "status": status,
             "courier_id": "",
             "courier_name": "",
+            "group_msg_id": None,
             "rating": "",
             "note": "",
         }
         orders.append(order)
         _save()
         return num
+
+
+async def rate_order(order_num, score: int) -> bool:
+    """Atomik baholash — faqat hali baholanmagan bo'lsa yozadi."""
+    with _lock:
+        for o in _load():
+            if str(o.get("num")) == str(order_num):
+                if o.get("rating"):
+                    return False
+                o["rating"] = int(score)
+                _save()
+                return True
+    return False
 
 
 async def get_order_by_num(order_num) -> dict | None:

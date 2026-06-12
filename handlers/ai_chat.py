@@ -2,6 +2,8 @@ import asyncio
 import logging
 import math
 import re
+import time
+from datetime import datetime, timezone, timedelta
 import anthropic
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery, ReplyKeyboardRemove
@@ -10,10 +12,10 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 
 from states import AIState
-from data import OPERATORS, TARIFFS
+from data import OPERATORS, TARIFFS, operator_number_hint
 from config import (
     ANTHROPIC_API_KEY, ADMIN_IDS, DELIVERY_TYPES, ADMIN_CONTACT,
-    DELIVERY_ZONE_NAME,
+    DELIVERY_ZONE_NAME, WORK_START_HOUR, WORK_END_HOUR,
     PROMO_1PLUS1_MIN_PRICE, PROMO_1PLUS1_BADGE, PROMO_1PLUS1_TEXT,
 )
 import settings_store
@@ -21,6 +23,27 @@ import analytics_store
 import tariff_advice
 import orders_db
 from handlers import dispatch
+
+# ─── Yordamchilar: ish vaqti, rate-limit ────────────────────────
+
+def _is_working_hours() -> bool:
+    tashkent = datetime.now(timezone.utc) + timedelta(hours=5)
+    return WORK_START_HOUR <= tashkent.hour < WORK_END_HOUR
+
+
+_AI_COOLDOWN = 3.0       # AI so'rovlari orasidagi minimal vaqt (soniya)
+_ORDER_COOLDOWN = 45.0   # buyurtmalar orasidagi minimal vaqt (soniya)
+_last_ai_call: dict = {}
+_last_order: dict = {}
+
+
+def _rate_limited(store: dict, user_id, cooldown: float) -> bool:
+    now = time.monotonic()
+    last = store.get(user_id, 0.0)
+    if now - last < cooldown:
+        return True
+    store[user_id] = now
+    return False
 
 logger = logging.getLogger(__name__)
 router = Router()
@@ -120,7 +143,12 @@ def _build_system_prompt() -> str:
         "• Ikkilansa — ro'yxat o'rniga BITTA savol ber: 'Internet ko'proq muhimmi yoki arzonroq?'\n\n"
         "🎁 70 000 so'm+ tariflarda 1+1 AKSIYA (2-SIM BEPUL) — buni quvonch bilan ayt.\n"
         "Narx: '90 000 so'm/oy (kuniga ~3 000 so'm)'.\n"
-        "YETKAZISH: 1 soat=10000 | 2 soat=5000 | 12 soat=BEPUL\n"
+        "YETKAZISH: " + " | ".join(
+            f"{dt['desc']}=" + ("BEPUL" if dt['price'] == 0 else f"{dt['price']}")
+            for dt in DELIVERY_TYPES.values()
+        ) + "\n"
+        "RAQAM: mijoz raqamni o'zi tanlamaydi — operator bog'lanib kelishadi. "
+        "Raqam +998(operator kodi) ko'rinishida bo'ladi.\n"
         "HUDUD: faqat " + zones + ".\n\n"
         "TARIFLAR (faqat shu ro'yxatdan, BITTASINI tanlab tavsiya qil):\n"
         + "\n".join(tariff_lines) + "\n\n"
@@ -153,6 +181,10 @@ def _stage_keyboard(stage: str) -> object:
     elif stage.startswith("tariff:"):
         op_id = stage.split(":", 1)[1]
         for t in TARIFFS.get(op_id, []):
+            # Oilaviy (ko'p SIM) va boshqa muddatli tariflar bitta-SIM
+            # oqimiga mos emas — ro'yxatda ko'rsatmaymiz.
+            if t.get("family") or t.get("no_compare"):
+                continue
             badge = f" {PROMO_1PLUS1_BADGE}" if t["price"] >= PROMO_1PLUS1_MIN_PRICE else ""
             b.button(
                 text=f"📦 {t['name']} — {t['price']:,} so'm{badge}",
@@ -206,6 +238,43 @@ def _location_keyboard() -> ReplyKeyboardMarkup:
         keyboard=[[KeyboardButton(text="📍 Lokatsiyamni yuborish", request_location=True)]],
         resize_keyboard=True,
         one_time_keyboard=True,
+    )
+
+
+def _confirm_keyboard() -> object:
+    b = InlineKeyboardBuilder()
+    b.button(text="✅ Buyurtmani tasdiqlash", callback_data="ai_confirm")
+    b.button(text="❌ Bekor qilish", callback_data="ai_cancel_order")
+    b.adjust(1)
+    return b.as_markup()
+
+
+def _order_summary(data: dict, zone: str) -> str:
+    """Mijozga buyurtmani tasdiqlashdan oldin to'liq xulosa."""
+    op_id = data.get("sel_operator", "")
+    tariff = next((t for t in TARIFFS.get(op_id, []) if t["id"] == data.get("sel_tariff")), None)
+    operator = OPERATORS.get(op_id, {"name": op_id})
+    dtype = DELIVERY_TYPES.get(data.get("sel_delivery", "ish_vaqti"), {})
+    tariff_price = tariff["price"] if tariff else 0
+    delivery_price = dtype.get("price", 0)
+    total = tariff_price + delivery_price
+    promo = "🎁 <b>1+1 AKSIYA:</b> ikkinchi SIM BEPUL!\n" if tariff_price >= PROMO_1PLUS1_MIN_PRICE else ""
+    hint = operator_number_hint(op_id)
+    delivery_text = "Bepul 🎁" if delivery_price == 0 else f"{delivery_price:,} so'm"
+    return (
+        "📋 <b>BUYURTMANGIZ</b>\n"
+        "➖➖➖➖➖➖➖➖➖➖\n"
+        f"📡 <b>Operator:</b> {operator['name']}\n"
+        f"📦 <b>Tarif:</b> {tariff['name'] if tariff else '—'} — {tariff_price:,} so'm/oy\n"
+        f"{promo}"
+        f"🚀 <b>Yetkazish:</b> {dtype.get('desc', '—')} — {delivery_text}\n"
+        f"📍 <b>Hudud:</b> {zone}\n"
+        f"📞 <b>Tel:</b> {data.get('customer_phone', '—')}\n"
+        f"💳 <b>Jami:</b> <b>{total:,} so'm</b>\n"
+        "➖➖➖➖➖➖➖➖➖➖\n"
+        f"📱 Raqamingiz <b>{hint}</b> ko'rinishida bo'ladi.\n"
+        "<i>Aniq raqamni va yetkazish vaqtini operatorimiz siz bilan kelishadi.</i>\n\n"
+        "Hammasi to'g'rimi? 👇"
     )
 
 
@@ -364,17 +433,21 @@ async def _place_order(data: dict, user_id: int, bot,
 
     # Adminga tasdiqlash kartochkasi (pin bilan)
     order = await orders_db.get_order_by_num(order_num)
+    sent = 0
     for admin_id in ADMIN_IDS:
         try:
             await bot.send_message(
                 admin_id,
                 dispatch.order_card(order, f"🆕 <b>YANGI BUYURTMA #{order_num}</b> — tasdiqlang"),
-                reply_markup=dispatch.kb_admin_confirm(order_num),
+                reply_markup=dispatch.kb_admin_confirm(order),
             )
             if lat and lon:
                 await bot.send_location(admin_id, latitude=lat, longitude=lon)
-        except Exception:
-            pass
+            sent += 1
+        except Exception as e:
+            logger.warning("Adminga (%s) buyurtma #%s yuborilmadi: %s", admin_id, order_num, e)
+    if sent == 0:
+        logger.error("DIQQAT: #%s buyurtma hech bir adminga yetib bormadi!", order_num)
 
     analytics_store.order_placed(total, via_ai=True)
     return order_num
@@ -459,6 +532,21 @@ async def handle_ai_message(message: Message, state: FSMContext):
         )
         return
 
+    # Lokatsiya kutilayotganda matn yozilsa — eslatma
+    if stage == "location":
+        await message.answer(
+            "📍 Iltimos, pastdagi tugma orqali <b>joylashuvingizni</b> yuboring 👇",
+            reply_markup=_location_keyboard(),
+        )
+        return
+
+    # Tasdiqlash kutilayotganda matn yozilsa — tugmaga yo'naltir
+    if stage == "confirm":
+        await message.answer(
+            "Buyurtmani yakunlash uchun yuqoridagi <b>«✅ Tasdiqlash»</b> tugmasini bosing 👆",
+        )
+        return
+
     if _is_injection(message.text):
         await message.answer(
             "Men faqat SIM karta bo'yicha yordam beraman 😊",
@@ -492,7 +580,14 @@ async def handle_ai_message(message: Message, state: FSMContext):
         )
         return
 
-    # Boshqa/erkin savollar — AI maslahat (sof matn)
+    # Boshqa/erkin savollar — AI maslahat (sof matn). Rate-limit (xarajat/DoS).
+    if _rate_limited(_last_ai_call, message.from_user.id, _AI_COOLDOWN):
+        await message.answer(
+            "Birozdan so'ng yozing 🙂 yoki quyidan tanlang 👇",
+            reply_markup=_stage_keyboard(stage),
+        )
+        return
+
     history: list = data.get("ai_history", [])
     history.append({"role": "user", "content": message.text})
 
@@ -547,70 +642,121 @@ async def handle_location(message: Message, state: FSMContext):
     zone = _check_zone(lat, lon)
 
     if not zone:
-        office = settings_store.get_office()
-        distance = _haversine(lat, lon, office["lat"], office["lon"])
-        await message.answer(
-            f"📍 Joylashuvingiz yetkazish hududidan biroz uzoqroqda "
-            f"(taxminan {distance:.0f} km).\n\n"
-            f"Lekin buyurtmangizni shaxsan ko'rib chiqamiz! 🤝\n"
-            f"👨‍💼 Admin tez orada bog'lanadi: {ADMIN_CONTACT}",
-            reply_markup=ReplyKeyboardRemove(),
-        )
-        name = data.get("user_name", message.from_user.first_name or "Mijoz")
-        phone = data.get("customer_phone", "—")
-        op_id = data.get("sel_operator", "")
-        operator = OPERATORS.get(op_id, {}).get("name", "—")
-        username = message.from_user.username
-        uname = f"@{username}" if username else f"ID: {message.from_user.id}"
-        maps = f"https://maps.google.com/?q={lat},{lon}"
-        admin_text = (
-            "🟠 <b>HUDUD TASHQARISIDAGI BUYURTMA</b> 🤖 AI\n\n"
-            f"👤 Mijoz: {name} ({uname})\n"
-            f"📞 Tel: {phone}\n"
-            f"📡 Operator: {operator}\n"
-            f"📍 Masofa: ~{distance:.1f} km (ruxsat {office['radius_km']:.0f} km)\n"
-            f"🗺 Lokatsiya: {maps}\n\n"
-            "Mijoz bilan bog'lanib, qo'lda kelishishingiz mumkin."
-        )
-        for admin_id in ADMIN_IDS:
-            try:
-                await message.bot.send_message(admin_id, admin_text)
-                await message.bot.send_location(admin_id, latitude=lat, longitude=lon)
-            except Exception:
-                pass
-        analytics_store.out_of_zone()
-        await state.update_data(ai_stage="done")
+        await _handle_out_of_zone(message, state, data, lat, lon)
         return
 
-    await state.update_data(region=zone)
+    # Hudud ichida — lokatsiyani saqlab, TASDIQLASH bosqichiga o'tamiz
+    await state.update_data(region=zone, cust_lat=lat, cust_lon=lon, ai_stage="confirm")
     await message.answer(f"✅ Joylashuv tasdiqlandi: <b>{zone}</b>", reply_markup=ReplyKeyboardRemove())
-
-    # Buyurtmani KOD orqali rasmiylashtiramiz (AI'siz, ishonchli)
     data = await state.get_data()
+    await message.answer(_order_summary(data, zone), reply_markup=_confirm_keyboard())
+
+
+async def _handle_out_of_zone(message: Message, state: FSMContext, data: dict, lat, lon):
+    """Hudud tashqarisidagi mijozni lead sifatida SAQLAYDI va adminga yuboradi."""
+    office = settings_store.get_office()
+    distance = _haversine(lat, lon, office["lat"], office["lon"])
+    op_id = data.get("sel_operator", "")
+    tariff = next((t for t in TARIFFS.get(op_id, []) if t["id"] == data.get("sel_tariff")), None)
+    operator = OPERATORS.get(op_id, {"name": op_id})
+    dtype = DELIVERY_TYPES.get(data.get("sel_delivery", "ish_vaqti"), {})
+
+    # Lead'ni bazaga yozamiz — admin panelda ko'rinadi, yo'qolmaydi
     try:
-        order_num = await _place_order(data, message.from_user.id, message.bot, lat=lat, lon=lon)
-        tariff = next((t for t in TARIFFS.get(data.get("sel_operator", ""), [])
-                       if t["id"] == data.get("sel_tariff", "")), None)
-        dtype = DELIVERY_TYPES.get(data.get("sel_delivery", "ish_vaqti"), {})
-        tariff_name = tariff["name"] if tariff else "—"
-        tariff_price = tariff["price"] if tariff else 0
-        total = tariff_price + dtype.get("price", 0)
-        cust_name = data.get("user_name", "")
-        await state.update_data(ai_stage="done")
-        await message.answer(
-            f"🎉 <b>Rahmat{', ' + cust_name if cust_name else ''}! Buyurtmangiz qabul qilindi</b> (#{order_num})\n\n"
-            f"📦 Tarif: <b>{tariff_name}</b>\n"
-            f"🚀 Yetkazish: <b>{dtype.get('desc', '—')}</b>\n"
-            f"📍 Hudud: <b>{zone}</b>\n"
-            f"💰 Jami: <b>{total:,} so'm</b>\n"
-            f"📱 SIM raqam: kuryer kelganda o'zingiz tanlaysiz\n\n"
-            "⏳ Buyurtmangiz tasdiqlanishi bilan kuryer yo'lga chiqadi — "
-            "har bosqichda sizga xabar beramiz! 🙏",
-            reply_markup=_stage_keyboard("done"),
+        lead_num = await orders_db.create_order({
+            "name": data.get("user_name", message.from_user.first_name or "Mijoz"),
+            "user_id": message.from_user.id,
+            "phone": data.get("customer_phone", ""),
+            "operator": operator["name"], "op_id": op_id,
+            "tariff": tariff["name"] if tariff else "—",
+            "region": "Hudud tashqarisida", "lat": lat, "lon": lon,
+            "distance_km": round(distance, 1),
+            "delivery_price": dtype.get("price", 0),
+            "delivery_type": dtype.get("desc", "—"),
+            "tariff_price": tariff["price"] if tariff else 0,
+            "promo": (tariff["price"] if tariff else 0) >= PROMO_1PLUS1_MIN_PRICE,
+        }, status="Hudud tashqarisida")
+    except Exception:
+        logger.exception("Hudud tashqarisi lead saqlashda xatolik")
+        lead_num = "—"
+
+    await message.answer(
+        f"📍 Joylashuvingiz yetkazish hududidan uzoqroqda (taxminan {distance:.0f} km).\n\n"
+        "Lekin buyurtmangizni shaxsan ko'rib chiqamiz! 🤝\n"
+        f"👨‍💼 Admin tez orada bog'lanadi: {ADMIN_CONTACT}",
+        reply_markup=ReplyKeyboardRemove(),
+    )
+    username = message.from_user.username
+    uname = f"@{username}" if username else f"ID: {message.from_user.id}"
+    admin_text = (
+        f"🟠 <b>HUDUD TASHQARISIDAGI BUYURTMA #{lead_num}</b>\n\n"
+        f"👤 Mijoz: {data.get('user_name', '—')} ({uname})\n"
+        f"📞 Tel: <code>{data.get('customer_phone', '—')}</code>\n"
+        f"📡 {operator['name']} — {tariff['name'] if tariff else '—'}\n"
+        f"📍 Masofa: ~{distance:.1f} km (ruxsat {office['radius_km']:.0f} km)\n"
+        "Mijoz bilan bog'lanib, qo'lda kelishishingiz mumkin."
+    )
+    for admin_id in ADMIN_IDS:
+        try:
+            await message.bot.send_message(admin_id, admin_text)
+            await message.bot.send_location(admin_id, latitude=lat, longitude=lon)
+        except Exception as e:
+            logger.warning("Adminga (%s) lead yuborilmadi: %s", admin_id, e)
+    analytics_store.out_of_zone()
+    await state.update_data(ai_stage="done")
+
+
+@router.callback_query(AIState.chatting, F.data == "ai_confirm")
+async def ai_confirm_order(callback: CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    if data.get("ai_stage") != "confirm":
+        return await callback.answer("Bu buyurtma allaqachon yakunlangan.", show_alert=True)
+    if _rate_limited(_last_order, callback.from_user.id, _ORDER_COOLDOWN):
+        return await callback.answer("Biroz kuting — buyurtma yaqinda yuborildi.", show_alert=True)
+
+    await callback.answer("⏳ Yuborilmoqda...")
+    await state.update_data(ai_stage="done")
+    try:
+        await callback.message.edit_reply_markup(reply_markup=None)
+    except Exception:
+        pass
+    try:
+        order_num = await _place_order(
+            data, callback.from_user.id, callback.bot,
+            lat=data.get("cust_lat"), lon=data.get("cust_lon"),
         )
     except Exception:
         logger.exception("Buyurtma yaratishda xatolik")
-        await message.answer("⚠️ Buyurtmani saqlashda xatolik. /start bosib qayta urinib ko'ring.")
+        await state.update_data(ai_stage="confirm")
+        return await callback.message.answer(
+            "⚠️ Buyurtmani saqlashda xatolik. Qayta urinib ko'ring.",
+            reply_markup=_confirm_keyboard(),
+        )
+
+    op_id = data.get("sel_operator", "")
+    hint = operator_number_hint(op_id)
+    await callback.message.answer(
+        f"🎉 <b>Rahmat! Buyurtmangiz qabul qilindi</b> (#{order_num})\n\n"
+        "⏳ Admin tasdiqlashi bilan operatorimiz siz bilan bog'lanib, "
+        "<b>SIM raqamni tanlash</b> va <b>yetkazib berish vaqtini</b> kelishadi.\n"
+        f"📱 Raqamingiz <b>{hint}</b> ko'rinishida bo'ladi.\n\n"
+        "Har bosqichda sizga xabar beramiz! 🙏",
+        reply_markup=_stage_keyboard("done"),
+    )
+
+
+@router.callback_query(AIState.chatting, F.data == "ai_cancel_order")
+async def ai_cancel_order(callback: CallbackQuery, state: FSMContext):
+    await state.update_data(ai_stage="done")
+    try:
+        await callback.message.edit_reply_markup(reply_markup=None)
+    except Exception:
+        pass
+    await callback.answer("Bekor qilindi.")
+    await callback.message.answer(
+        "❌ Buyurtma bekor qilindi.\n\nYangi buyurtma uchun pastdan tanlang 👇",
+        reply_markup=_stage_keyboard("done"),
+    )
 
 
 # ─── TUGMA CALLBACK HANDLERLARI ─────────────────────────────────
@@ -677,8 +823,15 @@ async def ai_pick_delivery(callback: CallbackQuery, state: FSMContext):
     except Exception:
         pass
     await callback.answer(f"{dtype['emoji']} Tanlandi!")
+    work_note = ""
+    if dtype["price"] > 0 and not _is_working_hours():
+        work_note = (
+            f"\n\n🕐 <i>Hozir ish vaqtidan tashqari ({WORK_START_HOUR}:00–{WORK_END_HOUR}:00). "
+            "Buyurtmangiz ish vaqti boshlanishi bilan yetkaziladi.</i>"
+        )
     await callback.message.answer(
-        f"Bo'ldi! {dtype['emoji']} <b>{dtype['name']}</b> ({dtype['desc']}) — {price_text} ✅\n\n"
+        f"Bo'ldi! {dtype['emoji']} <b>{dtype['name']}</b> ({dtype['desc']}) — {price_text} ✅"
+        f"{work_note}\n\n"
         "Sizga qo'ng'iroq qilishimiz uchun telefon raqamingizni yozing 📞\n"
         "<i>Masalan: +998901234567</i>",
         reply_markup=_stage_keyboard("phone"),

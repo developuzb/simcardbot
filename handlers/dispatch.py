@@ -1,12 +1,14 @@
-"""Buyurtma dispetcherligi:
+"""Buyurtma dispetcherligi.
 
 Mijoz buyurtma beradi → admin tasdiqlaydi → yopiq kuryerlar guruhiga
-e'lon (telefonsiz, faqat lokatsiya) → bo'sh kuryer «Qabul qilish»ni
-bosadi → to'liq ma'lumot + status tugmalari kuryerga BOTNING SHAXSIY
-CHATIDA boradi → kuryer statuslarni botda belgilaydi → bajarilganda
-mijozga xabar + ixtiyoriy 1-5 yulduz baho.
+e'lon (telefonsiz, faqat lokatsiya) → guruh a'zosi kuryer «Qabul
+qilish»ni bosadi → to'liq ma'lumot + status tugmalari kuryer DM'iga
+boradi → statuslar botda belgilanadi → bajarilganda mijozga xabar +
+ixtiyoriy 1-5 yulduz baho.
 
-Guruhda aloqa ma'lumotlari (telefon) ko'rinmaydi.
+Xavfsizlik: har callback'da buyurtmaning noyob `token`'i tekshiriladi
+(eski/forward qilingan tugma boshqa buyurtmaga ta'sir qilmaydi);
+«Qabul qilish» faqat kuryerlar guruhi a'zolariga ruxsat.
 """
 import logging
 from aiogram import Router, F
@@ -15,16 +17,16 @@ from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 import orders_db
-import numbers_db
 import settings_store
 from config import ADMIN_IDS, ADMIN_CONTACT
+from data import operator_number_hint
 
 logger = logging.getLogger(__name__)
 router = Router()
 
 _STATUS_ICONS = {
-    "Yangi": "🆕", "Tasdiqlangan": "📢", "Kuryerda": "🚴",
-    "Yo'lda": "🚗", "Yetkazildi": "✅", "Mijoz yo'q": "🚫", "Bekor": "❌",
+    "Yangi": "🆕", "Tasdiqlangan": "📢", "Kuryerda": "🚴", "Yo'lda": "🚗",
+    "Yetkazildi": "✅", "Mijoz yo'q": "🚫", "Bekor": "❌", "Hudud tashqarisida": "🟠",
 }
 
 
@@ -34,9 +36,7 @@ def order_card(o: dict, title: str = "", public: bool = False) -> str:
     """Buyurtma kartochkasi. public=True — guruh uchun, telefon YO'Q."""
     icon = _STATUS_ICONS.get(o["status"], "📦")
     promo_line = "🎁 <b>1+1 AKSIYA — 2 ta SIM olib boring!</b>\n" if o.get("promo") else ""
-    courier_line = ""
-    if o.get("courier_name"):
-        courier_line = f"🚴 <b>Kuryer:</b> {o['courier_name']}\n"
+    courier_line = f"🚴 <b>Kuryer:</b> {o['courier_name']}\n" if o.get("courier_name") else ""
     phone_line = "" if public else f"📞 <b>Tel:</b> <code>{o['phone']}</code>\n"
     head = title or f"{icon} <b>BUYURTMA #{o['num']}</b>"
     return (
@@ -54,44 +54,54 @@ def order_card(o: dict, title: str = "", public: bool = False) -> str:
     )
 
 
-def kb_admin_confirm(num) -> InlineKeyboardMarkup:
+def _cb(prefix: str, o: dict) -> str:
+    return f"{prefix}{o['num']}_{o.get('token', '')}"
+
+
+def kb_admin_confirm(o) -> InlineKeyboardMarkup:
     b = InlineKeyboardBuilder()
-    b.button(text="✅ Tasdiqlash", callback_data=f"disp_ok_{num}")
-    b.button(text="❌ Bekor qilish", callback_data=f"disp_rej_{num}")
+    b.button(text="✅ Tasdiqlash", callback_data=_cb("disp_ok_", o))
+    b.button(text="❌ Bekor qilish", callback_data=_cb("disp_rej_", o))
     b.adjust(2)
     return b.as_markup()
 
 
-def kb_claim(num) -> InlineKeyboardMarkup:
+def kb_claim(o) -> InlineKeyboardMarkup:
     b = InlineKeyboardBuilder()
-    b.button(text="🚴 Qabul qilish", callback_data=f"disp_claim_{num}")
+    b.button(text="🚴 Qabul qilish", callback_data=_cb("disp_claim_", o))
     b.adjust(1)
     return b.as_markup()
 
 
-def kb_claimed(num) -> InlineKeyboardMarkup:
-    """Kuryer DM'idagi status tugmalari (qabul qilingandan keyin)."""
+def kb_claimed(o) -> InlineKeyboardMarkup:
     b = InlineKeyboardBuilder()
-    b.button(text="🚗 Yo'lga chiqdim", callback_data=f"disp_onway_{num}")
-    b.button(text="✅ Bajardim", callback_data=f"disp_done_{num}")
-    b.button(text="🚫 Mijoz yo'q", callback_data=f"disp_noshow_{num}")
-    b.button(text="↩️ Voz kechish", callback_data=f"disp_drop_{num}")
+    b.button(text="🚗 Yo'lga chiqdim", callback_data=_cb("disp_onway_", o))
+    b.button(text="✅ Bajardim", callback_data=_cb("disp_done_", o))
+    b.button(text="🚫 Mijoz yo'q", callback_data=_cb("disp_noshow_", o))
+    b.button(text="↩️ Voz kechish", callback_data=_cb("disp_drop_", o))
     b.adjust(1, 1, 2)
     return b.as_markup()
 
 
-def kb_onway(num) -> InlineKeyboardMarkup:
+def kb_onway(o) -> InlineKeyboardMarkup:
     b = InlineKeyboardBuilder()
-    b.button(text="✅ Bajardim", callback_data=f"disp_done_{num}")
-    b.button(text="🚫 Mijoz yo'q", callback_data=f"disp_noshow_{num}")
+    b.button(text="✅ Bajardim", callback_data=_cb("disp_done_", o))
+    b.button(text="🚫 Mijoz yo'q", callback_data=_cb("disp_noshow_", o))
     b.adjust(2)
     return b.as_markup()
 
 
-def kb_rating(num) -> InlineKeyboardMarkup:
+def kb_customer_cancel(o) -> InlineKeyboardMarkup:
+    b = InlineKeyboardBuilder()
+    b.button(text="❌ Buyurtmani bekor qilish", callback_data=_cb("cust_cancel_", o))
+    b.adjust(1)
+    return b.as_markup()
+
+
+def kb_rating(o) -> InlineKeyboardMarkup:
     b = InlineKeyboardBuilder()
     for i in range(1, 6):
-        b.button(text=f"{i}⭐", callback_data=f"rate_{num}_{i}")
+        b.button(text=f"{i}⭐", callback_data=f"rate_{o['num']}_{o.get('token', '')}_{i}")
     b.adjust(5)
     return b.as_markup()
 
@@ -102,12 +112,21 @@ async def _notify_customer(bot, order: dict, text: str, reply_markup=None) -> bo
     try:
         await bot.send_message(int(order["user_id"]), text, reply_markup=reply_markup)
         return True
-    except Exception:
+    except Exception as e:
+        logger.warning("Mijozga (#%s, %s) xabar yuborilmadi: %s",
+                       order.get("num"), order.get("user_id"), e)
         return False
 
 
+async def _notify_admins(bot, text: str):
+    for admin_id in ADMIN_IDS:
+        try:
+            await bot.send_message(admin_id, text)
+        except Exception as e:
+            logger.warning("Adminga (%s) xabar yuborilmadi: %s", admin_id, e)
+
+
 async def _update_group_card(bot, order: dict, title: str = "", kb=None):
-    """Guruhdagi kartochkani yangilaydi (telefonsiz, best-effort)."""
     gid = settings_store.get_courier_group()
     mid = order.get("group_msg_id")
     if not gid or not mid:
@@ -121,14 +140,34 @@ async def _update_group_card(bot, order: dict, title: str = "", kb=None):
         pass
 
 
+async def _verify(callback: CallbackQuery, prefix: str):
+    """callback_data 'prefix{num}_{token}' dan buyurtmani topadi va
+    token mosligini tekshiradi. Eskirgan tugma → None."""
+    raw = callback.data[len(prefix):]
+    parts = raw.rsplit("_", 1)
+    if len(parts) != 2:
+        await callback.answer("Tugma eskirgan.", show_alert=True)
+        return None
+    num, token = parts
+    order = await orders_db.get_order_by_num(num)
+    if not order:
+        await callback.answer("⚠️ Buyurtma topilmadi (eskirgan).", show_alert=True)
+        return None
+    if str(order.get("token", "")) != token:
+        await callback.answer(
+            "⚠️ Bu tugma eski buyurtmaga tegishli (bot yangilangan). Yangi buyurtma bering.",
+            show_alert=True,
+        )
+        return None
+    return order
+
+
 # ─── GURUHNI ULASH ───────────────────────────────────────────────
 
 @router.message(Command("setgroup"))
 async def set_group(message: Message, is_admin: bool = False):
     if message.chat.type not in ("group", "supergroup"):
-        return await message.answer(
-            "Bu buyruqni kuryerlar GURUHIDA yuboring (botni guruhga qo'shib)."
-        )
+        return await message.answer("Bu buyruqni kuryerlar GURUHIDA yuboring (botni guruhga qo'shib).")
     if not is_admin:
         return await message.answer("⛔ Faqat admin guruhni ulashi mumkin.")
     settings_store.set_courier_group(message.chat.id)
@@ -136,7 +175,11 @@ async def set_group(message: Message, is_admin: bool = False):
     await message.answer(
         "✅ <b>Kuryerlar guruhi ulandi!</b>\n"
         f"Guruh ID: <code>{message.chat.id}</code>\n\n"
-        "Endi admin tasdiqlagan buyurtmalar shu guruhga tushadi."
+        "Endi admin tasdiqlagan buyurtmalar shu yerga tushadi.\n\n"
+        "⚠️ <b>Muhim:</b> har bir kuryer buyurtma olishdan oldin botni shaxsiy "
+        "chatda bir marta <b>/start</b> qilishi shart — aks holda buyurtma "
+        "tafsilotlari unga yetib bormaydi.\n\n"
+        "⚠️ <i>Doimiy bo'lishi uchun bu ID ni COURIER_GROUP_ID env'ga yozing.</i>"
     )
 
 
@@ -146,58 +189,58 @@ async def set_group(message: Message, is_admin: bool = False):
 async def admin_confirm(callback: CallbackQuery, is_admin: bool = False):
     if not is_admin:
         return await callback.answer("⛔ Faqat admin.", show_alert=True)
-    num = callback.data.replace("disp_ok_", "")
-    order = await orders_db.get_order_by_num(num)
+    order = await _verify(callback, "disp_ok_")
     if not order:
-        return await callback.answer("Buyurtma topilmadi.", show_alert=True)
+        return
+    num = order["num"]
 
     gid = settings_store.get_courier_group()
     if not gid:
         return await callback.answer(
-            "⚠️ Kuryerlar guruhi ulanmagan!\n"
-            "Botni guruhga qo'shib, guruhda /setgroup yuboring.",
+            "⚠️ Kuryerlar guruhi ulanmagan! Botni guruhga qo'shib /setgroup yuboring.",
             show_alert=True,
         )
 
-    ok = await orders_db.update_order_if(num, "Yangi", {"status": "Tasdiqlangan"})
-    if not ok:
-        cur = await orders_db.get_order_by_num(num)
-        return await callback.answer(
-            f"Allaqachon ko'rib chiqilgan ({cur['status'] if cur else '—'}).",
-            show_alert=True,
-        )
+    if not await orders_db.update_order_if(num, "Yangi", {"status": "Tasdiqlangan"}):
+        return await callback.answer(f"Allaqachon ko'rib chiqilgan ({order['status']}).", show_alert=True)
     order["status"] = "Tasdiqlangan"
 
-    # Guruhga e'lon — TELEFONSIZ, lokatsiya pin bilan
+    # Guruhga e'lon — TELEFONSIZ
     try:
-        gmsg = await callback.bot.send_message(
-            gid, order_card(order, public=True), reply_markup=kb_claim(num),
-        )
+        gmsg = await callback.bot.send_message(gid, order_card(order, public=True), reply_markup=kb_claim(order))
         await orders_db.update_order(num, {"group_msg_id": gmsg.message_id})
-        if order.get("lat") and order.get("lon"):
+        order["group_msg_id"] = gmsg.message_id
+    except Exception as e:
+        logger.error("Guruhga yuborish xatolik (#%s): %s", num, e)
+        await orders_db.update_order_if(num, "Tasdiqlangan", {"status": "Yangi"})
+        return await callback.answer("⚠️ Guruhga yuborib bo'lmadi. Bot guruhda ekanini tekshiring.", show_alert=True)
+
+    # Lokatsiya pin — alohida (best-effort, asosiy oqimni buzmaydi)
+    if order.get("lat") and order.get("lon"):
+        try:
             await callback.bot.send_location(
                 gid, latitude=order["lat"], longitude=order["lon"],
-                reply_to_message_id=gmsg.message_id,
+                reply_to_message_id=order["group_msg_id"],
             )
-    except Exception as e:
-        logger.error(f"Guruhga yuborish xatolik: {e}")
-        await orders_db.update_order(num, {"status": "Yangi"})
-        return await callback.answer(
-            "⚠️ Guruhga yuborib bo'lmadi. Bot guruhda ekanini tekshiring.",
-            show_alert=True,
-        )
+        except Exception:
+            pass
 
     await callback.answer("✅ Tasdiqlandi, guruhga yuborildi!")
     try:
-        await callback.message.edit_text(
-            order_card(order, f"✅ <b>#{num} TASDIQLANDI</b> — guruhga yuborildi"),
-        )
+        await callback.message.edit_text(order_card(order, f"✅ <b>#{num} TASDIQLANDI</b> — guruhga yuborildi"))
     except Exception:
         pass
+
+    # Mijozga: operator/kuryer bog'lanadi + raqam formati
+    hint = operator_number_hint(order.get("op_id", ""))
+    hint_line = f"\n📱 Raqamingiz <b>{hint}</b> ko'rinishida bo'ladi." if hint else ""
     await _notify_customer(
         callback.bot, order,
-        f"✅ Buyurtmangiz #{num} tasdiqlandi!\n"
-        "🚴 Kuryer izlanmoqda — tez orada yo'lga chiqadi.",
+        f"✅ <b>Buyurtmangiz #{num} qabul qilindi!</b>\n\n"
+        "🤝 Operatorimiz tez orada siz bilan bog'lanib, <b>SIM raqamni tanlash</b> "
+        "va <b>yetkazib berish vaqtini</b> kelishib oladi."
+        f"{hint_line}",
+        reply_markup=kb_customer_cancel(order),
     )
 
 
@@ -205,26 +248,21 @@ async def admin_confirm(callback: CallbackQuery, is_admin: bool = False):
 async def admin_reject(callback: CallbackQuery, is_admin: bool = False):
     if not is_admin:
         return await callback.answer("⛔ Faqat admin.", show_alert=True)
-    num = callback.data.replace("disp_rej_", "")
-    ok = await orders_db.update_order_if(num, "Yangi", {"status": "Bekor"})
-    if not ok:
-        cur = await orders_db.get_order_by_num(num)
-        return await callback.answer(
-            f"Allaqachon ko'rib chiqilgan ({cur['status'] if cur else '—'}).",
-            show_alert=True,
-        )
-    order = await orders_db.get_order_by_num(num)
+    order = await _verify(callback, "disp_rej_")
+    if not order:
+        return
+    num = order["num"]
+    if not await orders_db.update_order_if(num, "Yangi", {"status": "Bekor"}):
+        return await callback.answer(f"Allaqachon ko'rib chiqilgan ({order['status']}).", show_alert=True)
+    order["status"] = "Bekor"
     await callback.answer("❌ Bekor qilindi.")
     try:
-        await callback.message.edit_text(
-            order_card(order, f"❌ <b>#{num} BEKOR QILINDI</b> (admin)"),
-        )
+        await callback.message.edit_text(order_card(order, f"❌ <b>#{num} BEKOR QILINDI</b> (admin)"))
     except Exception:
         pass
     await _notify_customer(
         callback.bot, order,
-        f"😔 Afsuski, buyurtmangiz #{num} bekor qilindi.\n"
-        f"Savollar uchun: {ADMIN_CONTACT}",
+        f"😔 Afsuski, buyurtmangiz #{num} bekor qilindi.\nSavollar uchun: {ADMIN_CONTACT}",
     )
 
 
@@ -232,59 +270,63 @@ async def admin_reject(callback: CallbackQuery, is_admin: bool = False):
 
 @router.callback_query(F.data.startswith("disp_claim_"))
 async def courier_claim(callback: CallbackQuery):
-    num = callback.data.replace("disp_claim_", "")
+    order = await _verify(callback, "disp_claim_")
+    if not order:
+        return
+    num = order["num"]
+
+    # Avtorizatsiya — faqat kuryerlar guruhi a'zosi
+    gid = settings_store.get_courier_group()
+    if gid:
+        try:
+            member = await callback.bot.get_chat_member(gid, callback.from_user.id)
+            if member.status in ("left", "kicked"):
+                return await callback.answer("⛔ Siz kuryerlar guruhi a'zosi emassiz.", show_alert=True)
+        except Exception:
+            pass  # tekshiruv imkonsiz bo'lsa — guruh tugmasi baribir a'zolarga ko'rinadi
+
     courier = callback.from_user
     courier_name = courier.full_name
-
-    # Atomik band qilish — ikki kuryer bir vaqtda bosishidan himoya
-    ok = await orders_db.update_order_if(num, "Tasdiqlangan", {
-        "status": "Kuryerda",
-        "courier_id": str(courier.id),
-        "courier_name": courier_name,
-    })
-    if not ok:
+    if not await orders_db.update_order_if(num, "Tasdiqlangan", {
+        "status": "Kuryerda", "courier_id": str(courier.id), "courier_name": courier_name,
+    }):
         return await callback.answer("⚠️ Bu buyurtma allaqachon band!", show_alert=True)
-
-    order = await orders_db.get_order_by_num(num)
+    order.update(status="Kuryerda", courier_id=str(courier.id), courier_name=courier_name)
 
     # To'liq ma'lumot (telefon bilan) + status tugmalari — SHAXSIY CHATDA
     try:
         await callback.bot.send_message(
             courier.id,
             order_card(order, f"🚴 <b>SIZNING BUYURTMANGIZ #{num}</b>") +
-            "\n\nQuyidagi tugmalar bilan holatni belgilab boring 👇",
-            reply_markup=kb_claimed(num),
+            "\n\n📞 Mijoz bilan bog'lanib, SIM raqam va yetkazib berishni kelishing.\n"
+            "Holatni quyidagi tugmalar bilan belgilab boring 👇",
+            reply_markup=kb_claimed(order),
         )
         if order.get("lat") and order.get("lon"):
-            await callback.bot.send_location(
-                courier.id, latitude=order["lat"], longitude=order["lon"],
-            )
+            await callback.bot.send_location(courier.id, latitude=order["lat"], longitude=order["lon"])
     except Exception:
-        # DM yopiq — band qilishni bekor qilamiz, kuryer avval /start bossin
-        await orders_db.update_order(num, {
+        # DM yopiq — band qilishni qaytaramiz
+        await orders_db.update_order_if(num, "Kuryerda", {
             "status": "Tasdiqlangan", "courier_id": "", "courier_name": "",
         })
         return await callback.answer(
-            "⚠️ Avval botga kirib /start bosing (@texnoset_hamkorbot), "
-            "keyin «Qabul qilish»ni qayta bosing.",
+            "⚠️ Avval botga kirib /start bosing (@texnoset_hamkorbot), keyin qayta urinib ko'ring.",
             show_alert=True,
         )
 
     await callback.answer(f"🚴 Buyurtma #{num} sizniki! Botga qarang.")
-    # Guruh kartochkasi: band — tugmalarsiz, telefonsiz
     try:
         await callback.message.edit_text(order_card(order, public=True))
     except Exception:
         pass
-
     await _notify_customer(
         callback.bot, order,
-        f"🚴 Buyurtmangiz #{num} uchun kuryer topildi: <b>{courier_name}</b>\n"
-        "Tez orada yo'lga chiqadi!",
+        f"🚴 Buyurtmangiz #{num} uchun kuryer biriktirildi: <b>{courier_name}</b>\n"
+        "Tez orada siz bilan bog'lanadi!",
     )
 
 
-# ─── KURYER: STATUSLAR (botning shaxsiy chatida) ────────────────
+# ─── KURYER: STATUSLAR ──────────────────────────────────────────
 
 def _is_claimer(callback: CallbackQuery, order: dict) -> bool:
     return str(callback.from_user.id) == str(order.get("courier_id"))
@@ -292,201 +334,174 @@ def _is_claimer(callback: CallbackQuery, order: dict) -> bool:
 
 @router.callback_query(F.data.startswith("disp_onway_"))
 async def courier_onway(callback: CallbackQuery):
-    num = callback.data.replace("disp_onway_", "")
-    order = await orders_db.get_order_by_num(num)
+    order = await _verify(callback, "disp_onway_")
     if not order:
-        return await callback.answer("Topilmadi.", show_alert=True)
+        return
     if not _is_claimer(callback, order):
         return await callback.answer("⛔ Bu buyurtma sizniki emas.", show_alert=True)
-    ok = await orders_db.update_order_if(num, "Kuryerda", {"status": "Yo'lda"})
-    if not ok:
+    num = order["num"]
+    if not await orders_db.update_order_if(num, "Kuryerda", {"status": "Yo'lda"}):
         return await callback.answer(f"Holat mos emas ({order['status']}).", show_alert=True)
     order["status"] = "Yo'lda"
 
     await callback.answer("🚗 Yo'lda!")
     try:
-        await callback.message.edit_text(
-            order_card(order, f"🚗 <b>BUYURTMA #{num} — YO'LDA</b>"),
-            reply_markup=kb_onway(num),
-        )
+        await callback.message.edit_text(order_card(order, f"🚗 <b>BUYURTMA #{num} — YO'LDA</b>"),
+                                         reply_markup=kb_onway(order))
     except Exception:
         pass
     await _update_group_card(callback.bot, order)
-
-    # Mijozga xabar + SIM raqam tanlash
-    op_id = order.get("op_id", "")
-    available = numbers_db.get_available(op_id) if op_id else []
-    if available and order.get("user_id"):
-        b = InlineKeyboardBuilder()
-        for n in available[:10]:
-            b.button(text=f"📱 {n}", callback_data=f"pick_num_{num}_{op_id}_{n.replace('-', '')}")
-        b.adjust(2)
-        await _notify_customer(
-            callback.bot, order,
-            f"🚗 <b>Kuryer yo'lga chiqdi!</b> Buyurtma #{num}\n"
-            f"🚴 {order['courier_name']}\n\n"
-            "📱 Vaqtni tejash uchun SIM raqamingizni hozir tanlab qo'yishingiz "
-            "mumkin (yoki kuryer kelganda tanlaysiz):",
-            reply_markup=b.as_markup(),
-        )
-    else:
-        await _notify_customer(
-            callback.bot, order,
-            f"🚗 <b>Kuryer yo'lga chiqdi!</b> Buyurtma #{num}\n"
-            f"🚴 {order['courier_name']}\n\n"
-            "📱 SIM raqamni kuryer kelganda tanlaysiz.",
-        )
+    await _notify_customer(
+        callback.bot, order,
+        f"🚗 <b>Kuryer yo'lga chiqdi!</b> Buyurtma #{num}\n🚴 {order['courier_name']}\n\n"
+        "Tez orada eshigingizda bo'ladi 🙌",
+    )
 
 
 @router.callback_query(F.data.startswith("disp_done_"))
 async def courier_done(callback: CallbackQuery):
-    num = callback.data.replace("disp_done_", "")
-    order = await orders_db.get_order_by_num(num)
+    order = await _verify(callback, "disp_done_")
     if not order:
-        return await callback.answer("Topilmadi.", show_alert=True)
+        return
     if not _is_claimer(callback, order):
         return await callback.answer("⛔ Bu buyurtma sizniki emas.", show_alert=True)
-    ok = await orders_db.update_order_if(num, ("Kuryerda", "Yo'lda"), {"status": "Yetkazildi"})
-    if not ok:
+    num = order["num"]
+    if not await orders_db.update_order_if(num, ("Kuryerda", "Yo'lda"), {"status": "Yetkazildi"}):
         return await callback.answer(f"Holat mos emas ({order['status']}).", show_alert=True)
     order["status"] = "Yetkazildi"
 
     await callback.answer("🎉 Ajoyib ish!")
     try:
-        await callback.message.edit_text(
-            order_card(order, f"✅ <b>BUYURTMA #{num} — YETKAZILDI</b>"),
-        )
+        await callback.message.edit_text(order_card(order, f"✅ <b>BUYURTMA #{num} — YETKAZILDI</b>"))
     except Exception:
         pass
-    await _update_group_card(
-        callback.bot, order, f"✅ <b>#{num} YETKAZILDI</b> — {order['courier_name']}",
-    )
-
+    await _update_group_card(callback.bot, order, f"✅ <b>#{num} YETKAZILDI</b> — {order['courier_name']}")
     await _notify_customer(
         callback.bot, order,
-        f"🎉 <b>Buyurtmangiz #{num} yetkazib berildi!</b>\n\n"
-        "Xaridingiz uchun rahmat! 🙏\n\n"
+        f"🎉 <b>Buyurtmangiz #{num} yetkazib berildi!</b>\n\nXaridingiz uchun rahmat! 🙏\n\n"
         "⭐ Xizmat sifatini baholang (ixtiyoriy):",
-        reply_markup=kb_rating(num),
+        reply_markup=kb_rating(order),
     )
-    for admin_id in ADMIN_IDS:
-        try:
-            await callback.bot.send_message(
-                admin_id, f"✅ #{num} yetkazildi — 🚴 {order['courier_name']}",
-            )
-        except Exception:
-            pass
+    await _notify_admins(callback.bot, f"✅ #{num} yetkazildi — 🚴 {order['courier_name']}")
 
 
 @router.callback_query(F.data.startswith("disp_noshow_"))
 async def courier_noshow(callback: CallbackQuery):
-    num = callback.data.replace("disp_noshow_", "")
-    order = await orders_db.get_order_by_num(num)
+    order = await _verify(callback, "disp_noshow_")
     if not order:
-        return await callback.answer("Topilmadi.", show_alert=True)
+        return
     if not _is_claimer(callback, order):
         return await callback.answer("⛔ Bu buyurtma sizniki emas.", show_alert=True)
-    ok = await orders_db.update_order_if(num, ("Kuryerda", "Yo'lda"), {"status": "Mijoz yo'q"})
-    if not ok:
+    num = order["num"]
+    if not await orders_db.update_order_if(num, ("Kuryerda", "Yo'lda"), {"status": "Mijoz yo'q"}):
         return await callback.answer(f"Holat mos emas ({order['status']}).", show_alert=True)
     order["status"] = "Mijoz yo'q"
 
     await callback.answer("Qayd etildi.")
     try:
-        await callback.message.edit_text(
-            order_card(order, f"🚫 <b>BUYURTMA #{num} — MIJOZ TOPILMADI</b>"),
-        )
+        await callback.message.edit_text(order_card(order, f"🚫 <b>BUYURTMA #{num} — MIJOZ TOPILMADI</b>"))
     except Exception:
         pass
-    await _update_group_card(
-        callback.bot, order, f"🚫 <b>#{num} — MIJOZ TOPILMADI</b>",
-    )
+    await _update_group_card(callback.bot, order, f"🚫 <b>#{num} — MIJOZ TOPILMADI</b>")
     await _notify_customer(
         callback.bot, order,
         f"😕 Kuryer sizga yetib bora olmadi (buyurtma #{num}).\n"
-        f"Buyurtmani qayta faollashtirish uchun bog'laning: {ADMIN_CONTACT}",
+        f"Qayta faollashtirish uchun bog'laning: {ADMIN_CONTACT}",
     )
-    for admin_id in ADMIN_IDS:
-        try:
-            await callback.bot.send_message(
-                admin_id,
-                f"🚫 #{num} — mijoz topilmadi (🚴 {order['courier_name']}).\n"
-                f"📞 Mijoz: <code>{order['phone']}</code> — bog'lanib ko'ring.",
-            )
-        except Exception:
-            pass
+    await _notify_admins(
+        callback.bot,
+        f"🚫 #{num} — mijoz topilmadi (🚴 {order['courier_name']}).\n"
+        f"📞 Mijoz: <code>{order['phone']}</code>",
+    )
 
 
 @router.callback_query(F.data.startswith("disp_drop_"))
 async def courier_drop(callback: CallbackQuery):
-    num = callback.data.replace("disp_drop_", "")
-    order = await orders_db.get_order_by_num(num)
+    order = await _verify(callback, "disp_drop_")
     if not order:
-        return await callback.answer("Topilmadi.", show_alert=True)
+        return
     if not _is_claimer(callback, order):
         return await callback.answer("⛔ Bu buyurtma sizniki emas.", show_alert=True)
-    ok = await orders_db.update_order_if(num, ("Kuryerda", "Yo'lda"), {
+    num = order["num"]
+    if not await orders_db.update_order_if(num, ("Kuryerda", "Yo'lda"), {
         "status": "Tasdiqlangan", "courier_id": "", "courier_name": "",
-    })
-    if not ok:
+    }):
         return await callback.answer(f"Holat mos emas ({order['status']}).", show_alert=True)
     order.update(status="Tasdiqlangan", courier_id="", courier_name="")
 
     await callback.answer("↩️ Buyurtmadan voz kechdingiz.")
     try:
-        await callback.message.edit_text(
-            order_card(order, f"↩️ <b>#{num} — VOZ KECHDINGIZ</b>"),
-        )
+        await callback.message.edit_text(order_card(order, f"↩️ <b>#{num} — VOZ KECHDINGIZ</b>"))
     except Exception:
         pass
     # Guruhda qayta ochamiz — boshqa kuryer olishi mumkin
     await _update_group_card(
-        callback.bot, order,
-        f"🔁 <b>#{num} QAYTA OCHILDI</b> — kuryer kutilmoqda",
-        kb=kb_claim(num),
+        callback.bot, order, f"🔁 <b>#{num} QAYTA OCHILDI</b> — kuryer kutilmoqda", kb=kb_claim(order),
     )
+
+
+# ─── MIJOZ: O'Z BUYURTMASINI BEKOR QILISH ───────────────────────
+
+@router.callback_query(F.data.startswith("cust_cancel_"))
+async def customer_cancel(callback: CallbackQuery):
+    order = await _verify(callback, "cust_cancel_")
+    if not order:
+        return
+    if str(callback.from_user.id) != str(order.get("user_id")):
+        return await callback.answer("⛔", show_alert=True)
+    num = order["num"]
+    if not await orders_db.update_order_if(num, ("Yangi", "Tasdiqlangan"), {"status": "Bekor"}):
+        return await callback.answer(
+            "Buyurtmani bekor qilib bo'lmaydi — kuryer allaqachon ish boshlagan. "
+            f"Iltimos bog'laning: {ADMIN_CONTACT}",
+            show_alert=True,
+        )
+    order["status"] = "Bekor"
+    await callback.answer("Buyurtma bekor qilindi.")
+    try:
+        await callback.message.edit_text(f"❌ Buyurtmangiz #{num} bekor qilindi.\n\nYana kerak bo'lsa /start bosing.")
+    except Exception:
+        pass
+    # Guruhdagi e'lonni yopamiz (agar bo'lsa)
+    await _update_group_card(callback.bot, order, f"❌ <b>#{num} — MIJOZ BEKOR QILDI</b>")
+    await _notify_admins(callback.bot, f"❌ #{num} — mijoz o'zi bekor qildi.")
 
 
 # ─── MIJOZ: BAHO ─────────────────────────────────────────────────
 
 @router.callback_query(F.data.startswith("rate_"))
 async def customer_rate(callback: CallbackQuery):
-    parts = callback.data.replace("rate_", "").split("_")
-    if len(parts) != 2:
+    parts = callback.data[len("rate_"):].rsplit("_", 2)
+    if len(parts) != 3:
         return await callback.answer()
-    num, score_s = parts
+    num, token, score_s = parts
     try:
         score = int(score_s)
     except ValueError:
         return await callback.answer()
 
     order = await orders_db.get_order_by_num(num)
-    if not order:
-        return await callback.answer("Buyurtma topilmadi.", show_alert=True)
+    if not order or str(order.get("token", "")) != token:
+        return await callback.answer("Eskirgan.", show_alert=True)
     if str(callback.from_user.id) != str(order.get("user_id")):
         return await callback.answer("⛔", show_alert=True)
-    if order.get("rating"):
+
+    if not await orders_db.rate_order(num, score):
         return await callback.answer("Siz allaqachon baholagansiz. Rahmat! 😊", show_alert=True)
 
-    await orders_db.update_order(num, {"rating": score})
     await callback.answer("Rahmat! 🙏")
     try:
         await callback.message.edit_text(
             f"🎉 <b>Buyurtmangiz #{num} yetkazib berildi!</b>\n\n"
-            f"Bahoyingiz: {'⭐' * score}\n"
-            "Fikringiz uchun katta rahmat! Yana murojaat eting 😊"
+            f"Bahoyingiz: {'⭐' * score}\nFikringiz uchun rahmat! Yana murojaat eting 😊"
         )
     except Exception:
         pass
 
     if score <= 3:
-        for admin_id in ADMIN_IDS:
-            try:
-                await callback.bot.send_message(
-                    admin_id,
-                    f"⚠️ <b>Past baho:</b> #{num} — {'⭐' * score} ({score}/5)\n"
-                    f"🚴 Kuryer: {order.get('courier_name', '—')}\n"
-                    f"👤 Mijoz: {order.get('name', '—')} — <code>{order.get('phone', '—')}</code>",
-                )
-            except Exception:
-                pass
+        await _notify_admins(
+            callback.bot,
+            f"⚠️ <b>Past baho:</b> #{num} — {'⭐' * score} ({score}/5)\n"
+            f"🚴 Kuryer: {order.get('courier_name', '—')}\n"
+            f"👤 Mijoz: {order.get('name', '—')} — <code>{order.get('phone', '—')}</code>",
+        )
