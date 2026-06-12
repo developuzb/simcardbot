@@ -6,6 +6,7 @@ import time
 from datetime import datetime, timezone, timedelta
 import anthropic
 from aiogram import Router, F
+from aiogram.filters import StateFilter
 from aiogram.types import Message, CallbackQuery, ReplyKeyboardRemove
 from aiogram.fsm.context import FSMContext
 from aiogram.utils.keyboard import InlineKeyboardBuilder
@@ -877,3 +878,73 @@ async def ai_exit(callback: CallbackQuery, state: FSMContext):
         "👋 Rahmat! Yana murojaat eting 😊\n\nBoshqatdan boshlash uchun /start bosing."
     )
     await callback.answer()
+
+
+# ─── BOSH SAHIFA SUXROB AI (holatdan tashqari umumiy savollar) ───
+
+_GENERAL_SYSTEM = (
+    "Sen Suxrob — Texnoset SIM karta yetkazib berish xizmatining yordamchisisan.\n"
+    "Texnoset O'zbekistondagi barcha operatorlar (Ucell, Beeline, Mobiuz, Humans, "
+    "Uzmobile) SIM kartalarini uyga yetkazib beradi. Operator/tarif tanlanadi, "
+    "raqamni operator bog'lanib kelishadi, kuryer yetkazadi.\n\n"
+    "Mijozning umumiy savollariga ILIQ, QISQA o'zbekcha javob ber (2-4 qator, 1-2 emoji).\n"
+    "Buyurtma/tarif istasa — «🤖 AI yordamchi» yoki «🛒 Tezkor buyurtma» tugmasini taklif qil.\n\n"
+    "MUHIM: Agar savol TUSHUNARSIZ, mavzudan TASHQARI yoki aniq javob berolmasang — "
+    "ochiqchasiga 'Kechirasiz, savolingizni to'liq tushunmadim 😔' deb ayt va mijozni "
+    "«📞 Aloqa» bo'limiga (operator bilan bog'lanish) yo'naltir.\n"
+    "Faqat o'zbekcha. Inglizcha/metamatn YO'Q."
+)
+
+
+async def _general_reply(text: str) -> str:
+    client = _get_client()
+    resp = await client.messages.create(
+        model=MODEL, max_tokens=300, system=_GENERAL_SYSTEM,
+        messages=[{"role": "user", "content": text}],
+    )
+    return "".join(b.text for b in resp.content if b.type == "text").strip()
+
+
+def _home_help_keyboard() -> object:
+    b = InlineKeyboardBuilder()
+    b.button(text="🤖 AI yordamchi bilan tanlash", callback_data="open_ai_chat")
+    b.button(text="🛒 Tezkor buyurtma", callback_data="new_order")
+    b.button(text="📞 Aloqa", callback_data="contact")
+    b.adjust(1)
+    return b.as_markup()
+
+
+@router.message(StateFilter(None), F.chat.type == "private", F.text & ~F.text.startswith("/"))
+async def home_assistant(message: Message):
+    if message.text.strip() in ("❌ Bekor qilish", "❌ Bekor"):
+        return await message.answer("Bosh sahifa uchun /start bosing 😊", reply_markup=ReplyKeyboardRemove())
+    if _is_injection(message.text):
+        await message.answer(
+            "Men faqat SIM karta xizmati bo'yicha yordam beraman 😊",
+            reply_markup=_home_help_keyboard(),
+        )
+        return
+    if _rate_limited(_last_ai_call, message.from_user.id, _AI_COOLDOWN):
+        await message.answer("Birozdan so'ng yozing 🙂", reply_markup=_home_help_keyboard())
+        return
+
+    thinking = await message.answer("💭 Bir lahza...")
+    redirect = (
+        "\n\nAgar boshqa savolingiz bo'lsa — <b>«📞 Aloqa»</b> orqali operator bilan bog'laning."
+    )
+    try:
+        reply = await _general_reply(message.text)
+        if not reply:
+            reply = ("Kechirasiz, savolingizni to'liq tushunmadim 😔" + redirect)
+        await _typewriter(message, reply, _home_help_keyboard(), existing_msg=thinking)
+    except Exception:
+        try:
+            await thinking.edit_text(
+                "Kechirasiz, hozir javob berolmadim 😔" + redirect,
+                reply_markup=_home_help_keyboard(),
+            )
+        except Exception:
+            await message.answer(
+                "Kechirasiz, «📞 Aloqa» orqali bog'laning.",
+                reply_markup=_home_help_keyboard(),
+            )

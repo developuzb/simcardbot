@@ -10,7 +10,7 @@ ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 # Mijoz aloqasi (Telegram username va telefon)
 ADMIN_CONTACT = os.getenv("ADMIN_CONTACT", "@texnoset_digital")
 ADMIN_PHONE = os.getenv("ADMIN_PHONE", "+998770097171")
-FOUNDER_CONTACT = os.getenv("FOUNDER_CONTACT", "@aflafa_s")
+FOUNDER_CONTACT = os.getenv("FOUNDER_CONTACT", "@aflaha_s")
 OFFICE_ADDRESS = os.getenv(
     "OFFICE_ADDRESS",
     "Qashqadaryo, Qarshi tumani, Qovchin shaharchasi — markaziy yo'lning "

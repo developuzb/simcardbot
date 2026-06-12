@@ -34,19 +34,28 @@ def _welcome_text(name: str) -> str:
     )
 
 
+_SUXROB_GREETING = (
+    "💬 <b>Suxrob AI:</b> Assalomu alaykum! 👋\n"
+    "Sizga qandaydir masalada yordam kerakmi? Shu yerga bemalol yozing — "
+    "savolingizga javob beraman 😊"
+)
+
+
 async def _send_home(message: Message, name: str):
-    """Bosh sahifa: rasm o'rnatilgan bo'lsa — rasm + matn, aks holda matn."""
+    """Bosh sahifa: rasm (bo'lsa) + menyu, so'ng Suxrob AI salomi."""
     text = _welcome_text(name)
     photo_id = settings_store.get_welcome_photo()
+    sent = False
     if photo_id:
         try:
-            await message.answer_photo(
-                photo_id, caption=text, reply_markup=main_menu_keyboard(),
-            )
-            return
+            await message.answer_photo(photo_id, caption=text, reply_markup=main_menu_keyboard())
+            sent = True
         except Exception:
             pass
-    await message.answer(text, reply_markup=main_menu_keyboard())
+    if not sent:
+        await message.answer(text, reply_markup=main_menu_keyboard())
+    # Menyu tagida — Suxrob AI salomi (erkin savol uchun)
+    await message.answer(_SUXROB_GREETING)
 
 
 @router.message(CommandStart(), F.chat.type == "private")
@@ -198,10 +207,5 @@ async def cancel_handler(message: Message, state: FSMContext):
         reply_markup=remove_keyboard(),
     )
 
-
-# Holatdan tashqari (restart yoki sessiya tugaganda) matn yozilsa —
-# bot jim qolmasin, bosh sahifani ko'rsatsin. Faqat shaxsiy chatda —
-# kuryerlar guruhidagi suhbatlarga aralashmaydi.
-@router.message(StateFilter(None), F.chat.type == "private", F.text & ~F.text.startswith("/"))
-async def fallback_no_state(message: Message):
-    await _send_home(message, message.from_user.first_name or "mehmon")
+# Eslatma: holatdan tashqari erkin matnni endi ai_chat.home_assistant
+# (Suxrob AI) javob beradi — kuryerlar guruhiga aralashmaydi (private).
