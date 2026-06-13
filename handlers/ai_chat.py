@@ -27,6 +27,7 @@ import orders_db
 import followups_store
 import referrals_store
 import ai_client
+import ai_analytics
 from handlers import dispatch
 
 # ─── Yordamchilar: ish vaqti, rate-limit ────────────────────────
@@ -606,6 +607,56 @@ def _is_injection(text: str) -> bool:
     return any(p in t for p in _INJECTION_PATTERNS)
 
 
+# ─── ISSIQ MIJOZ (real-time individual insight) ─────────────────
+
+_BUY_SIGNALS = [
+    "olaman", "sotib ola", "buyurtma ber", "buyurtma qila", "zakaz",
+    "qachon yetkaz", "bugun kerak", "hozir kerak", "tezroq kerak",
+    "tayyorman", "qabul qilaman", "olib kel", "olsam bo'lad",
+]
+
+
+def _buying_signal(text: str) -> bool:
+    t = (text or "").lower()
+    return any(s in t for s in _BUY_SIGNALS)
+
+
+async def _send_admin(bot, text: str):
+    """Adminlarga xabar — HTML buzilsa, toza matn bilan qayta yuboradi."""
+    for admin_id in ADMIN_IDS:
+        try:
+            await bot.send_message(admin_id, text)
+        except Exception:
+            try:
+                await bot.send_message(admin_id, _strip_html(text))
+            except Exception:
+                pass
+
+
+async def _notify_hot_lead(bot, data: dict, user, last_text: str):
+    """Jonli suhbatda kuchli sotib olish signali — adminga professional insight."""
+    op = OPERATORS.get(data.get("sel_operator", ""), {}).get("name", "—")
+    profile = {
+        "name": data.get("user_name") or (user.first_name or "Mijoz"),
+        "operator": op,
+        "tariff": data.get("sel_tariff", "—"),
+        "questions": _customer_questions(data) + [last_text],
+        "outcome": "ISSIQ — hali buyurtma bermagan, hozir jonli suhbatda",
+        "stage": data.get("ai_stage", "—"),
+    }
+    insight = await ai_analytics.customer_insight(profile)
+    uname = f"@{user.username}" if user.username else f"ID: {user.id}"
+    msg = (
+        "🔥 <b>ISSIQ MIJOZ — hozir suhbatda!</b>\n"
+        "➖➖➖➖➖➖➖➖➖➖\n"
+        f"👤 {profile['name']} ({uname})\n"
+        f"📡 {profile['operator']} — {profile['tariff']}\n"
+        f"💬 Oxirgi xabar: «{last_text[:120]}»"
+        + (f"\n\n🧠 <b>AI Insight:</b>\n{insight}" if insight else "")
+    )
+    await _send_admin(bot, msg)
+
+
 # ─── ERKIN MATN HANDLERI ────────────────────────────────────────
 
 @router.message(AIState.chatting, F.text & ~F.text.startswith("/"))
@@ -663,6 +714,11 @@ async def handle_ai_message(message: Message, state: FSMContext):
             reply_markup=_stage_keyboard(stage),
         )
         return
+
+    # Issiq mijoz: kuchli sotib olish signali — adminni bir marta ogohlantir
+    if not data.get("hot_alerted") and stage != "done" and _buying_signal(message.text):
+        await state.update_data(hot_alerted=True)
+        asyncio.create_task(_notify_hot_lead(message.bot, data, message.from_user, message.text))
 
     # Operator nomini yozsa — darhol tarifga (AI'siz, tez)
     op_id = _detect_operator(message.text)
@@ -852,24 +908,12 @@ async def _send_admin_chat_summary(bot, data: dict, order_num, outcome: str):
     name = data.get("user_name", "Mijoz")
     phone = data.get("customer_phone", "—")
 
-    # AI sotuv tahlili (admin uchun) — best-effort
-    recommendation = ""
-    try:
-        sys = (
-            "Sen sotuv bo'yicha maslahatchisan. Senga mijozning bot bilan suhbati "
-            "(savollari va tanlovi) beriladi. Admin uchun O'ZBEK TILIDA juda qisqa "
-            "(1-2 jumla) amaliy TAVSIYA yoz: mijoz qanday kayfiyatda edi va keyingi "
-            "safar bunday mijozni qanday ushlab qolish/ko'proq sotish mumkin. Inglizcha yozma."
-        )
-        usr = (
-            f"Mijoz: {name}\nTanlovi: {op}, tarif {tariff}, natija: {outcome}\n"
-            f"Savollari:\n{q_block}"
-        )
-        recommendation = await ai_client.complete(sys, [{"role": "user", "content": usr}], max_tokens=200)
-    except Exception:
-        recommendation = ""
-
-    rec_line = f"\n\n💡 <b>Tavsiya:</b> {recommendation}" if recommendation else ""
+    # Professional individual insight (admin uchun)
+    insight = await ai_analytics.customer_insight({
+        "name": name, "operator": op, "tariff": tariff,
+        "questions": questions, "outcome": outcome, "stage": "Buyurtma yakuni",
+    })
+    rec_line = f"\n\n🧠 <b>AI Insight:</b>\n{insight}" if insight else ""
     text = (
         f"🧠 <b>MIJOZ XULOSASI — #{order_num}</b> ({outcome})\n"
         f"➖➖➖➖➖➖➖➖➖➖\n"
@@ -1216,20 +1260,13 @@ async def send_followup(bot, user_id, name: str):
 async def _record_and_analyze_feedback(bot, user_id, name: str, feedback: str):
     followups_store.save_feedback(user_id, feedback)
     analytics_store.feedback_received()
-    # AI tahlili — admin uchun
-    rec = ""
-    try:
-        sys = (
-            "Sen sotuv tahlilchisisan. Mijoz buyurtmani tugatmadi va sababini yozdi. "
-            "Admin uchun O'ZBEK TILIDA juda qisqa (1-2 jumla) amaliy tavsiya yoz: "
-            "shu mijozni qanday qaytarish va bunday holatni kamaytirish mumkin. Inglizcha yozma."
-        )
-        rec = await ai_client.complete(
-            sys, [{"role": "user", "content": f"Mijoz fikri: «{feedback}»"}], max_tokens=180,
-        )
-    except Exception:
-        rec = ""
-    rec_line = f"\n\n💡 <b>Tavsiya:</b> {rec}" if rec else ""
+    # Professional individual insight (admin uchun)
+    insight = await ai_analytics.customer_insight({
+        "name": name, "outcome": "TUGATMAGAN (abandon)",
+        "stage": "Buyurtma tashlab ketilgan",
+        "questions": [f"Tashlab ketish sababi: {feedback}"],
+    })
+    rec_line = f"\n\n🧠 <b>AI Insight:</b>\n{insight}" if insight else ""
     text = (
         f"📝 <b>MIJOZ FIKRI (tugatmagan buyurtma)</b>\n"
         f"➖➖➖➖➖➖➖➖➖➖\n"

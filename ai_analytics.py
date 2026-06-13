@@ -149,3 +149,44 @@ def daily_report_text() -> str:
         f"💬 AI suhbat: <b>{today['ai_sessions']}</b>\n"
         f"🟠 Hudud tashqarisida: <b>{today['out_of_zone']}</b>"
     )
+
+
+# ─── INDIVIDUAL (PER-MIJOZ) PROFESSIONAL INSIGHT ────────────────
+
+_CUSTOMER_INSIGHT_SYSTEM = (
+    "Sen Texnoset SIM karta biznesi uchun TAJRIBALI sotuv tahlilchisisan. "
+    "Senga BITTA mijozning bot bilan real suhbati (yozganlari, tanlovi, natijasi) "
+    "beriladi. Admin-sotuvchi uchun shu mijoz bo'yicha qisqa, professional va "
+    "AMALIY insight yoz — u shu insight bilan mijozni yaxshiroq yopsin.\n"
+    "FAQAT O'ZBEK TILIDA. Inglizcha/umumiy gap YO'Q. Aniq va qisqa.\n\n"
+    "Qat'iy format (aynan shu 5 qator, har biri 1 qator, HTML <b> bilan):\n"
+    "🎯 <b>Lead:</b> Issiq yoki Iliq yoki Sovuq — + 3-4 so'z izoh\n"
+    "😊 <b>Kayfiyat:</b> (masalan: qiziqqan / ikkilanayotgan / narxga sezgir / shoshayotgan / shubhali)\n"
+    "🧩 <b>Asosiy nuqta:</b> mijozning eng kuchli signali yoki e'tirozi\n"
+    "✅ <b>Keyingi qadam:</b> admin AYNAN nima qilsin (qo'ng'iroq qil / chegirma taklif et / eslatma yubor) — aniq\n"
+    "💡 <b>Yopish taktikasi:</b> shu mijozni qanday yopish — 1 ta aniq jumla\n\n"
+    "Faqat shu 5 qatorni yoz. Boshqa kirish/xulosa matni qo'shma."
+)
+
+
+async def customer_insight(profile: dict) -> str:
+    """Bitta mijoz uchun professional, strukturali sotuv insight'i (O'zbekcha)."""
+    q = profile.get("questions") or []
+    q_block = "\n".join(f"- {str(x)[:140]}" for x in q[-6:]) or "(savol yo'q, faqat tugmalar)"
+    usr = (
+        f"Mijoz: {profile.get('name', '—')}\n"
+        f"Tanlovi: {profile.get('operator', '—')} / tarif: {profile.get('tariff', '—')}\n"
+        f"Bosqich: {profile.get('stage', '—')}\n"
+        f"Natija: {profile.get('outcome', '—')}\n"
+        f"Mijoz yozganlari:\n{q_block}"
+    )
+    try:
+        out = await ai_client.complete(
+            _CUSTOMER_INSIGHT_SYSTEM,
+            [{"role": "user", "content": usr}],
+            max_tokens=350,
+        )
+        return (out or "").strip()
+    except Exception as e:
+        logger.error(f"customer_insight xatolik: {e}")
+        return ""

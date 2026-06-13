@@ -45,6 +45,33 @@ _SUXROB_GREETING = (
 )
 
 
+# ─── SAVDOGA UNDOVCHI NUDGE XABARLARI (Suxrob AI, 2-xabar) ───────
+
+def _nudge_keyboard():
+    b = InlineKeyboardBuilder()
+    b.button(text="🛒 Buyurtma berish", callback_data="new_order")
+    b.button(text="🤖 AI yordamchi", callback_data="open_ai_chat")
+    b.adjust(2)
+    return b.as_markup()
+
+
+_PROMO_NUDGE = (
+    "💬 <b>Suxrob AI:</b> 1+1 va bepul yetkazish — bugun olsangiz ikki marta tejaysiz 😊\n"
+    "Tayyor bo'lsangiz «🛒 Buyurtma berish»ni bosing. Ikkilanayotgan bo'lsangiz "
+    "«🤖 AI yordamchi»ga yozing — eng foydali tarifni o'zim topib beraman 👇"
+)
+_TARIFFS_NUDGE = (
+    "💬 <b>Suxrob AI:</b> Qaysi biri mosligini bilmasangiz, menga «arzonroq» yoki "
+    "«internet ko'p» deb yozing — bir zumda eng mosini tanlab beraman 😊\n"
+    "Yoki to'g'ridan «🛒 Buyurtma berish»ni bosing 👇"
+)
+_ABOUT_NUDGE = (
+    "💬 <b>Suxrob AI:</b> Ishonch hosil qildingizmi? 😊 SIM qo'lingizga tekkanda to'laysiz, "
+    "yoqmasa olishingiz shart emas — hech qanday xavf yo'q!\n"
+    "«🛒 Buyurtma berish»ni bossangiz, bir necha daqiqada rasmiylashtiramiz 👇"
+)
+
+
 async def _send_home(message: Message, name: str):
     """Bosh sahifa: rasm (bo'lsa) + menyu, so'ng Suxrob AI salomi."""
     text = _welcome_text(name)
@@ -129,6 +156,7 @@ async def show_promo(callback: CallbackQuery):
         "⏱ Bugun buyurtma bersangiz — bugunoq yetkazamiz! Pastdan boshlang 👇"
     )
     await _show_section(callback, text, back_to_main_keyboard())
+    await callback.message.answer(_PROMO_NUDGE, reply_markup=_nudge_keyboard())
 
 
 # ─── TARIFLAR (umumiy) ───────────────────────────────────────────
@@ -149,6 +177,7 @@ async def show_tariffs(callback: CallbackQuery):
         "u savollaringizga javob berib, eng mosini topib beradi!"
     )
     await _show_section(callback, "\n".join(lines), back_to_main_keyboard())
+    await callback.message.answer(_TARIFFS_NUDGE, reply_markup=_nudge_keyboard())
 
 
 # ─── BIZ HAQIMIZDA ───────────────────────────────────────────────
@@ -172,6 +201,7 @@ async def show_about(callback: CallbackQuery):
         "Savol bo'lsa — «📞 Aloqa» orqali yozing."
     )
     await _show_section(callback, text, back_to_main_keyboard())
+    await callback.message.answer(_ABOUT_NUDGE, reply_markup=_nudge_keyboard())
 
 
 # ─── ALOQA ───────────────────────────────────────────────────────
