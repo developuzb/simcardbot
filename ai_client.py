@@ -30,11 +30,15 @@ def get_client() -> AsyncOpenAI:
 async def complete(system: str, messages: list, max_tokens: int = 512) -> str:
     """Sof matn javob qaytaradi.
 
-    TokenMix OpenAI-compatible endpoint ga mos ravishda system prompt
+    OpenAI-compatible endpoint ga mos ravishda system prompt
     xabarlarni boshiga qo'shiladi.
     """
     client = get_client()
     full_messages = [{"role": "system", "content": system}] + messages
     resp = await client.chat.completions.create(
         model=MODEL,
-        max_tokens=m
+        max_tokens=max_tokens,
+        messages=full_messages,
+    )
+    content = resp.choices[0].message.content
+    return (content or "").strip()

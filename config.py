@@ -105,4 +105,14 @@ DELIVERY_TYPES = {
     },
     "tezkor": {
         "name": "Tezkor yetkazish",
-        "d
+        "desc": "1 soat ichida",
+        "price": 10_000,
+        "emoji": "⚡",
+    },
+    "standart": {
+        "name": "Standart yetkazish",
+        "desc": "2 soat ichida",
+        "price": 5_000,
+        "emoji": "🚗",
+    },
+}
