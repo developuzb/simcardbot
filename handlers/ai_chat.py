@@ -18,12 +18,14 @@ from config import (
     ADMIN_IDS, DELIVERY_TYPES, ADMIN_CONTACT,
     DELIVERY_ZONE_NAME, WORK_START_HOUR, WORK_END_HOUR,
     PROMO_1PLUS1_MIN_PRICE, PROMO_1PLUS1_BADGE, PROMO_1PLUS1_TEXT,
+    PAYMENT_NOTE, PASSPORT_NOTE, NUMBER_NOTE, TRUST_NOTE, REFERRAL_DISCOUNT,
 )
 import settings_store
 import analytics_store
 import tariff_advice
 import orders_db
 import followups_store
+import referrals_store
 import ai_client
 from handlers import dispatch
 
@@ -110,11 +112,11 @@ def _build_system_prompt() -> str:
         for t in TARIFFS.get(op_id, []):
             promo = " [1+1 AKSIYA: 2-SIM bepul]" if t["price"] >= PROMO_1PLUS1_MIN_PRICE else ""
             tariff_lines.append(
-                f"{op['emoji']} {op['name']} | {t['name']} | {t['price']:,} so'm/oy | {t['desc']}{promo}"
+                f"[{op_id}/{t['id']}] {op['emoji']} {op['name']} | {t['name']} | {t['price']:,} so'm/oy | {t['desc']}{promo}"
             )
     zones = " va ".join(z[0] for z in _get_delivery_zones())
     return (
-        "Sen Suxrob — Texnoset SIM karta xizmatining TAJRIBALI, PROFESSIONAL sotuvchisisan. "
+        "Sen Suxrob — Texnoset SIM karta xizmatining AI sotuv yordamchisisan (tajribali, professional). "
         "Mijoz bilan ILIQ, SAMIMIY, ishonchli gaplash — xuddi yaqin tanishingga yordam "
         "berayotgandek. Maqsading: mijozga chin dildan yordam berib, uni buyurtma berishgacha "
         "yumshoq yetaklash. Hech qachon bosim o'tkazma, lekin har javobda keyingi qadamга undaymiz.\n"
@@ -153,11 +155,18 @@ def _build_system_prompt() -> str:
             f"{dt['desc']}=" + ("BEPUL" if dt['price'] == 0 else f"{dt['price']}")
             for dt in DELIVERY_TYPES.values()
         ) + "\n"
-        "RAQAM: mijoz raqamni o'zi tanlamaydi — operator bog'lanib kelishadi. "
+        "RAQAM: mijoz raqamni oldindan operator bilan kelishadi YOKI kuryer oldida o'zi tanlaydi. "
         "Raqam +998(operator kodi) ko'rinishida bo'ladi.\n"
+        "TO'LOV: SIM qo'lga tekkanda kuryerga — naqd yoki karta. Oldindan to'lov YO'Q.\n"
+        "PASPORT: SIM pasport bilan rasmiylashtiriladi — kuryer kelganda pasport kerak.\n"
         "HUDUD: faqat " + zones + ".\n\n"
         "TARIFLAR (faqat shu ro'yxatdan, BITTASINI tanlab tavsiya qil):\n"
         + "\n".join(tariff_lines) + "\n\n"
+        "🔘 TUGMA BOSHQARUVI (MAJBURIY — har javob OXIRIDA alohida qatorga yoz):\n"
+        "• Aniq BITTA tarif tavsiya qilsang: @@PICK op_id tariff_id@@ "
+        "(yuqoridagi [op_id/tariff_id] dan AYNAN ko'chir — o'ylab topma!)\n"
+        "• Hali savol berayotgan/aniqlik bo'lmasa: @@ASK@@\n"
+        "• Bu belgi mijozga KO'RINMAYDI — tizim uni avtomatik tugmaga aylantiradi.\n"
         "Mavzudan chetga chiqsa: 'Men faqat SIM karta bo'yicha yordam beraman 😊'\n"
         "DIQQAT: Sen maslahat berasan, buyurtma tugmalar orqali rasmiylashadi."
     )
@@ -247,6 +256,17 @@ def _location_keyboard() -> ReplyKeyboardMarkup:
     )
 
 
+def _phone_keyboard() -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="📱 Raqamni ulashish", request_contact=True)],
+            [KeyboardButton(text="❌ Bekor qilish")],
+        ],
+        resize_keyboard=True,
+        one_time_keyboard=True,
+    )
+
+
 def _confirm_keyboard() -> object:
     b = InlineKeyboardBuilder()
     b.button(text="✅ Buyurtmani tasdiqlash", callback_data="ai_confirm")
@@ -255,7 +275,7 @@ def _confirm_keyboard() -> object:
     return b.as_markup()
 
 
-def _order_summary(data: dict, zone: str) -> str:
+def _order_summary(data: dict, zone: str, discount: int = 0) -> str:
     """Mijozga buyurtmani tasdiqlashdan oldin to'liq xulosa."""
     op_id = data.get("sel_operator", "")
     tariff = next((t for t in TARIFFS.get(op_id, []) if t["id"] == data.get("sel_tariff")), None)
@@ -263,8 +283,9 @@ def _order_summary(data: dict, zone: str) -> str:
     dtype = DELIVERY_TYPES.get(data.get("sel_delivery", "ish_vaqti"), {})
     tariff_price = tariff["price"] if tariff else 0
     delivery_price = dtype.get("price", 0)
-    total = tariff_price + delivery_price
+    total = max(0, tariff_price + delivery_price - discount)
     promo = "🎁 <b>1+1 AKSIYA:</b> ikkinchi SIM BEPUL!\n" if tariff_price >= PROMO_1PLUS1_MIN_PRICE else ""
+    disc_line = f"🎁 <b>Do'st chegirmasi:</b> -{discount:,} so'm\n" if discount else ""
     hint = operator_number_hint(op_id)
     delivery_text = "Bepul 🎁" if delivery_price == 0 else f"{delivery_price:,} so'm"
     return (
@@ -274,12 +295,16 @@ def _order_summary(data: dict, zone: str) -> str:
         f"📦 <b>Tarif:</b> {tariff['name'] if tariff else '—'} — {tariff_price:,} so'm/oy\n"
         f"{promo}"
         f"🚀 <b>Yetkazish:</b> {dtype.get('desc', '—')} — {delivery_text}\n"
+        f"{disc_line}"
         f"📍 <b>Hudud:</b> {zone}\n"
         f"📞 <b>Tel:</b> {data.get('customer_phone', '—')}\n"
         f"💳 <b>Jami:</b> <b>{total:,} so'm</b>\n"
         "➖➖➖➖➖➖➖➖➖➖\n"
+        f"{NUMBER_NOTE}\n"
+        f"{PAYMENT_NOTE}\n"
+        f"{PASSPORT_NOTE}\n"
         f"📱 Raqamingiz <b>{hint}</b> ko'rinishida bo'ladi.\n"
-        "<i>Aniq raqamni va yetkazish vaqtini operatorimiz siz bilan kelishadi.</i>\n\n"
+        "<i>Aniq raqam va yetkazish vaqtini operatorimiz siz bilan kelishadi.</i>\n\n"
         "Hammasi to'g'rimi? 👇"
     )
 
@@ -290,9 +315,9 @@ def _order_summary(data: dict, zone: str) -> str:
 _PRIMING = [
     {"role": "user", "content": "Salom"},
     {"role": "assistant", "content": (
-        "Salom! 😊 Men Suxrob, SIM karta tanlashda yordam beraman. "
+        "Salom! 😊 Men Suxrob — Texnoset AI yordamchisi, SIM karta tanlashda yordam beraman. "
         "Ayting-chi, telefoningizda nima ko'proq kerak — internetmi, qo'ng'iroqmi, "
-        "yoki arzonroq bo'lgani?"
+        "yoki arzonroq bo'lgani?\n@@ASK@@"
     )},
     {"role": "user", "content": "menga eng arzon tarif kerak"},
     {"role": "assistant", "content": (
@@ -300,7 +325,7 @@ _PRIMING = [
         "<b>Beeline Standart</b> — aynan siz uchun:\n"
         "<blockquote>📶 10 GB internet\n☎️ 700 daqiqa qo'ng'iroq\n💬 500 SMS</blockquote>\n"
         "💰 <b>45 000 so'm/oy</b> (kuniga 1 500 so'm)\n\n"
-        "Beeline tugmasini bossangiz, davom etamiz 👇"
+        "Beeline tugmasini bossangiz, davom etamiz 👇\n@@PICK beeline bee_standart@@"
     )},
     {"role": "user", "content": "ko'p internet kerak, qaysi tarif yaxshi?"},
     {"role": "assistant", "content": (
@@ -308,26 +333,61 @@ _PRIMING = [
         "<b>Mobiuz ORZU 90</b> — bu zo'r tanlov:\n"
         "<blockquote>📶 180 GB internet\n☎️ Cheksiz qo'ng'iroq\n🎁 1+1: ikkinchi SIM BEPUL</blockquote>\n"
         "💰 <b>90 000 so'm/oy</b> (kuniga ~3 000 so'm)\n\n"
-        "Mobiuz tugmasini tanlang 👇"
+        "Mobiuz tugmasini tanlang 👇\n@@PICK ums ums_orzu_90@@"
     )},
     {"role": "user", "content": "YouTube ko'p ishlataman"},
     {"role": "assistant", "content": (
         "YouTube'ni yaxshi ko'rasiz-da 🎬\n\n"
-        "<b>Humans YouTube+</b> — aynan mos:\n"
-        "<blockquote>▶️ YouTube CHEKSIZ\n📶 40 GB internet\n☎️ Cheksiz qo'ng'iroq</blockquote>\n"
-        "💰 <b>56 000 so'm/oy</b>\n\n"
-        "Humans tugmasini bosing 👇"
+        "<b>Mobiuz Xotirjam 80</b> — aynan mos:\n"
+        "<blockquote>▶️ YouTube + 10 ilova cheksiz\n📶 80 GB internet\n☎️ Cheksiz qo'ng'iroq\n🎁 1+1: ikkinchi SIM bepul</blockquote>\n"
+        "💰 <b>80 000 so'm/oy</b>\n\n"
+        "Mobiuz tugmasini bossangiz, davom etamiz 👇\n@@PICK ums ums_xotirjam_80@@"
     )},
     {"role": "user", "content": "bilmadim qaysi birini olsam"},
     {"role": "assistant", "content": (
         "Hech qisi yo'q, birga tanlaymiz 😊\n"
         "Ayting-chi: internet ko'proq muhimmi, yoki arzonroq bo'lgani? "
-        "Shunga qarab eng zo'rini topib beraman 👍"
+        "Shunga qarab eng zo'rini topib beraman 👍\n@@ASK@@"
     )},
 ]
 
 
-async def _ai_reply(history: list) -> str:
+_PICK_RE = re.compile(r"@@\s*PICK\s+([a-z0-9_]+)\s+([a-z0-9_]+)\s*@@", re.I)
+_ASK_RE = re.compile(r"@@\s*ASK\s*@@", re.I)
+
+
+def _parse_markers(text: str):
+    # AI javobidagi @@PICK op tid@@ / @@ASK@@ belgisini ajratadi.
+    pick = None
+    m = _PICK_RE.search(text)
+    if m:
+        op_id, tid = m.group(1), m.group(2)
+        t = next((x for x in TARIFFS.get(op_id, [])
+                  if x["id"] == tid and not x.get("family") and not x.get("no_compare")), None)
+        if t:
+            pick = (op_id, t)
+    text = _PICK_RE.sub("", text)
+    text = _ASK_RE.sub("", text).strip()
+    return text, pick
+
+
+def _recommend_keyboard(pick) -> object:
+    # AI aynan tavsiya qilgan tarif uchun bitta yorqin CTA (tanlov yukini kamaytiradi).
+    op_id, t = pick
+    op = OPERATORS.get(op_id, {})
+    badge = f" {PROMO_1PLUS1_BADGE}" if t["price"] >= PROMO_1PLUS1_MIN_PRICE else ""
+    b = InlineKeyboardBuilder()
+    b.button(
+        text=f"✅ {op.get('emoji', '')} {op.get('name', op_id)} {t['name']} — {t['price']:,}{badge}",
+        callback_data=f"ai_tf_{op_id}__{t['id']}",
+    )
+    b.button(text="📋 Boshqa variantlar", callback_data="ai_back_op")
+    b.button(text="❌ Chiqish", callback_data="ai_exit")
+    b.adjust(1)
+    return b.as_markup()
+
+
+async def _ai_reply(history: list):
     """AI'дан sof matn javob oladi (tool yo'q + few-shot priming = ishonchli)."""
     client = _get_client()
     messages = [{"role": "system", "content": _get_system_prompt()}] + _PRIMING + history
@@ -336,7 +396,8 @@ async def _ai_reply(history: list) -> str:
         messages=messages,
     )
     text = (resp.choices[0].message.content or "").strip()
-    return _md_to_html(text)
+    text, pick = _parse_markers(text)
+    return _md_to_html(text), pick
 
 
 _TAG_RE = re.compile(r"<[^>]+>")
@@ -434,7 +495,8 @@ async def _place_order(data: dict, user_id: int, bot,
     delivery_name = f"{dtype['emoji']} {dtype['name']} ({dtype['desc']})"
     tariff_price = tariff.get("price", 0) if tariff else 0
     tariff_name = tariff.get("name", tariff_id) if tariff else tariff_id
-    total = tariff_price + delivery_price
+    discount = int(data.get("ref_discount", 0) or 0)
+    total = max(0, tariff_price + delivery_price - discount)
 
     order_num = await orders_db.create_order({
         "name": customer_name,
@@ -449,6 +511,7 @@ async def _place_order(data: dict, user_id: int, bot,
         "delivery_price": delivery_price,
         "delivery_type": delivery_name,
         "tariff_price": tariff_price,
+        "discount": discount,
         "promo": tariff_price >= PROMO_1PLUS1_MIN_PRICE,
     })
 
@@ -470,6 +533,18 @@ async def _place_order(data: dict, user_id: int, bot,
     if sent == 0:
         logger.error("DIQQAT: #%s buyurtma hech bir adminga yetib bormadi!", order_num)
 
+    if discount:
+        try:
+            referrals_store.mark_used(user_id)
+            rid = referrals_store.referrer_of(user_id)
+            if rid:
+                await bot.send_message(
+                    int(rid),
+                    "🎉 Tabriklaymiz! Siz taklif qilgan do'stingiz buyurtma berdi. "
+                    "Rahmat — yana do'stlaringizni taklif qiling! 🎁",
+                )
+        except Exception:
+            logger.warning("Referal chegirma/xabar ishlamadi (user %s)", user_id)
     analytics_store.order_placed(total, via_ai=True)
     return order_num
 
@@ -487,14 +562,14 @@ async def start_ai_chat(target, state: FSMContext, quick: bool = False):
     if quick:
         text = (
             f"🛒 Boshladik, {user_name}! 👋\n"
-            "Men Suxrob, buyurtmangizni tez rasmiylashtiramiz.\n\n"
+            "Men Suxrob — Texnoset AI yordamchisi, buyurtmangizni tez rasmiylashtiramiz.\n\n"
             "Qaysi operatorni xohlaysiz? Quyidan tanlang — yoki «arzonroq» / "
             "«internet ko'p» deb yozsangiz, mosini o'zim topaman 👇"
         )
     else:
         text = (
             f"Assalomu alaykum, {user_name}! 👋\n"
-            "Men Suxrob — sizga eng mos SIM kartani tanlashda yordam beraman 😊\n\n"
+            "Men Suxrob — Texnoset'ning AI yordamchisiman, sizga eng mos SIM kartani tanlashda yordam beraman 😊\n\n"
             "Erkin yozing — masalan «arzonroq kerak» yoki «internet ko'p bo'lsin», "
             "men aynan sizga mosini topib beraman.\n\n"
             "Yoki to'g'ridan operatorni tanlang 👇"
@@ -555,7 +630,7 @@ async def handle_ai_message(message: Message, state: FSMContext):
         if not _looks_like_phone(message.text):
             await message.answer(
                 "📞 Iltimos, to'g'ri telefon raqam kiriting.\n<i>Masalan: +998901234567</i>",
-                reply_markup=_stage_keyboard("phone"),
+                reply_markup=_phone_keyboard(),
             )
             return
         await state.update_data(customer_phone=message.text.strip(), ai_stage="location")
@@ -629,14 +704,18 @@ async def handle_ai_message(message: Message, state: FSMContext):
     thinking = await message.answer("💭 Bir lahza...")
 
     try:
-        ai_text = await _ai_reply(history)
+        ai_text, pick = await _ai_reply(history)
         if not ai_text:
             ai_text = _fallback_text(stage)
         history.append({"role": "assistant", "content": ai_text})
         if len(history) > 12:
             history = history[-12:]
         await state.update_data(ai_history=history)
-        await _typewriter(message, ai_text, _stage_keyboard(stage), existing_msg=thinking)
+        if pick and (stage == "operator" or stage.startswith("tariff:")):
+            kb = _recommend_keyboard(pick)
+        else:
+            kb = _stage_keyboard(stage)
+        await _typewriter(message, ai_text, kb, existing_msg=thinking)
     except openai.AuthenticationError:
         await thinking.edit_text("⚠️ AI kalit xato. Admin bilan bog'laning.")
     except openai.RateLimitError:
@@ -646,6 +725,23 @@ async def handle_ai_message(message: Message, state: FSMContext):
             await thinking.edit_text(_fallback_text(stage), reply_markup=_stage_keyboard(stage))
         except Exception:
             await message.answer(_fallback_text(stage), reply_markup=_stage_keyboard(stage))
+
+
+# ─── RAQAM ULASHISH (Telegram kontakt tugmasi) ──────────────────
+
+@router.message(AIState.chatting, F.contact)
+async def handle_contact(message: Message, state: FSMContext):
+    data = await state.get_data()
+    if data.get("ai_stage") != "phone":
+        return
+    phone = (message.contact.phone_number or "").strip()
+    await state.update_data(customer_phone=phone, ai_stage="location")
+    followups_store.touch(message.from_user.id, "location", data.get("user_name", ""))
+    await message.answer("Rahmat! Raqamingizni oldim ✅", reply_markup=ReplyKeyboardRemove())
+    await message.answer(
+        "Oxirgi qadam! 🏁 Joylashuvingizni yuboring — eshigingizgacha yetkazib beramiz 📍👇",
+        reply_markup=_location_keyboard(),
+    )
 
 
 # ─── GPS LOKATSIYA HANDLERI ──────────────────────────────────────
@@ -681,11 +777,12 @@ async def handle_location(message: Message, state: FSMContext):
         return
 
     # Hudud ichida — lokatsiyani saqlab, TASDIQLASH bosqichiga o'tamiz
-    await state.update_data(region=zone, cust_lat=lat, cust_lon=lon, ai_stage="confirm")
+    discount = REFERRAL_DISCOUNT if referrals_store.has_discount(message.from_user.id) else 0
+    await state.update_data(region=zone, cust_lat=lat, cust_lon=lon, ai_stage="confirm", ref_discount=discount)
     followups_store.touch(message.from_user.id, "confirm", data.get("user_name", ""))
     await message.answer(f"✅ Joylashuv tasdiqlandi: <b>{zone}</b>", reply_markup=ReplyKeyboardRemove())
     data = await state.get_data()
-    await message.answer(_order_summary(data, zone), reply_markup=_confirm_keyboard())
+    await message.answer(_order_summary(data, zone, discount), reply_markup=_confirm_keyboard())
 
 
 async def _handle_out_of_zone(message: Message, state: FSMContext, data: dict, lat, lon):
@@ -824,7 +921,9 @@ async def ai_confirm_order(callback: CallbackQuery, state: FSMContext):
         f"🎉 <b>Rahmat! Buyurtmangiz qabul qilindi</b> (#{order_num})\n\n"
         "⏳ Admin tasdiqlashi bilan operatorimiz siz bilan bog'lanib, "
         "<b>SIM raqamni tanlash</b> va <b>yetkazib berish vaqtini</b> kelishadi.\n"
-        f"📱 Raqamingiz <b>{hint}</b> ko'rinishida bo'ladi.\n\n"
+        f"📱 Raqamingiz <b>{hint}</b> ko'rinishida bo'ladi.\n"
+        f"{PAYMENT_NOTE}\n"
+        f"{PASSPORT_NOTE}\n\n"
         "Har bosqichda sizga xabar beramiz! 🙏",
         reply_markup=_stage_keyboard("done"),
     )
@@ -931,10 +1030,11 @@ async def ai_pick_delivery(callback: CallbackQuery, state: FSMContext):
     await callback.message.answer(
         f"Bo'ldi! {dtype['emoji']} <b>{dtype['name']}</b> ({dtype['desc']}) — {price_text} ✅"
         f"{work_note}\n\n"
-        "Deyarli tayyor! 🎯 Sizga qo'ng'iroq qilishimiz uchun telefon raqamingizni yozing 📞\n"
-        "<i>Masalan: +998901234567</i>\n\n"
+        "Deyarli tayyor! 🎯 Telefon raqamingizni yuboring — pastdagi "
+        "<b>«📱 Raqamni ulashish»</b> tugmasini bossangiz kifoya 👇\n"
+        "<i>Yoki qo'lda yozing: +998901234567</i>\n\n"
         "<i>Xavotir olmang — raqamingiz faqat siz bilan bog'lanish uchun.</i>",
-        reply_markup=_stage_keyboard("phone"),
+        reply_markup=_phone_keyboard(),
     )
 
 

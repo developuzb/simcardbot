@@ -116,3 +116,13 @@ DELIVERY_TYPES = {
         "emoji": "🚗",
     },
 }
+
+# ─── Referal: taklif qilingan do'st BIRINCHI buyurtmada chegirma oladi ──
+REFERRAL_DISCOUNT = int(os.getenv("REFERRAL_DISCOUNT", "10000"))
+
+# ─── Mijozga ko'rsatiladigan ishonch/aniqlik matnlari (yagona manba) ────
+# Biznes faktlari shu yerda — hamma joyda bir xil ishlatiladi (qarama-qarshilik bo'lmasin)
+PAYMENT_NOTE = "💵 To'lov — SIM qo'lingizga tekkanda kuryerga (naqd yoki karta)"
+PASSPORT_NOTE = "🪪 Rasmiylashtirish uchun pasportingizni tayyorlab qo'ying"
+NUMBER_NOTE = "📱 Raqamni oldindan operator bilan kelishasiz yoki kuryer oldida o'zingiz tanlaysiz"
+TRUST_NOTE = "✅ Rasmiy SIM · Pasport bilan rasmiylashtiriladi · Yoqmasa — olishingiz shart emas"

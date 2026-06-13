@@ -1,5 +1,5 @@
 from aiogram import Router, F
-from aiogram.filters import CommandStart, Command, StateFilter
+from aiogram.filters import CommandStart, Command, StateFilter, CommandObject
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from keyboards import (
@@ -9,10 +9,11 @@ from data import OPERATORS, TARIFFS
 from config import (
     ADMIN_CONTACT, ADMIN_PHONE, FOUNDER_CONTACT, OFFICE_ADDRESS, WORK_DAYS,
     DELIVERY_TYPES, PROMO_1PLUS1_MIN_PRICE, PROMO_1PLUS1_BADGE,
-    WORK_START_HOUR, WORK_END_HOUR,
+    WORK_START_HOUR, WORK_END_HOUR, REFERRAL_DISCOUNT,
 )
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 import settings_store
+import referrals_store
 
 router = Router()
 
@@ -26,9 +27,12 @@ def _welcome_text(name: str) -> str:
         "➖➖➖➖➖➖➖➖➖➖\n"
         f"Assalomu alaykum, <b>{name}</b>! 👋\n\n"
         "📡 Barcha operatorlar: Ucell, Beeline, Mobiuz, Humans, Uzmobile\n"
-        "⚡ Tezkor yetkazish — atigi <b>1 soatda</b>\n"
+        "⚡ Bugun buyurtma — bugun yetkazamiz (atigi <b>1 soatda</b> ham)\n"
         "🎁 70 000+ tariflarga <b>1+1</b>: ikkinchi SIM <b>BEPUL</b>\n"
-        "🤖 Suxrob — shaxsiy maslahatchingiz har doim yoningizda\n"
+        "👥 Do'st taklifiga chegirma\n"
+        "🤖 Suxrob (AI yordamchi) — eng mos tarifni topib beradi\n"
+        "➖➖➖➖➖➖➖➖➖➖\n"
+        "✅ Rasmiy SIM · Pasport bilan rasmiylashtiriladi · To'lov topshirilganda (naqd/karta)\n"
         "➖➖➖➖➖➖➖➖➖➖\n"
         "Boshlash uchun quyidan tanlang 👇"
     )
@@ -59,8 +63,17 @@ async def _send_home(message: Message, name: str):
 
 
 @router.message(CommandStart(), F.chat.type == "private")
-async def cmd_start(message: Message, state: FSMContext):
+async def cmd_start(message: Message, state: FSMContext, command: CommandObject = None):
     await state.clear()
+    # Referal havola: /start ref<referrer_id>
+    payload = (command.args if command else None) or ""
+    if payload.startswith("ref"):
+        rid = payload[3:].strip()
+        if rid.isdigit() and referrals_store.register(message.from_user.id, rid):
+            await message.answer(
+                f"🎁 Xush kelibsiz! Do'stingiz tavsiyasi bilan keldingiz — "
+                f"birinchi buyurtmangizga <b>{REFERRAL_DISCOUNT:,} so'm chegirma</b> qo'shildi!"
+            )
     await _send_home(message, message.from_user.first_name or "mehmon")
 
 
@@ -108,9 +121,12 @@ async def show_promo(callback: CallbackQuery):
         f"{PROMO_1PLUS1_MIN_PRICE:,} so'm va undan qimmat har qanday tarifga "
         "ikkinchi SIM kartani sovg'a qilamiz 🎉\n\n"
         "🚀 <b>YETKAZIB BERISH</b>\n"
-        + "\n".join(delivery_lines) + "\n"
+        + "\n".join(delivery_lines) + "\n\n"
+        "👥 <b>DO'STNI TAKLIF QILING</b>\n"
+        f"Do'stingiz havolangiz orqali kelsa — birinchi buyurtmasiga {REFERRAL_DISCOUNT:,} so'm chegirma 🎁\n"
+        "«👥 Do'st taklif qil» tugmasidan havolangizni oling.\n"
         "➖➖➖➖➖➖➖➖➖➖\n"
-        "Aksiyali tarifni tanlash uchun pastdan boshlang 👇"
+        "⏱ Bugun buyurtma bersangiz — bugunoq yetkazamiz! Pastdan boshlang 👇"
     )
     await _show_section(callback, text, back_to_main_keyboard())
 
@@ -147,8 +163,11 @@ async def show_about(callback: CallbackQuery):
         "1️⃣ Operator va tarifni tanlaysiz (yoki AI yordam beradi)\n"
         "2️⃣ Telefon va joylashuvni yuborasiz\n"
         "3️⃣ Kuryer SIM kartalar bilan yetib keladi\n"
-        "4️⃣ Yoqqan raqamni <b>kuryer oldida</b> tanlaysiz 📱\n\n"
-        "✅ Ishonchli, tez va qulay!\n"
+        "4️⃣ Raqamni oldindan operator bilan kelishasiz yoki <b>kuryer oldida</b> tanlaysiz 📱\n"
+        "5️⃣ Pasport bilan rasmiylashtiriladi, to'lovni topshirilganda qilasiz 🪪\n\n"
+        "💵 <b>To'lov:</b> SIM qo'lingizga tekkanda — naqd yoki karta\n"
+        "🪪 <b>Pasport:</b> kuryer kelganda tayyor bo'lsin\n"
+        "✅ Rasmiy SIM · Yoqmasa — olishingiz shart emas\n"
         "➖➖➖➖➖➖➖➖➖➖\n"
         "Savol bo'lsa — «📞 Aloqa» orqali yozing."
     )
@@ -194,6 +213,35 @@ async def show_office_location(callback: CallbackQuery):
         reply_markup=back_to_main_keyboard(),
     )
     await callback.answer()
+
+
+# ─── DO'ST TAKLIF QILISH (REFERAL) ───────────────────────────────
+
+@router.callback_query(F.data == "show_referral")
+async def show_referral(callback: CallbackQuery):
+    uid = callback.from_user.id
+    try:
+        me = await callback.bot.me()
+        link = f"https://t.me/{me.username}?start=ref{uid}"
+    except Exception:
+        link = ""
+    invited = referrals_store.invited_count(uid)
+    share = (
+        "Salom! 😊 Texnoset orqali SIM kartani uyga yetkazib olish mumkin — "
+        "operatorni tanlaysan, kuryer eshiginggacha olib keladi. "
+        f"Mana havola: {link}"
+    )
+    text = (
+        "👥 <b>DO'STNI TAKLIF QILING</b>\n"
+        "➖➖➖➖➖➖➖➖➖➖\n"
+        f"Do'stingiz havolangiz orqali kelsa, uning birinchi buyurtmasiga "
+        f"<b>{REFERRAL_DISCOUNT:,} so'm chegirma</b> tushadi 🎁\n\n"
+        f"🔗 <b>Havolangiz:</b>\n<code>{link}</code>\n\n"
+        f"👤 Siz taklif qilganlar: <b>{invited}</b> ta\n\n"
+        "Quyidagi tayyor matnni do'stlaringizga yuboring 👇\n"
+        f"<blockquote>{share}</blockquote>"
+    )
+    await _show_section(callback, text, back_to_main_keyboard())
 
 
 # ─── BEKOR QILISH ────────────────────────────────────────────────
