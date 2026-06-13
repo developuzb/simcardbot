@@ -4,7 +4,44 @@ from dotenv import load_dotenv
 load_dotenv()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN", "YOUR_BOT_TOKEN_HERE")
-ADMIN_IDS = list(map(int, os.getenv("ADMIN_IDS", "123456789").split(",")))
+def _parse_admin_ids(raw: str) -> list:
+    """ADMIN_IDS ni xavfsiz parse qiladi.
+
+    Bo'sh elementlar, problar va raqam bo'lmagan qiymatlar tashlab yuboriladi.
+    Natija bo'sh bo'lsa — ogohlantirish loglanadi.
+    """
+    import logging as _logging
+    result = []
+    for part in raw.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        try:
+            result.append(int(part))
+        except ValueError:
+            _logging.getLogger(__name__).warning(
+                "ADMIN_IDS ichida noto'g'ri qiymat tashlab yuborildi: %r", part
+            )
+    if not result:
+        _logging.getLogger(__name__).warning(
+            "ADMIN_IDS bo'sh yoki to'g'ri qiymat yo'q — adminlarga xabar yetib bormaydi!"
+        )
+    return result
+
+
+ADMIN_IDS = _parse_admin_ids(os.getenv("ADMIN_IDS", "123456789"))
+
+# AI API (OpenAI-compatible). Hozir BEPUL Google Gemini ishlatilmoqda.
+# Kalit: https://aistudio.google.com/apikey (karta kerak emas, bepul)
+# O'zgaruvchi nomlari TOKENMIX_* qolgan — ular umumiy OpenAI-compatible sozlama.
+TOKENMIX_API_KEY = os.getenv("TOKENMIX_API_KEY", "")
+TOKENMIX_BASE_URL = os.getenv(
+    "TOKENMIX_BASE_URL",
+    "https://generativelanguage.googleapis.com/v1beta/openai/",
+)
+TOKENMIX_MODEL = os.getenv("TOKENMIX_MODEL", "gemini-2.5-flash")
+
+# Eski Anthropic kaliti — faqat eski kod bilan moslik uchun saqlanib qolgan
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 
 # Mijoz aloqasi (Telegram username va telefon)
@@ -68,14 +105,4 @@ DELIVERY_TYPES = {
     },
     "tezkor": {
         "name": "Tezkor yetkazish",
-        "desc": "1 soat ichida",
-        "price": 10_000,
-        "emoji": "⚡",
-    },
-    "standart": {
-        "name": "Standart yetkazish",
-        "desc": "2 soat ichida",
-        "price": 5_000,
-        "emoji": "🚗",
-    },
-}
+        "d

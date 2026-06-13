@@ -8,6 +8,7 @@ import json
 import os
 import logging
 from datetime import datetime
+from storage_utils import atomic_write_json
 
 logger = logging.getLogger(__name__)
 
@@ -53,8 +54,7 @@ def _load() -> dict:
 
 def _save():
     try:
-        with open(_FILE, "w", encoding="utf-8") as f:
-            json.dump(_cache, f, ensure_ascii=False, indent=2)
+        atomic_write_json(_FILE, _cache, ensure_ascii=False, indent=2)
     except Exception as e:
         logger.error(f"analytics save xatolik: {e}")
 

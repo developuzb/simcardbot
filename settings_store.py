@@ -8,6 +8,7 @@ import json
 import os
 import logging
 from config import DELIVERY_LAT, DELIVERY_LON, DELIVERY_RADIUS_KM, DELIVERY_ZONE_NAME
+from storage_utils import atomic_write_json
 
 logger = logging.getLogger(__name__)
 
@@ -65,8 +66,7 @@ def set_office(lat: float, lon: float, radius_km: float | None = None,
     if zone_name is not None:
         current["zone_name"] = zone_name
     try:
-        with open(_SETTINGS_FILE, "w", encoding="utf-8") as f:
-            json.dump(current, f, ensure_ascii=False, indent=2)
+        atomic_write_json(_SETTINGS_FILE, current, ensure_ascii=False, indent=2)
         _cache = current
         return True
     except Exception as e:
@@ -92,8 +92,7 @@ def set_welcome_photo(file_id: str) -> bool:
     current = _load()
     current["welcome_photo_id"] = file_id
     try:
-        with open(_SETTINGS_FILE, "w", encoding="utf-8") as f:
-            json.dump(current, f, ensure_ascii=False, indent=2)
+        atomic_write_json(_SETTINGS_FILE, current, ensure_ascii=False, indent=2)
         _cache = current
         return True
     except Exception as e:
@@ -117,8 +116,7 @@ def set_courier_group(chat_id: int) -> bool:
     current = _load()
     current["courier_group_id"] = int(chat_id)
     try:
-        with open(_SETTINGS_FILE, "w", encoding="utf-8") as f:
-            json.dump(current, f, ensure_ascii=False, indent=2)
+        atomic_write_json(_SETTINGS_FILE, current, ensure_ascii=False, indent=2)
         _cache = current
         return True
     except Exception as e:

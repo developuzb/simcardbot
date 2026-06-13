@@ -1,22 +1,25 @@
-"""Umumiy Anthropic client — AI chat va AI analitika shu yerdan foydalanadi.
+"""Umumiy AI client — OpenAI-compatible API orqali.
 
-Proxy (aiprimetech.io) bilan ishlaydi. Model: claude-sonnet-4-6
-(haiku bu proxy'da buzilgan, shuning uchun sonnet ishlatamiz).
+Hozir BEPUL Google Gemini ishlatilmoqda (gemini-2.5-flash), uning
+OpenAI-compatible endpointi orqali:
+https://generativelanguage.googleapis.com/v1beta/openai/
+Sozlamalar config.py / .env dan o'qiladi, shuning uchun boshqa
+OpenAI-compatible provayderga o'tish uchun faqat .env ni o'zgartirish kifoya.
 """
-import anthropic
-from config import ANTHROPIC_API_KEY
+from openai import AsyncOpenAI
+from config import TOKENMIX_API_KEY, TOKENMIX_BASE_URL, TOKENMIX_MODEL
 
-MODEL = "claude-sonnet-4-6"
-BASE_URL = "https://aiprimetech.io"
+MODEL = TOKENMIX_MODEL
+BASE_URL = TOKENMIX_BASE_URL
 
-_client: anthropic.AsyncAnthropic | None = None
+_client: AsyncOpenAI | None = None
 
 
-def get_client() -> anthropic.AsyncAnthropic:
+def get_client() -> AsyncOpenAI:
     global _client
     if _client is None:
-        _client = anthropic.AsyncAnthropic(
-            api_key=ANTHROPIC_API_KEY,
+        _client = AsyncOpenAI(
+            api_key=TOKENMIX_API_KEY,
             base_url=BASE_URL,
             timeout=60.0,
             max_retries=2,
@@ -25,10 +28,13 @@ def get_client() -> anthropic.AsyncAnthropic:
 
 
 async def complete(system: str, messages: list, max_tokens: int = 512) -> str:
-    """Sof matn javob qaytaradi."""
+    """Sof matn javob qaytaradi.
+
+    TokenMix OpenAI-compatible endpoint ga mos ravishda system prompt
+    xabarlarni boshiga qo'shiladi.
+    """
     client = get_client()
-    resp = await client.messages.create(
-        model=MODEL, max_tokens=max_tokens,
-        system=system, messages=messages,
-    )
-    return "".join(b.text for b in resp.content if b.type == "text").strip()
+    full_messages = [{"role": "system", "content": system}] + messages
+    resp = await client.chat.completions.create(
+        model=MODEL,
+        max_tokens=m

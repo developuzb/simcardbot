@@ -10,6 +10,7 @@ import logging
 import secrets
 from threading import Lock
 from datetime import datetime
+from storage_utils import atomic_write_json
 
 logger = logging.getLogger(__name__)
 
@@ -48,8 +49,7 @@ def _load() -> list:
 
 def _save():
     try:
-        with open(DB_FILE, "w", encoding="utf-8") as f:
-            json.dump(_orders, f, ensure_ascii=False, indent=1)
+        atomic_write_json(DB_FILE, _orders, ensure_ascii=False, indent=1)
     except Exception as e:
         logger.error(f"orders_db save xatolik: {e}")
 

@@ -4,7 +4,7 @@ import math
 import re
 import time
 from datetime import datetime, timezone, timedelta
-import anthropic
+import openai
 from aiogram import Router, F
 from aiogram.filters import StateFilter
 from aiogram.types import Message, CallbackQuery, ReplyKeyboardRemove
@@ -15,7 +15,7 @@ from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 from states import AIState
 from data import OPERATORS, TARIFFS, operator_number_hint
 from config import (
-    ANTHROPIC_API_KEY, ADMIN_IDS, DELIVERY_TYPES, ADMIN_CONTACT,
+    ADMIN_IDS, DELIVERY_TYPES, ADMIN_CONTACT,
     DELIVERY_ZONE_NAME, WORK_START_HOUR, WORK_END_HOUR,
     PROMO_1PLUS1_MIN_PRICE, PROMO_1PLUS1_BADGE, PROMO_1PLUS1_TEXT,
 )
@@ -51,8 +51,9 @@ def _rate_limited(store: dict, user_id, cooldown: float) -> bool:
 logger = logging.getLogger(__name__)
 router = Router()
 
-MODEL = "claude-sonnet-4-6"
 MAX_TOKENS = 400
+# MODEL va client ai_client modulidan olinadi (takrorni yo'qotish, Bug 5)
+MODEL = ai_client.MODEL
 
 
 def _get_delivery_zones():
@@ -60,19 +61,9 @@ def _get_delivery_zones():
     return [(o["zone_name"], o["lat"], o["lon"], o["radius_km"])]
 
 
-_ai_client: anthropic.AsyncAnthropic | None = None
-
-
-def _get_client() -> anthropic.AsyncAnthropic:
-    global _ai_client
-    if _ai_client is None:
-        _ai_client = anthropic.AsyncAnthropic(
-            api_key=ANTHROPIC_API_KEY,
-            base_url="https://aiprimetech.io",
-            timeout=60.0,
-            max_retries=2,
-        )
-    return _ai_client
+def _get_client() -> openai.AsyncOpenAI:
+    """ai_client moduli orqali yagona client qaytaradi."""
+    return ai_client.get_client()
 
 
 def _haversine(lat1, lon1, lat2, lon2) -> float:
@@ -339,14 +330,29 @@ _PRIMING = [
 async def _ai_reply(history: list) -> str:
     """AI'дан sof matn javob oladi (tool yo'q + few-shot priming = ishonchli)."""
     client = _get_client()
-    resp = await client.messages.create(
+    messages = [{"role": "system", "content": _get_system_prompt()}] + _PRIMING + history
+    resp = await client.chat.completions.create(
         model=MODEL, max_tokens=MAX_TOKENS,
-        system=_get_system_prompt(), messages=_PRIMING + history,
+        messages=messages,
     )
-    return "".join(b.text for b in resp.content if b.type == "text").strip()
+    text = (resp.choices[0].message.content or "").strip()
+    return _md_to_html(text)
 
 
 _TAG_RE = re.compile(r"<[^>]+>")
+_MD_BOLD = re.compile(r"\*\*(.+?)\*\*", re.DOTALL)
+_MD_BOLD2 = re.compile(r"__(.+?)__", re.DOTALL)
+_MD_HEAD = re.compile(r"^\s{0,3}#{1,6}\s*", re.MULTILINE)
+
+
+def _md_to_html(text: str) -> str:
+    """Markdownни Telegram HTML'ga o'giradi (model **...** chiqarsa ham
+    xom ko'rinmasin). Faqat <b> bilan almashtiramiz."""
+    text = _MD_BOLD.sub(r"<b>\1</b>", text)
+    text = _MD_BOLD2.sub(r"<b>\1</b>", text)
+    text = _MD_HEAD.sub("", text)          # '### Sarlavha' belgilarini olib tashlash
+    text = text.replace("* ", "• ")        # markdown bullet -> nuqta
+    return text
 
 
 def _strip_html(text: str) -> str:
@@ -631,9 +637,9 @@ async def handle_ai_message(message: Message, state: FSMContext):
             history = history[-12:]
         await state.update_data(ai_history=history)
         await _typewriter(message, ai_text, _stage_keyboard(stage), existing_msg=thinking)
-    except anthropic.AuthenticationError:
+    except openai.AuthenticationError:
         await thinking.edit_text("⚠️ AI kalit xato. Admin bilan bog'laning.")
-    except anthropic.RateLimitError:
+    except openai.RateLimitError:
         await thinking.edit_text("⚠️ AI band. Bir oz kutib qayta urinib ko'ring.")
     except Exception:
         try:
@@ -980,22 +986,35 @@ _GENERAL_SYSTEM = (
     "Texnoset O'zbekistondagi barcha operatorlar (Ucell, Beeline, Mobiuz, Humans, "
     "Uzmobile) SIM kartalarini uyga yetkazib beradi. Operator/tarif tanlanadi, "
     "raqamni operator bog'lanib kelishadi, kuryer yetkazadi.\n\n"
-    "Mijozning umumiy savollariga ILIQ, QISQA o'zbekcha javob ber (2-4 qator, 1-2 emoji).\n"
-    "Buyurtma/tarif istasa — «🤖 AI yordamchi» yoki «🛒 Tezkor buyurtma» tugmasini taklif qil.\n\n"
-    "MUHIM: Agar savol TUSHUNARSIZ, mavzudan TASHQARI yoki aniq javob berolmasang — "
-    "ochiqchasiga 'Kechirasiz, savolingizni to'liq tushunmadim 😔' deb ayt va mijozni "
-    "«📞 Aloqa» bo'limiga (operator bilan bog'lanish) yo'naltir.\n"
-    "Faqat o'zbekcha. Inglizcha/metamatn YO'Q."
+    "Mijozga ILIQ, ANIQ va TUSHUNARLI javob ber — har doim NIMA demoqchiligingni "
+    "to'liq tushuntir, mijoz adashmasin. Faqat O'ZBEK TILIDA.\n\n"
+    "🎨 FORMATLASH (Telegram HTML — MAJBURIY):\n"
+    "• Markdown ISHLATMA — '**' yoki '#' YO'Q. Faqat <b>...</b>, <i>...</i>, <blockquote>...</blockquote>.\n"
+    "• Qalin so'zlar uchun <b>...</b>, sarlavha/qadamlar yoki ro'yxat uchun <blockquote>...</blockquote>.\n"
+    "• Har bir teg ALBATTA yopilsin. Bo'limlarni alohida bloklarga ajrat — chiroyli va o'qish oson bo'lsin.\n\n"
+    "Misol javob ko'rinishi:\n"
+    "<b>Beeline SIM kartani uyga yetkazamiz</b> 📲\n"
+    "<blockquote>1. «🛒 Tezkor buyurtma»ni bosing\n2. Beeline'ni tanlang\n"
+    "3. Tarifni tanlang\n4. Kuryer uyingizga yetkazadi</blockquote>\n"
+    "Savol bo'lsa — «🤖 AI yordamchi»ni bosing 😊\n\n"
+    "Buyurtma/tarif istasa — «🤖 AI yordamchi» yoki «🛒 Tezkor buyurtma» tugmasini taklif qil.\n"
+    "Agar savol TUSHUNARSIZ yoki mavzudan tashqari bo'lsa — 'Kechirasiz, savolingizni "
+    "to'liq tushunmadim 😔' deb ayt va «📞 Aloqa» bo'limiga yo'naltir.\n"
+    "Inglizcha/metamatn YO'Q."
 )
 
 
 async def _general_reply(text: str) -> str:
     client = _get_client()
-    resp = await client.messages.create(
-        model=MODEL, max_tokens=300, system=_GENERAL_SYSTEM,
-        messages=[{"role": "user", "content": text}],
+    messages = [
+        {"role": "system", "content": _GENERAL_SYSTEM},
+        {"role": "user", "content": text},
+    ]
+    resp = await client.chat.completions.create(
+        model=MODEL, max_tokens=350, messages=messages,
     )
-    return "".join(b.text for b in resp.content if b.type == "text").strip()
+    out = (resp.choices[0].message.content or "").strip()
+    return _md_to_html(out)
 
 
 def _home_help_keyboard() -> object:

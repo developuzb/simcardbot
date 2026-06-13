@@ -11,6 +11,7 @@ import os
 import logging
 from threading import Lock
 from datetime import datetime, timezone
+from storage_utils import atomic_write_json
 
 logger = logging.getLogger(__name__)
 
@@ -44,8 +45,7 @@ def _load() -> dict:
 
 def _save():
     try:
-        with open(_FILE, "w", encoding="utf-8") as f:
-            json.dump(_data, f, ensure_ascii=False, indent=1)
+        atomic_write_json(_FILE, _data, ensure_ascii=False, indent=1)
     except Exception as e:
         logger.error(f"followups save xatolik: {e}")
 
