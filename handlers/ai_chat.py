@@ -388,10 +388,54 @@ def _recommend_keyboard(pick) -> object:
     return b.as_markup()
 
 
-async def _ai_reply(history: list):
-    """AI'дан sof matn javob oladi (tool yo'q + few-shot priming = ishonchli)."""
+def _make_stream_updater(msg, throttle: float = 0.9):
+    """Telegram xabarini real vaqtda (oqim kelganda) yangilab boruvchi.
+    Limitga urilmaslik uchun har `throttle` soniyada bir marta tahrirlaydi."""
+    st = {"last": 0.0, "shown": ""}
+
+    async def upd(partial: str):
+        now = time.monotonic()
+        if now - st["last"] < throttle:
+            return
+        vis = partial.split("@@")[0]                 # marker boshlanishini yashir
+        vis = re.sub(r"<[^>]*$", "", vis)            # tugallanmagan teg oxirini kes
+        vis = _strip_html(vis).strip()
+        if not vis or vis == st["shown"]:
+            return
+        st["shown"] = vis
+        st["last"] = now
+        try:
+            await msg.edit_text(vis[:3900] + " ▌", parse_mode=None)
+        except Exception:
+            pass
+
+    return upd
+
+
+async def _ai_reply(history: list, on_update=None):
+    """AI javobini (matn, tavsiya) qaytaradi. on_update berilsa — real vaqtda
+    (streaming) xabarni belgima-belgi yangilab boradi."""
     client = _get_client()
     messages = [{"role": "system", "content": _get_system_prompt()}] + _PRIMING + history
+    if on_update is not None:
+        try:
+            stream = await client.chat.completions.create(
+                model=MODEL, max_tokens=MAX_TOKENS, messages=messages, stream=True,
+            )
+            full = ""
+            async for chunk in stream:
+                try:
+                    delta = chunk.choices[0].delta.content or ""
+                except Exception:
+                    delta = ""
+                if delta:
+                    full += delta
+                    await on_update(full)
+            if full.strip():
+                text, pick = _parse_markers(full)
+                return _md_to_html(text), pick
+        except Exception as e:
+            logger.warning("stream ishlamadi, oddiy chaqiruvga o'tildi: %s", e)
     resp = await client.chat.completions.create(
         model=MODEL, max_tokens=MAX_TOKENS,
         messages=messages,
@@ -760,7 +804,8 @@ async def handle_ai_message(message: Message, state: FSMContext):
     thinking = await message.answer("💭 Bir lahza...")
 
     try:
-        ai_text, pick = await _ai_reply(history)
+        updater = _make_stream_updater(thinking)
+        ai_text, pick = await _ai_reply(history, on_update=updater)
         if not ai_text:
             ai_text = _fallback_text(stage)
         history.append({"role": "assistant", "content": ai_text})
@@ -771,7 +816,10 @@ async def handle_ai_message(message: Message, state: FSMContext):
             kb = _recommend_keyboard(pick)
         else:
             kb = _stage_keyboard(stage)
-        await _typewriter(message, ai_text, kb, existing_msg=thinking)
+        try:
+            await thinking.edit_text(ai_text, reply_markup=kb)
+        except Exception:
+            await thinking.edit_text(_strip_html(ai_text), reply_markup=kb)
     except openai.AuthenticationError:
         await thinking.edit_text("⚠️ AI kalit xato. Admin bilan bog'laning.")
     except openai.RateLimitError:
@@ -1148,12 +1196,30 @@ _GENERAL_SYSTEM = (
 )
 
 
-async def _general_reply(text: str) -> str:
+async def _general_reply(text: str, on_update=None) -> str:
     client = _get_client()
     messages = [
         {"role": "system", "content": _GENERAL_SYSTEM},
         {"role": "user", "content": text},
     ]
+    if on_update is not None:
+        try:
+            stream = await client.chat.completions.create(
+                model=MODEL, max_tokens=350, messages=messages, stream=True,
+            )
+            full = ""
+            async for chunk in stream:
+                try:
+                    delta = chunk.choices[0].delta.content or ""
+                except Exception:
+                    delta = ""
+                if delta:
+                    full += delta
+                    await on_update(full)
+            if full.strip():
+                return _md_to_html(full.strip())
+        except Exception as e:
+            logger.warning("stream (general) ishlamadi: %s", e)
     resp = await client.chat.completions.create(
         model=MODEL, max_tokens=350, messages=messages,
     )
@@ -1203,10 +1269,14 @@ async def home_assistant(message: Message):
         "\n\nAgar boshqa savolingiz bo'lsa — <b>«📞 Aloqa»</b> orqali operator bilan bog'laning."
     )
     try:
-        reply = await _general_reply(message.text)
+        updater = _make_stream_updater(thinking)
+        reply = await _general_reply(message.text, on_update=updater)
         if not reply:
             reply = ("Kechirasiz, savolingizni to'liq tushunmadim 😔" + redirect)
-        await _typewriter(message, reply, _home_help_keyboard(), existing_msg=thinking)
+        try:
+            await thinking.edit_text(reply, reply_markup=_home_help_keyboard())
+        except Exception:
+            await thinking.edit_text(_strip_html(reply), reply_markup=_home_help_keyboard())
     except Exception:
         try:
             await thinking.edit_text(
