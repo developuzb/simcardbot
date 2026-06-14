@@ -406,13 +406,13 @@ class _Streamer:
         # native "Thinking…" qoralama puffagi (bo'sh text)
         try:
             await self.bot.send_message_draft(
-                chat_id=self.chat_id, draft_id=self.draft_id, text="", parse_mode=None,
+                chat_id=self.chat_id, draft_id=self.draft_id, text="⏳ Bir soniya...", parse_mode=None,
             )
             return
         except Exception:
             self.native = False
         try:
-            self.placeholder = await self.msg.answer("💭 Bir lahza...")
+            self.placeholder = await self.msg.answer("⏳ Bir soniya...")
         except Exception:
             self.placeholder = None
 
