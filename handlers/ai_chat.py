@@ -388,28 +388,78 @@ def _recommend_keyboard(pick) -> object:
     return b.as_markup()
 
 
-def _make_stream_updater(msg, throttle: float = 0.9):
-    """Telegram xabarini real vaqtda (oqim kelganda) yangilab boruvchi.
-    Limitga urilmaslik uchun har `throttle` soniyada bir marta tahrirlaydi."""
-    st = {"last": 0.0, "shown": ""}
+class _Streamer:
+    """Native Bot API 9.5 (sendMessageDraft) orqali real-time silliq yozish.
+    Agar native ishlamasa (eski klient/guruh/xato) — oddiy xabar+tahrirga qaytadi."""
 
-    async def upd(partial: str):
-        now = time.monotonic()
-        if now - st["last"] < throttle:
-            return
-        vis = partial.split("@@")[0]                 # marker boshlanishini yashir
-        vis = re.sub(r"<[^>]*$", "", vis)            # tugallanmagan teg oxirini kes
-        vis = _strip_html(vis).strip()
-        if not vis or vis == st["shown"]:
-            return
-        st["shown"] = vis
-        st["last"] = now
+    def __init__(self, message):
+        self.msg = message
+        self.bot = message.bot
+        self.chat_id = message.chat.id
+        self.draft_id = (message.message_id or int(time.monotonic() * 1000)) % 2_000_000_000
+        self.last = 0.0
+        self.shown = ""
+        self.native = True
+        self.placeholder = None  # fallback uchun haqiqiy xabar
+
+    async def start(self):
+        # native "Thinking…" qoralama puffagi (bo'sh text)
         try:
-            await msg.edit_text(vis[:3900] + " ▌", parse_mode=None)
+            await self.bot.send_message_draft(
+                chat_id=self.chat_id, draft_id=self.draft_id, text="", parse_mode=None,
+            )
+            return
+        except Exception:
+            self.native = False
+        try:
+            self.placeholder = await self.msg.answer("💭 Bir lahza...")
+        except Exception:
+            self.placeholder = None
+
+    def _clean(self, partial: str) -> str:
+        vis = partial.split("@@")[0]              # marker boshlanishini yashir
+        vis = re.sub(r"<[^>]*$", "", vis)         # tugallanmagan teg oxirini kes
+        return _strip_html(vis).strip()[:3900]
+
+    async def update(self, partial: str):
+        now = time.monotonic()
+        if now - self.last < (0.25 if self.native else 0.9):
+            return
+        vis = self._clean(partial)
+        if not vis or vis == self.shown:
+            return
+        self.shown = vis
+        self.last = now
+        if self.native:
+            try:
+                await self.bot.send_message_draft(
+                    chat_id=self.chat_id, draft_id=self.draft_id, text=vis, parse_mode=None,
+                )
+                return
+            except Exception:
+                self.native = False  # native uzildi -> oddiy usulga o'tamiz
+        try:
+            if self.placeholder is None:
+                self.placeholder = await self.msg.answer(vis + " ▌")
+            else:
+                await self.placeholder.edit_text(vis + " ▌", parse_mode=None)
         except Exception:
             pass
 
-    return upd
+    async def finish(self, final_html: str, kb=None):
+        # Yakuniy to'liq xabarni saqlaymiz (draft ephemeral — yo'qoladi)
+        if self.placeholder is not None:
+            try:
+                return await self.placeholder.edit_text(final_html, reply_markup=kb)
+            except Exception:
+                try:
+                    return await self.placeholder.edit_text(_strip_html(final_html), reply_markup=kb)
+                except Exception:
+                    return self.placeholder
+        try:
+            return await self.msg.answer(final_html, reply_markup=kb)
+        except Exception:
+            return await self.msg.answer(_strip_html(final_html), reply_markup=kb)
 
 
 async def _ai_reply(history: list, on_update=None):
@@ -801,11 +851,10 @@ async def handle_ai_message(message: Message, state: FSMContext):
     history: list = data.get("ai_history", [])
     history.append({"role": "user", "content": message.text})
 
-    thinking = await message.answer("💭 Bir lahza...")
-
+    streamer = _Streamer(message)
+    await streamer.start()
     try:
-        updater = _make_stream_updater(thinking)
-        ai_text, pick = await _ai_reply(history, on_update=updater)
+        ai_text, pick = await _ai_reply(history, on_update=streamer.update)
         if not ai_text:
             ai_text = _fallback_text(stage)
         history.append({"role": "assistant", "content": ai_text})
@@ -816,19 +865,13 @@ async def handle_ai_message(message: Message, state: FSMContext):
             kb = _recommend_keyboard(pick)
         else:
             kb = _stage_keyboard(stage)
-        try:
-            await thinking.edit_text(ai_text, reply_markup=kb)
-        except Exception:
-            await thinking.edit_text(_strip_html(ai_text), reply_markup=kb)
+        await streamer.finish(ai_text, kb)
     except openai.AuthenticationError:
-        await thinking.edit_text("⚠️ AI kalit xato. Admin bilan bog'laning.")
+        await streamer.finish("⚠️ AI kalit xato. Admin bilan bog'laning.")
     except openai.RateLimitError:
-        await thinking.edit_text("⚠️ AI band. Bir oz kutib qayta urinib ko'ring.")
+        await streamer.finish("⚠️ AI band. Bir oz kutib qayta urinib ko'ring.", _stage_keyboard(stage))
     except Exception:
-        try:
-            await thinking.edit_text(_fallback_text(stage), reply_markup=_stage_keyboard(stage))
-        except Exception:
-            await message.answer(_fallback_text(stage), reply_markup=_stage_keyboard(stage))
+        await streamer.finish(_fallback_text(stage), _stage_keyboard(stage))
 
 
 # ─── RAQAM ULASHISH (Telegram kontakt tugmasi) ──────────────────
@@ -1264,30 +1307,18 @@ async def home_assistant(message: Message):
         await message.answer("Birozdan so'ng yozing 🙂", reply_markup=_home_help_keyboard())
         return
 
-    thinking = await message.answer("💭 Bir lahza...")
     redirect = (
         "\n\nAgar boshqa savolingiz bo'lsa — <b>«📞 Aloqa»</b> orqali operator bilan bog'laning."
     )
+    streamer = _Streamer(message)
+    await streamer.start()
     try:
-        updater = _make_stream_updater(thinking)
-        reply = await _general_reply(message.text, on_update=updater)
+        reply = await _general_reply(message.text, on_update=streamer.update)
         if not reply:
             reply = ("Kechirasiz, savolingizni to'liq tushunmadim 😔" + redirect)
-        try:
-            await thinking.edit_text(reply, reply_markup=_home_help_keyboard())
-        except Exception:
-            await thinking.edit_text(_strip_html(reply), reply_markup=_home_help_keyboard())
+        await streamer.finish(reply, _home_help_keyboard())
     except Exception:
-        try:
-            await thinking.edit_text(
-                "Kechirasiz, hozir javob berolmadim 😔" + redirect,
-                reply_markup=_home_help_keyboard(),
-            )
-        except Exception:
-            await message.answer(
-                "Kechirasiz, «📞 Aloqa» orqali bog'laning.",
-                reply_markup=_home_help_keyboard(),
-            )
+        await streamer.finish("Kechirasiz, hozir javob berolmadim 😔" + redirect, _home_help_keyboard())
 
 
 # ─── ABANDONMENT FOLLOW-UP (2 soat) ─────────────────────────────
