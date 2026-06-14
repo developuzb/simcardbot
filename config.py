@@ -39,7 +39,7 @@ TOKENMIX_BASE_URL = os.getenv(
     "TOKENMIX_BASE_URL",
     "https://generativelanguage.googleapis.com/v1beta/openai/",
 )
-TOKENMIX_MODEL = os.getenv("TOKENMIX_MODEL", "gemini-2.5-flash-lite")
+TOKENMIX_MODEL = os.getenv("TOKENMIX_MODEL", "gemini-3.1-flash-lite")
 
 # Eski Anthropic kaliti — faqat eski kod bilan moslik uchun saqlanib qolgan
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
