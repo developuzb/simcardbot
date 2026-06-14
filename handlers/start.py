@@ -34,7 +34,7 @@ def _welcome_text(name: str) -> str:
         "➖➖➖➖➖➖➖➖➖➖\n"
         "✅ Rasmiy SIM · Pasport bilan rasmiylashtiriladi · To'lov topshirilganda (naqd/karta)\n"
         "➖➖➖➖➖➖➖➖➖➖\n"
-        "Boshlash uchun quyidan tanlang 👇"
+        "Quyidan tanlang — yoki savolingizni shu yerga yozing, javob beraman 👇"
     )
 
 
@@ -85,8 +85,6 @@ async def _send_home(message: Message, name: str):
             pass
     if not sent:
         await message.answer(text, reply_markup=main_menu_keyboard())
-    # Menyu tagida — Suxrob AI salomi (erkin savol uchun)
-    await message.answer(_SUXROB_GREETING)
 
 
 @router.message(CommandStart(), F.chat.type == "private")
@@ -156,7 +154,6 @@ async def show_promo(callback: CallbackQuery):
         "⏱ Bugun buyurtma bersangiz — bugunoq yetkazamiz! Pastdan boshlang 👇"
     )
     await _show_section(callback, text, back_to_main_keyboard())
-    await callback.message.answer(_PROMO_NUDGE, reply_markup=_nudge_keyboard())
 
 
 # ─── TARIFLAR (umumiy) ───────────────────────────────────────────
@@ -177,7 +174,6 @@ async def show_tariffs(callback: CallbackQuery):
         "u savollaringizga javob berib, eng mosini topib beradi!"
     )
     await _show_section(callback, "\n".join(lines), back_to_main_keyboard())
-    await callback.message.answer(_TARIFFS_NUDGE, reply_markup=_nudge_keyboard())
 
 
 # ─── BIZ HAQIMIZDA ───────────────────────────────────────────────
@@ -201,7 +197,6 @@ async def show_about(callback: CallbackQuery):
         "Savol bo'lsa — «📞 Aloqa» orqali yozing."
     )
     await _show_section(callback, text, back_to_main_keyboard())
-    await callback.message.answer(_ABOUT_NUDGE, reply_markup=_nudge_keyboard())
 
 
 # ─── ALOQA ───────────────────────────────────────────────────────

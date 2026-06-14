@@ -10,7 +10,7 @@ from aiogram.filters import StateFilter
 from aiogram.types import Message, CallbackQuery, ReplyKeyboardRemove
 from aiogram.fsm.context import FSMContext
 from aiogram.utils.keyboard import InlineKeyboardBuilder
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardButton
 
 from states import AIState
 from data import OPERATORS, TARIFFS, operator_number_hint
@@ -191,8 +191,11 @@ def _stage_keyboard(stage: str) -> object:
     if stage == "operator":
         for op_id, op in OPERATORS.items():
             b.button(text=f"{op['emoji']} {op['name']}", callback_data=f"ai_op_{op_id}")
-        b.button(text="❌ Chiqish", callback_data="ai_exit")
-        b.adjust(2, 2, 1, 1)
+        b.adjust(2, 2, 1)
+        b.row(
+            InlineKeyboardButton(text="🏠 Bosh sahifa", callback_data="back_to_main"),
+            InlineKeyboardButton(text="❌ Chiqish", callback_data="ai_exit"),
+        )
 
     elif stage.startswith("tariff:"):
         op_id = stage.split(":", 1)[1]
@@ -203,12 +206,14 @@ def _stage_keyboard(stage: str) -> object:
                 continue
             badge = f" {PROMO_1PLUS1_BADGE}" if t["price"] >= PROMO_1PLUS1_MIN_PRICE else ""
             b.button(
-                text=f"📦 {t['name']} — {t['price']:,} so'm{badge}",
+                text=f"📦 {t['name']} · {t['gb']} GB — {t['price']:,}{badge}",
                 callback_data=f"ai_tf_{op_id}__{t['id']}",
             )
-        b.button(text="⬅️ Operator o'zgartirish", callback_data="ai_back_op")
-        b.button(text="❌ Chiqish", callback_data="ai_exit")
         b.adjust(1)
+        b.row(
+            InlineKeyboardButton(text="⬅️ Operatorlar", callback_data="ai_back_op"),
+            InlineKeyboardButton(text="🏠 Bosh sahifa", callback_data="back_to_main"),
+        )
 
     elif stage == "delivery":
         for key, dt in DELIVERY_TYPES.items():
@@ -217,17 +222,23 @@ def _stage_keyboard(stage: str) -> object:
                 text=f"{dt['emoji']} {dt['desc']} — {price_text}",
                 callback_data=f"ai_del_{key}",
             )
-        b.button(text="❌ Chiqish", callback_data="ai_exit")
         b.adjust(1)
+        b.row(
+            InlineKeyboardButton(text="⬅️ Orqaga", callback_data="ai_back_tariff"),
+            InlineKeyboardButton(text="🏠 Bosh sahifa", callback_data="back_to_main"),
+        )
 
     elif stage == "done":
         b.button(text="🔄 Yangi buyurtma", callback_data="ai_restart")
+        b.button(text="🏠 Bosh sahifa", callback_data="back_to_main")
         b.button(text="❌ Chiqish", callback_data="ai_exit")
         b.adjust(1)
 
     else:  # phone va boshqalar
-        b.button(text="❌ Chiqish", callback_data="ai_exit")
-        b.adjust(1)
+        b.row(
+            InlineKeyboardButton(text="⬅️ Orqaga", callback_data="ai_back_delivery"),
+            InlineKeyboardButton(text="🏠 Bosh sahifa", callback_data="back_to_main"),
+        )
 
     return b.as_markup()
 
@@ -240,7 +251,7 @@ def _comparison_keyboard(category: str) -> object:
         op, t = p["op"], p["tariff"]
         badge = f" {PROMO_1PLUS1_BADGE}" if t["price"] >= PROMO_1PLUS1_MIN_PRICE else ""
         b.button(
-            text=f"{op['emoji']} {op['name']} {t['name']} — {t['price']:,}{badge}",
+            text=f"{op['emoji']} {op['name']} {t['name']} · {t['gb']}GB — {t['price']:,}{badge}",
             callback_data=f"ai_tf_{p['op_id']}__{t['id']}",
         )
     b.button(text="📋 Barcha operatorlar", callback_data="ai_back_op")
@@ -884,9 +895,8 @@ async def handle_contact(message: Message, state: FSMContext):
     phone = (message.contact.phone_number or "").strip()
     await state.update_data(customer_phone=phone, ai_stage="location")
     followups_store.touch(message.from_user.id, "location", data.get("user_name", ""))
-    await message.answer("Rahmat! Raqamingizni oldim ✅", reply_markup=ReplyKeyboardRemove())
     await message.answer(
-        "Oxirgi qadam! 🏁 Joylashuvingizni yuboring — eshigingizgacha yetkazib beramiz 📍👇",
+        "Rahmat, raqam oldim ✅\nOxirgi qadam — joylashuvingizni yuboring 📍👇",
         reply_markup=_location_keyboard(),
     )
 
@@ -927,7 +937,6 @@ async def handle_location(message: Message, state: FSMContext):
     discount = REFERRAL_DISCOUNT if referrals_store.has_discount(message.from_user.id) else 0
     await state.update_data(region=zone, cust_lat=lat, cust_lon=lon, ai_stage="confirm", ref_discount=discount)
     followups_store.touch(message.from_user.id, "confirm", data.get("user_name", ""))
-    await message.answer(f"✅ Joylashuv tasdiqlandi: <b>{zone}</b>", reply_markup=ReplyKeyboardRemove())
     data = await state.get_data()
     await message.answer(_order_summary(data, zone, discount), reply_markup=_confirm_keyboard())
 
@@ -1097,10 +1106,8 @@ async def ai_pick_operator(callback: CallbackQuery, state: FSMContext):
         pass
     await callback.answer(f"{op['emoji']} Tanlandi!")
     await callback.message.answer(
-        f"✅ {op['emoji']} <b>{op['name']}</b> tanlandi! Ajoyib tanlov 👌\n\n"
-        "Quyidagi tariflardan sizga mosini birga tanlaymiz. "
-        "Aniq bilmasangiz — «internet ko'p» yoki «arzonroq» deb yozing, mosini topib beraman 😊\n\n"
-        "Qaysi tarif yoqdi? 👇",
+        f"✅ <b>{op['name']}</b> — tarifni tanlang 👇\n"
+        "<i>Bilmasangiz «internet ko'p» yoki «arzonroq» deb yozing.</i>",
         reply_markup=_stage_keyboard(f"tariff:{op_id}"),
     )
 
@@ -1130,12 +1137,10 @@ async def ai_pick_tariff(callback: CallbackQuery, state: FSMContext):
     if tariff["price"] >= PROMO_1PLUS1_MIN_PRICE:
         promo_extra = "🎁 Bu tarifга <b>1+1</b> — ikkinchi SIM BEPUL, yaqinlaringizga ham oling!\n"
     await callback.message.answer(
-        f"Zo'r tanlov! 🙌 <b>{op_name} — {tariff['name']}</b> — ko'pchilik aynan shuni oladi 👍\n\n"
-        f"📋 <b>Sizga beriladigan imkoniyatlar:</b>\n"
+        f"✅ <b>{op_name} — {tariff['name']}</b>\n"
         f"{detail}\n"
-        f"{promo_extra}\n"
-        "Eshigingizgacha bepul yetkazib beramiz 🚚 Atigi 2 qadam qoldi!\n"
-        "Qanchalik tez yetkazib beray? 👇",
+        f"{promo_extra}"
+        "🚚 Yetkazishni tanlang 👇",
         reply_markup=_stage_keyboard("delivery"),
     )
 
@@ -1165,10 +1170,8 @@ async def ai_pick_delivery(callback: CallbackQuery, state: FSMContext):
     await callback.message.answer(
         f"Bo'ldi! {dtype['emoji']} <b>{dtype['name']}</b> ({dtype['desc']}) — {price_text} ✅"
         f"{work_note}\n\n"
-        "Deyarli tayyor! 🎯 Telefon raqamingizni yuboring — pastdagi "
-        "<b>«📱 Raqamni ulashish»</b> tugmasini bossangiz kifoya 👇\n"
-        "<i>Yoki qo'lda yozing: +998901234567</i>\n\n"
-        "<i>Xavotir olmang — raqamingiz faqat siz bilan bog'lanish uchun.</i>",
+        "📞 Telefon raqamingizni yuboring — <b>«📱 Raqamni ulashish»</b> tugmasi orqali "
+        "(yoki qo'lda) 👇",
         reply_markup=_phone_keyboard(),
     )
 
@@ -1184,6 +1187,40 @@ async def ai_back_operator(callback: CallbackQuery, state: FSMContext):
     await callback.message.answer(
         "Qaysi operatorni xohlaysiz? 👇",
         reply_markup=_stage_keyboard("operator"),
+    )
+
+
+@router.callback_query(AIState.chatting, F.data == "ai_back_tariff")
+async def ai_back_tariff(callback: CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    op_id = data.get("sel_operator")
+    await state.update_data(ai_stage=(f"tariff:{op_id}" if op_id else "operator"), sel_tariff=None)
+    try:
+        await callback.message.edit_reply_markup(reply_markup=None)
+    except Exception:
+        pass
+    await callback.answer()
+    if not op_id:
+        return await callback.message.answer(
+            "Qaysi operatorni xohlaysiz? 👇", reply_markup=_stage_keyboard("operator"),
+        )
+    op = OPERATORS.get(op_id, {})
+    await callback.message.answer(
+        f"✅ <b>{op.get('name', op_id)}</b> — tarifni tanlang 👇",
+        reply_markup=_stage_keyboard(f"tariff:{op_id}"),
+    )
+
+
+@router.callback_query(AIState.chatting, F.data == "ai_back_delivery")
+async def ai_back_delivery(callback: CallbackQuery, state: FSMContext):
+    await state.update_data(ai_stage="delivery")
+    try:
+        await callback.message.edit_reply_markup(reply_markup=None)
+    except Exception:
+        pass
+    await callback.answer()
+    await callback.message.answer(
+        "🚚 Yetkazishni tanlang 👇", reply_markup=_stage_keyboard("delivery"),
     )
 
 
