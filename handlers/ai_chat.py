@@ -112,8 +112,13 @@ def _build_system_prompt() -> str:
     for op_id, op in OPERATORS.items():
         for t in TARIFFS.get(op_id, []):
             promo = " [1+1 AKSIYA: 2-SIM bepul]" if t["price"] >= PROMO_1PLUS1_MIN_PRICE else ""
+            calls = "cheksiz qo'ng'iroq" if t.get("minutes") is None else f"{t['minutes']} daqiqa"
+            sms = "cheksiz SMS" if t.get("sms") is None else f"{t['sms']} SMS"
+            apps = (" | bepul ilovalar: " + ", ".join(t["apps"])) if t.get("apps") else ""
             tariff_lines.append(
-                f"[{op_id}/{t['id']}] {op['emoji']} {op['name']} | {t['name']} | {t['price']:,} so'm/oy | {t['desc']}{promo}"
+                f"[{op_id}/{t['id']}] {op['emoji']} {op['name']} | {t['name']} | "
+                f"{t['price']:,} so'm/oy | {t.get('gb', '?')} GB | {calls} | {sms}{apps} | "
+                f"{t['desc']}{promo}"
             )
     zones = " va ".join(z[0] for z in _get_delivery_zones())
     return (
@@ -133,11 +138,16 @@ def _build_system_prompt() -> str:
         "• SHUBHALANAYOTGAN mijoz → ishonch ber: uyga yetkazamiz, raqamni o'zingiz tanlaysiz, "
         "kuryer keladi. Xavotirini yo'qot.\n"
         "Har javob mijozni TANLOVGA yaqinlashtirsin — lekin samimiy, bosimsiz.\n\n"
-        "🚫 ENG MUHIM QOIDA — MIJOZNI CHALKASHTIRMA:\n"
-        "• HAR DOIM FAQAT BITTA eng mos tarifni tavsiya qil. Ro'yxat tashlama!\n"
-        "• 3-4 tarifni vergul bilan sanab ketma — bu mijozni zeriktiradi va chalkashtiradi.\n"
-        "• Faqat juda kerak bo'lsa, 1 ta muqobil ayt ('yoki biroz arzonrog'i...').\n\n"
-        "✅ JAVOB TUZILISHI:\n"
+        "🚫 ASOSIY QOIDA — MIJOZNI CHALKASHTIRMA:\n"
+        "• Mijoz BITTA aniq narsa so'rasa (masalan 'menga internet kerak') → FAQAT BITTA eng mos tarif tavsiya qil. Uzun ro'yxat tashlama!\n"
+        "• 3-4 tarifni vergul bilan sanab ketma — bu zeriktiradi.\n\n"
+        "📊 TAQQOSLASH REJIMI (mijoz solishtirishni so'rasa):\n"
+        "• Mijoz 'eng arzon', 'eng ko'p internet', 'youtube/tiktok', 'ko'p gaplashaman/qo'ng'iroq', "
+        "'taqqosla', 'solishtir', 'hammasini/barcha operatorlarni ko'rsat' desa — "
+        "javob OXIRIGA @@COMPARE arzon@@ (yoki internet / youtube / qongiroq) yoz.\n"
+        "• Bunda o'zing ro'yxat YOZMA — faqat 1 qator iliq kirish ber ('Mana barchasini solishtirib beraman 👇'), "
+        "tizim HAR OPERATORDAN eng mosini chiroyli (emoji + blockquote, tartibli) ko'rsatadi.\n\n"
+        "✅ JAVOB TUZILISHI (bitta tavsiya uchun):\n"
         "1) Mijoz gapini iliq tasdiqla ('Zo'r tanlov!', 'Tushundim 👍', 'Internetni yaxshi ko'rasiz-a')\n"
         "2) BITTA tarifni tavsiya qil: <b>nom</b> + afzalliklar <blockquote> ichida + <b>narx</b>\n"
         "3) Iliq yo'naltir: 'Ucell tugmasini bossangiz, davom etamiz 👇'\n\n"
@@ -146,10 +156,10 @@ def _build_system_prompt() -> str:
         "• Tarif afzalliklarini <blockquote>...</blockquote> ichiga yoz (2-3 qator, emoji bilan)\n"
         "• Faqat <b>, <i>, <blockquote> teglaridan foydalan. Boshqa teg YO'Q\n"
         "• Har bir teg ALBATTA yopilishi shart (<b>...</b>). Yarim ochiq teg qoldirma\n\n"
-        "Mijoz nima deyishiga qarab BITTA tanla:\n"
-        "• 'arzon' → eng arzon 1 ta | 'ko'p internet' → eng ko'p GB li 1 ta\n"
-        "• 'youtube/tiktok' → o'sha ilova bepul 1 ta | 'qo'ng'iroq' → cheksiz qo'ng'iroqli 1 ta\n"
-        "• Ikkilansa — ro'yxat o'rniga BITTA savol ber: 'Internet ko'proq muhimmi yoki arzonroq?'\n\n"
+        "Mijoz nima deyishiga qarab:\n"
+        "• Bitta narsa kerak bo'lsa → BITTA tarif (@@PICK). Solishtirishni so'rasa → @@COMPARE.\n"
+        "• Ikkilansa — ro'yxat o'rniga BITTA savol ber: 'Internet ko'proq muhimmi yoki arzonroq?'\n"
+        "• Mijoz tayyor/aniq bo'lsa (masalan 'ucell bor 70 ber') → darhol @@PICK bilan o'sha tarifга yo'naltir, kechiktirma.\n\n"
         "🎁 70 000 so'm+ tariflarda 1+1 AKSIYA (2-SIM BEPUL) — buni quvonch bilan ayt.\n"
         "Narx: '90 000 so'm/oy (kuniga ~3 000 so'm)'.\n"
         "YETKAZISH: " + " | ".join(
@@ -161,13 +171,16 @@ def _build_system_prompt() -> str:
         "TO'LOV: SIM qo'lga tekkanda kuryerga — naqd yoki karta. Oldindan to'lov YO'Q.\n"
         "PASPORT: SIM pasport bilan rasmiylashtiriladi — kuryer kelganda pasport kerak.\n"
         "HUDUD: faqat " + zones + ".\n\n"
-        "TARIFLAR (faqat shu ro'yxatdan, BITTASINI tanlab tavsiya qil):\n"
+        "TARIFLAR — shu ro'yxatni TO'LIQ bil (har birining GB, daqiqa, SMS, ilova va narxi). "
+        "Mijoz so'rasa aniq raqamlar bilan javob ber; faqat shu ro'yxatdan tavsiya qil:\n"
         + "\n".join(tariff_lines) + "\n\n"
         "🔘 TUGMA BOSHQARUVI (MAJBURIY — har javob OXIRIDA alohida qatorga yoz):\n"
         "• Aniq BITTA tarif tavsiya qilsang: @@PICK op_id tariff_id@@ "
         "(yuqoridagi [op_id/tariff_id] dan AYNAN ko'chir — o'ylab topma!)\n"
+        "• Barcha operatorlarni solishtirib ko'rsatish kerak bo'lsa: @@COMPARE arzon@@ "
+        "(yoki internet / youtube / qongiroq)\n"
         "• Hali savol berayotgan/aniqlik bo'lmasa: @@ASK@@\n"
-        "• Bu belgi mijozga KO'RINMAYDI — tizim uni avtomatik tugmaga aylantiradi.\n"
+        "• Bu belgilar mijozga KO'RINMAYDI — tizim ularni avtomatik bajaradi.\n"
         "Mavzudan chetga chiqsa: 'Men faqat SIM karta bo'yicha yordam beraman 😊'\n"
         "DIQQAT: Sen maslahat berasan, buyurtma tugmalar orqali rasmiylashadi."
     )
@@ -361,15 +374,25 @@ _PRIMING = [
         "Ayting-chi: internet ko'proq muhimmi, yoki arzonroq bo'lgani? "
         "Shunga qarab eng zo'rini topib beraman 👍\n@@ASK@@"
     )},
+    {"role": "user", "content": "eng arzon tariflarni hammasini ko'rsat"},
+    {"role": "assistant", "content": (
+        "Albatta! Har operatordan eng arzon variantni solishtirib beraman 👇\n@@COMPARE arzon@@"
+    )},
+    {"role": "user", "content": "operatorlarni internet bo'yicha solishtir"},
+    {"role": "assistant", "content": (
+        "Yaxshi savol! Har operatordan eng ko'p internetlisini yonma-yon ko'rsataman 👇\n@@COMPARE internet@@"
+    )},
 ]
 
 
 _PICK_RE = re.compile(r"@@\s*PICK\s+([a-z0-9_]+)\s+([a-z0-9_]+)\s*@@", re.I)
 _ASK_RE = re.compile(r"@@\s*ASK\s*@@", re.I)
+_COMPARE_RE = re.compile(r"@@\s*COMPARE\s+([a-z]+)\s*@@", re.I)
+_COMPARE_CATS = {"arzon", "internet", "youtube", "qongiroq"}
 
 
 def _parse_markers(text: str):
-    # AI javobidagi @@PICK op tid@@ / @@ASK@@ belgisini ajratadi.
+    # AI javobidagi @@PICK op tid@@ / @@COMPARE cat@@ / @@ASK@@ belgilarini ajratadi.
     pick = None
     m = _PICK_RE.search(text)
     if m:
@@ -378,9 +401,14 @@ def _parse_markers(text: str):
                   if x["id"] == tid and not x.get("family") and not x.get("no_compare")), None)
         if t:
             pick = (op_id, t)
+    compare = None
+    mc = _COMPARE_RE.search(text)
+    if mc and mc.group(1).lower() in _COMPARE_CATS:
+        compare = mc.group(1).lower()
     text = _PICK_RE.sub("", text)
+    text = _COMPARE_RE.sub("", text)
     text = _ASK_RE.sub("", text).strip()
-    return text, pick
+    return text, pick, compare
 
 
 def _recommend_keyboard(pick) -> object:
@@ -493,8 +521,8 @@ async def _ai_reply(history: list, on_update=None):
                     full += delta
                     await on_update(full)
             if full.strip():
-                text, pick = _parse_markers(full)
-                return _md_to_html(text), pick
+                text, pick, compare = _parse_markers(full)
+                return _md_to_html(text), pick, compare
         except Exception as e:
             logger.warning("stream ishlamadi, oddiy chaqiruvga o'tildi: %s", e)
     resp = await client.chat.completions.create(
@@ -502,8 +530,8 @@ async def _ai_reply(history: list, on_update=None):
         messages=messages,
     )
     text = (resp.choices[0].message.content or "").strip()
-    text, pick = _parse_markers(text)
-    return _md_to_html(text), pick
+    text, pick, compare = _parse_markers(text)
+    return _md_to_html(text), pick, compare
 
 
 _TAG_RE = re.compile(r"<[^>]+>")
@@ -773,6 +801,53 @@ async def _notify_hot_lead(bot, data: dict, user, last_text: str):
         await _send_admin(bot, msg)
 
 
+# ─── IKKINCHI XABAR: SOTUVGA UNDOVCHI / MASLAHATCHI ─────────────
+
+def _consult_keyboard() -> object:
+    """Ikkinchi (sotuv) xabar ostidagi tezkor yo'naltirish tugmalari."""
+    b = InlineKeyboardBuilder()
+    b.button(text="💬 Maslahat / taqqoslash", callback_data="ai_help_compare")
+    b.button(text="🏠 Bosh sahifa", callback_data="back_to_main")
+    b.adjust(1)
+    return b.as_markup()
+
+
+async def _send_sales_followup(message, *, picked: bool = False):
+    """Tugmali xabardan keyin — mijoz bilan gaplashuvchi, sotuvga undovchi
+    ikkinchi xabar. Mijozni keyingi qadamга iliq yetaklaydi."""
+    if picked:
+        text = (
+            "💬 <b>Suxrob:</b> Zo'r tanlov! 👏 Shu tarifni ko'pchilik oladi.\n"
+            "Yuqoridagi tugmani bossangiz — bir daqiqada rasmiylashtiramiz, eshigingizgacha "
+            "<b>bepul</b> yetkazamiz 🚀\nSavolingiz bo'lsa — bemalol yozing, tushuntiraman 😊"
+        )
+    else:
+        text = (
+            "💬 <b>Suxrob:</b> Qaysi biri ko'proq yoqdi? 😊 Ayting — farqini tushuntirib, "
+            "aynan <b>sizga mosini</b> tanlab beraman.\n"
+            "Yoki to'g'ridan operatorni bossangiz, buyurtmani birga yakunlaymiz 👇"
+        )
+    try:
+        await message.answer(text, reply_markup=_consult_keyboard())
+    except Exception:
+        pass
+
+
+@router.callback_query(F.data == "ai_help_compare")
+async def ai_help_compare(callback: CallbackQuery, state: FSMContext):
+    """Ikkinchi xabardagi 'Maslahat/taqqoslash' — barchasini solishtirib beradi."""
+    await state.set_state(AIState.chatting)
+    await state.update_data(ai_stage="operator")
+    try:
+        await callback.message.answer(
+            tariff_advice.format_comparison("arzon"),
+            reply_markup=_comparison_keyboard("arzon"),
+        )
+    except Exception:
+        pass
+    await callback.answer()
+
+
 # ─── ERKIN MATN HANDLERI ────────────────────────────────────────
 
 @router.message(AIState.chatting, F.text & ~F.text.startswith("/"))
@@ -860,6 +935,7 @@ async def handle_ai_message(message: Message, state: FSMContext):
             tariff_advice.format_comparison(category),
             reply_markup=_comparison_keyboard(category),
         )
+        await _send_sales_followup(message)
         return
 
     # Boshqa/erkin savollar — AI maslahat (sof matn). Rate-limit (xarajat/DoS).
@@ -876,18 +952,29 @@ async def handle_ai_message(message: Message, state: FSMContext):
     streamer = _Streamer(message)
     await streamer.start()
     try:
-        ai_text, pick = await _ai_reply(history, on_update=streamer.update)
+        ai_text, pick, compare = await _ai_reply(history, on_update=streamer.update)
         if not ai_text:
             ai_text = _fallback_text(stage)
         history.append({"role": "assistant", "content": ai_text})
         if len(history) > 12:
             history = history[-12:]
         await state.update_data(ai_history=history)
-        if pick and (stage == "operator" or stage.startswith("tariff:")):
-            kb = _recommend_keyboard(pick)
+        in_pick_stage = stage == "operator" or stage.startswith("tariff:")
+        # AI barcha operatorlarni solishtirishni so'radi (@@COMPARE)
+        if compare and in_pick_stage:
+            await streamer.finish(ai_text or "Mana barchasini solishtirib beraman 👇", None)
+            await state.update_data(ai_stage="operator")
+            await message.answer(
+                tariff_advice.format_comparison(compare),
+                reply_markup=_comparison_keyboard(compare),
+            )
+            await _send_sales_followup(message)
+            return
+        if pick and in_pick_stage:
+            await streamer.finish(ai_text, _recommend_keyboard(pick))
+            await _send_sales_followup(message, picked=True)
         else:
-            kb = _stage_keyboard(stage)
-        await streamer.finish(ai_text, kb)
+            await streamer.finish(ai_text, _stage_keyboard(stage))
     except openai.AuthenticationError:
         await streamer.finish("⚠️ AI kalit xato. Admin bilan bog'laning.")
     except openai.RateLimitError:
