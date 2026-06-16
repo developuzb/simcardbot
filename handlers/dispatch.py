@@ -18,6 +18,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 import orders_db
 import settings_store
+import lead_topics_store
 from config import ADMIN_IDS, ADMIN_CONTACT
 from data import operator_number_hint
 
@@ -140,6 +141,138 @@ async def _update_group_card(bot, order: dict, title: str = "", kb=None):
         pass
 
 
+# ─── BUYURTMALAR GURUHI (FORUM TOPIC) ───────────────────────────
+# Har buyurtma alohida forum guruhda o'z topic'ida ochiladi (kuryer
+# guruhidan TASHQARI, qo'shimcha). Topic ichida TO'LIQ kartochka
+# (telefon bilan) va holatga mos admin status tugmalari turadi.
+
+def kb_topic(o: dict) -> InlineKeyboardMarkup | None:
+    """Topic ichidagi holatga mos admin tugmalari."""
+    status = o.get("status")
+    if status == "Yangi":
+        # Tasdiqlash/Bekor — mavjud admin handlerlari (disp_ok_/disp_rej_)
+        return kb_admin_confirm(o)
+    if status in ("Tasdiqlangan", "Kuryerda", "Yo'lda"):
+        b = InlineKeyboardBuilder()
+        b.button(text="✅ Yetkazildi", callback_data=_cb("tdone_", o))
+        b.button(text="🚫 Mijoz yo'q", callback_data=_cb("tnoshow_", o))
+        b.button(text="❌ Bekor qilish", callback_data=_cb("tcancel_", o))
+        b.adjust(2, 1)
+        return b.as_markup()
+    return None  # yakuniy holatlar (Yetkazildi/Bekor/Mijoz yo'q) — tugmasiz
+
+
+async def _update_topic_card(bot, order: dict, title: str = ""):
+    """Buyurtmalar guruhidagi topic kartochkasini holatga mos yangilaydi."""
+    gid = settings_store.get_orders_group()
+    mid = order.get("topic_msg_id")
+    if not gid or not mid:
+        return
+    try:
+        await bot.edit_message_text(
+            order_card(order, title),  # to'liq (telefon bilan)
+            chat_id=gid, message_id=mid, reply_markup=kb_topic(order),
+        )
+    except Exception:
+        pass
+
+
+async def ensure_lead_topic(bot, user) -> int | None:
+    """Mijoz /start bosganda unга forum topic ochadi (BITTA mijozga bitta).
+    Mavjud bo'lsa qayta ochmaydi. Guruh ulanmagan/forum bo'lmasa — None."""
+    gid = settings_store.get_orders_group()
+    if not gid:
+        return None
+    existing = lead_topics_store.get_topic(user.id)
+    if existing:
+        return existing
+    uname = f" @{user.username}" if getattr(user, "username", None) else ""
+    name = f"👤 {user.full_name}{uname}".strip() or f"👤 {user.id}"
+    try:
+        topic = await bot.create_forum_topic(chat_id=gid, name=name[:128])
+        thread_id = topic.message_thread_id
+        await bot.send_message(
+            gid,
+            f"🆕 <b>Yangi mijoz keldi</b>\n"
+            f"👤 {user.full_name}\n"
+            f"🔗 {('@' + user.username) if getattr(user, 'username', None) else 'username yo`q'}\n"
+            f"🆔 <code>{user.id}</code>\n\n"
+            "<i>Hali buyurtma bermagan. Buyurtma bersa — shu topic ichida ko'rinadi.</i>",
+            message_thread_id=thread_id,
+        )
+        lead_topics_store.set_topic(user.id, thread_id)
+        logger.info("Lead topic ochildi user=%s thread=%s", user.id, thread_id)
+        return thread_id
+    except Exception as e:
+        logger.warning("Lead topic ochilmadi (user %s): %s — guruh forum bo'lib, "
+                       "bot 'Manage Topics' huquqiga ega ekanini tekshiring.", user.id, e)
+        return None
+
+
+async def open_order_topic(bot, order: dict):
+    """Buyurtma kartochkasini buyurtmalar guruhidagi topic ichiga joylaydi.
+    Mijozning mavjud lead topic'i bo'lsa — o'shanda (yangi ochmaydi), aks
+    holda yangi topic ochadi. Guruh ulanmagan/forum bo'lmasa — jim o'tadi."""
+    gid = settings_store.get_orders_group()
+    if not gid:
+        return
+    num = order["num"]
+    uid = order.get("user_id")
+    thread_id = lead_topics_store.get_topic(uid) if uid else None
+    try:
+        if not thread_id:
+            name = f"#{num} · {order.get('name', '—')} · {order.get('operator', '')} {order.get('tariff', '')}".strip()
+            topic = await bot.create_forum_topic(chat_id=gid, name=name[:128])
+            thread_id = topic.message_thread_id
+            if uid:
+                lead_topics_store.set_topic(uid, thread_id)
+        msg = await bot.send_message(
+            gid,
+            order_card(order, f"🛒 <b>BUYURTMA BERDI — #{num}</b>"),
+            message_thread_id=thread_id,
+            reply_markup=kb_topic(order),
+        )
+        await orders_db.update_order(num, {"topic_id": thread_id, "topic_msg_id": msg.message_id})
+        order["topic_id"] = thread_id
+        order["topic_msg_id"] = msg.message_id
+        if order.get("lat") and order.get("lon"):
+            try:
+                await bot.send_location(gid, latitude=order["lat"], longitude=order["lon"],
+                                        message_thread_id=thread_id)
+            except Exception:
+                pass
+        logger.info("Buyurtma topic'ga joylandi #%s (thread=%s)", num, thread_id)
+    except Exception as e:
+        logger.warning("Buyurtma topic ochilmadi (#%s): %s — guruh forum bo'lib, "
+                       "bot 'Manage Topics' huquqiga ega ekanini tekshiring.", num, e)
+
+
+# ─── BUYURTMALAR GURUHINI ULASH ──────────────────────────────────
+
+@router.message(Command("setordersgroup"))
+async def set_orders_group_cmd(message: Message, is_admin: bool = False):
+    if message.chat.type not in ("group", "supergroup"):
+        return await message.answer("Bu buyruqni buyurtmalar GURUHIDA yuboring (botni guruhga qo'shib).")
+    if not is_admin:
+        return await message.answer("⛔ Faqat admin guruhni ulashi mumkin.")
+    if not getattr(message.chat, "is_forum", False):
+        return await message.answer(
+            "⚠️ Bu guruhda <b>Mavzular (Topics)</b> yoqilmagan.\n"
+            "Guruh sozlamalari → <b>Topics</b> ni yoqing, so'ng qayta /setordersgroup yuboring."
+        )
+    settings_store.set_orders_group(message.chat.id)
+    logger.info("BUYURTMALAR_GURUHI_SET chat_id=%s", message.chat.id)
+    await message.answer(
+        "✅ <b>Buyurtmalar guruhi ulandi!</b>\n"
+        f"Guruh ID: <code>{message.chat.id}</code>\n\n"
+        "Endi har yangi buyurtma shu guruhda alohida <b>topic</b>da ochiladi — "
+        "to'liq ma'lumot va status tugmalari bilan.\n\n"
+        "⚠️ <b>Muhim:</b> bot guruhda admin bo'lib, <b>Manage Topics</b> (mavzularni "
+        "boshqarish) huquqiga ega bo'lishi shart.\n"
+        "⚠️ <i>Doimiy bo'lishi uchun bu ID ni ORDERS_GROUP_ID env'ga yozing.</i>"
+    )
+
+
 async def _verify(callback: CallbackQuery, prefix: str):
     """callback_data 'prefix{num}_{token}' dan buyurtmani topadi va
     token mosligini tekshiradi. Eskirgan tugma → None."""
@@ -242,6 +375,7 @@ async def admin_confirm(callback: CallbackQuery, is_admin: bool = False):
         f"{hint_line}",
         reply_markup=kb_customer_cancel(order),
     )
+    await _update_topic_card(callback.bot, order, f"📢 <b>#{num} TASDIQLANDI</b>")
 
 
 @router.callback_query(F.data.startswith("disp_rej_"))
@@ -264,6 +398,7 @@ async def admin_reject(callback: CallbackQuery, is_admin: bool = False):
         callback.bot, order,
         f"😔 Afsuski, buyurtmangiz #{num} bekor qilindi.\nSavollar uchun: {ADMIN_CONTACT}",
     )
+    await _update_topic_card(callback.bot, order, f"❌ <b>#{num} BEKOR QILINDI</b> (admin)")
 
 
 # ─── KURYER: QABUL QILISH (guruhda) ─────────────────────────────
@@ -325,6 +460,7 @@ async def courier_claim(callback: CallbackQuery):
         f"🚴 Buyurtmangiz #{num} uchun kuryer biriktirildi: <b>{courier_name}</b>\n"
         "Tez orada siz bilan bog'lanadi!",
     )
+    await _update_topic_card(callback.bot, order, f"🚴 <b>#{num} — KURYER OLDI:</b> {courier_name}")
 
 
 # ─── KURYER: STATUSLAR ──────────────────────────────────────────
@@ -357,6 +493,7 @@ async def courier_onway(callback: CallbackQuery):
         f"🚗 <b>Kuryer yo'lga chiqdi!</b> Buyurtma #{num}\n🚴 {order['courier_name']}\n\n"
         "Tez orada eshigingizda bo'ladi 🙌",
     )
+    await _update_topic_card(callback.bot, order, f"🚗 <b>#{num} — YO'LDA</b>")
 
 
 @router.callback_query(F.data.startswith("disp_done_"))
@@ -384,6 +521,7 @@ async def courier_done(callback: CallbackQuery):
         reply_markup=kb_rating(order),
     )
     await _notify_admins(callback.bot, f"✅ #{num} yetkazildi — 🚴 {order['courier_name']}")
+    await _update_topic_card(callback.bot, order, f"✅ <b>#{num} YETKAZILDI</b> — {order['courier_name']}")
 
 
 @router.callback_query(F.data.startswith("disp_noshow_"))
@@ -414,6 +552,7 @@ async def courier_noshow(callback: CallbackQuery):
         f"🚫 #{num} — mijoz topilmadi (🚴 {order['courier_name']}).\n"
         f"📞 Mijoz: <code>{order['phone']}</code>",
     )
+    await _update_topic_card(callback.bot, order, f"🚫 <b>#{num} — MIJOZ TOPILMADI</b>")
 
 
 @router.callback_query(F.data.startswith("disp_drop_"))
@@ -439,6 +578,7 @@ async def courier_drop(callback: CallbackQuery):
     await _update_group_card(
         callback.bot, order, f"🔁 <b>#{num} QAYTA OCHILDI</b> — kuryer kutilmoqda", kb=kb_claim(order),
     )
+    await _update_topic_card(callback.bot, order, f"🔁 <b>#{num} QAYTA OCHILDI</b> — kuryer kutilmoqda")
 
 
 # ─── MIJOZ: O'Z BUYURTMASINI BEKOR QILISH ───────────────────────
@@ -465,6 +605,7 @@ async def customer_cancel(callback: CallbackQuery):
         pass
     # Guruhdagi e'lonni yopamiz (agar bo'lsa)
     await _update_group_card(callback.bot, order, f"❌ <b>#{num} — MIJOZ BEKOR QILDI</b>")
+    await _update_topic_card(callback.bot, order, f"❌ <b>#{num} — MIJOZ BEKOR QILDI</b>")
     await _notify_admins(callback.bot, f"❌ #{num} — mijoz o'zi bekor qildi.")
 
 
@@ -499,6 +640,7 @@ async def customer_rate(callback: CallbackQuery):
     except Exception:
         pass
 
+    await _update_topic_card(callback.bot, order, f"⭐ <b>#{num}</b> — mijoz bahosi: {'⭐' * score}")
     if score <= 3:
         await _notify_admins(
             callback.bot,
@@ -506,3 +648,71 @@ async def customer_rate(callback: CallbackQuery):
             f"🚴 Kuryer: {order.get('courier_name', '—')}\n"
             f"👤 Mijoz: {order.get('name', '—')} — <code>{order.get('phone', '—')}</code>",
         )
+
+
+# ─── TOPIC: ADMIN STATUS BOSHQARUVI ─────────────────────────────
+# Buyurtmalar guruhidagi topic ichidan admin holatni boshqaradi
+# (kuryer guruhi oqimidan mustaqil — kuryersiz ham yetkazishni
+# belgilash mumkin). Mijozga xabar + kuryer guruhi kartochkasi sinxron.
+
+@router.callback_query(F.data.startswith("tdone_"))
+async def topic_done(callback: CallbackQuery, is_admin: bool = False):
+    if not is_admin:
+        return await callback.answer("⛔ Faqat admin.", show_alert=True)
+    order = await _verify(callback, "tdone_")
+    if not order:
+        return
+    num = order["num"]
+    if not await orders_db.update_order_if(num, ("Tasdiqlangan", "Kuryerda", "Yo'lda"), {"status": "Yetkazildi"}):
+        return await callback.answer(f"Holat mos emas ({order['status']}).", show_alert=True)
+    order["status"] = "Yetkazildi"
+    await callback.answer("✅ Yetkazildi deb belgilandi.")
+    await _update_topic_card(callback.bot, order, f"✅ <b>#{num} YETKAZILDI</b>")
+    await _update_group_card(callback.bot, order, f"✅ <b>#{num} YETKAZILDI</b>")
+    await _notify_customer(
+        callback.bot, order,
+        f"🎉 <b>Buyurtmangiz #{num} yetkazib berildi!</b>\n\nXaridingiz uchun rahmat! 🙏\n\n"
+        "⭐ Xizmat sifatini baholang (ixtiyoriy):",
+        reply_markup=kb_rating(order),
+    )
+
+
+@router.callback_query(F.data.startswith("tnoshow_"))
+async def topic_noshow(callback: CallbackQuery, is_admin: bool = False):
+    if not is_admin:
+        return await callback.answer("⛔ Faqat admin.", show_alert=True)
+    order = await _verify(callback, "tnoshow_")
+    if not order:
+        return
+    num = order["num"]
+    if not await orders_db.update_order_if(num, ("Tasdiqlangan", "Kuryerda", "Yo'lda"), {"status": "Mijoz yo'q"}):
+        return await callback.answer(f"Holat mos emas ({order['status']}).", show_alert=True)
+    order["status"] = "Mijoz yo'q"
+    await callback.answer("🚫 Qayd etildi.")
+    await _update_topic_card(callback.bot, order, f"🚫 <b>#{num} — MIJOZ TOPILMADI</b>")
+    await _update_group_card(callback.bot, order, f"🚫 <b>#{num} — MIJOZ TOPILMADI</b>")
+    await _notify_customer(
+        callback.bot, order,
+        f"😕 Kuryer sizga yetib bora olmadi (buyurtma #{num}).\n"
+        f"Qayta faollashtirish uchun bog'laning: {ADMIN_CONTACT}",
+    )
+
+
+@router.callback_query(F.data.startswith("tcancel_"))
+async def topic_cancel(callback: CallbackQuery, is_admin: bool = False):
+    if not is_admin:
+        return await callback.answer("⛔ Faqat admin.", show_alert=True)
+    order = await _verify(callback, "tcancel_")
+    if not order:
+        return
+    num = order["num"]
+    if not await orders_db.update_order_if(num, ("Yangi", "Tasdiqlangan", "Kuryerda", "Yo'lda"), {"status": "Bekor"}):
+        return await callback.answer(f"Holat mos emas ({order['status']}).", show_alert=True)
+    order["status"] = "Bekor"
+    await callback.answer("❌ Bekor qilindi.")
+    await _update_topic_card(callback.bot, order, f"❌ <b>#{num} BEKOR QILINDI</b> (admin)")
+    await _update_group_card(callback.bot, order, f"❌ <b>#{num} BEKOR QILINDI</b> (admin)")
+    await _notify_customer(
+        callback.bot, order,
+        f"😔 Afsuski, buyurtmangiz #{num} bekor qilindi.\nSavollar uchun: {ADMIN_CONTACT}",
+    )

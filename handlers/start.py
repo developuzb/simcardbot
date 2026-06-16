@@ -14,6 +14,7 @@ from config import (
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 import settings_store
 import referrals_store
+from handlers import dispatch
 
 router = Router()
 
@@ -88,7 +89,8 @@ async def _send_home(message: Message, name: str):
 
 
 @router.message(CommandStart(), F.chat.type == "private")
-async def cmd_start(message: Message, state: FSMContext, command: CommandObject = None):
+async def cmd_start(message: Message, state: FSMContext, command: CommandObject = None,
+                    is_admin: bool = False):
     await state.clear()
     # Referal havola: /start ref<referrer_id>
     payload = (command.args if command else None) or ""
@@ -99,6 +101,13 @@ async def cmd_start(message: Message, state: FSMContext, command: CommandObject 
                 f"🎁 Xush kelibsiz! Do'stingiz tavsiyasi bilan keldingiz — "
                 f"birinchi buyurtmangizga <b>{REFERRAL_DISCOUNT:,} so'm chegirma</b> qo'shildi!"
             )
+    # Mijoz keldi — buyurtmalar guruhida unга topic ochamiz (adminlar uchun emas).
+    # Best-effort: asosiy oqimni hech qachon buzmaydi.
+    if not is_admin:
+        try:
+            await dispatch.ensure_lead_topic(message.bot, message.from_user)
+        except Exception:
+            pass
     await _send_home(message, message.from_user.first_name or "mehmon")
 
 

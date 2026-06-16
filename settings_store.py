@@ -28,6 +28,9 @@ def _defaults() -> dict:
         "zone_name": DELIVERY_ZONE_NAME,
         # Kuryerlar guruhi (env COURIER_GROUP_ID birinchi, keyin /setgroup)
         "courier_group_id": int(os.getenv("COURIER_GROUP_ID", "0")),
+        # Buyurtmalar guruhi — forum (topic'li). Har buyurtma o'z topic'ida.
+        # env ORDERS_GROUP_ID birinchi, keyin /setordersgroup
+        "orders_group_id": int(os.getenv("ORDERS_GROUP_ID", "0")),
         # Bosh sahifa rasmi (Telegram file_id)
         "welcome_photo_id": os.getenv("WELCOME_PHOTO_ID", ""),
     }
@@ -121,4 +124,28 @@ def set_courier_group(chat_id: int) -> bool:
         return True
     except Exception as e:
         logger.error(f"set_courier_group xatolik: {e}")
+        return False
+
+
+def get_orders_group() -> int:
+    """Buyurtmalar (forum/topic) guruhi chat ID. Env ORDERS_GROUP_ID ustun, keyin /setordersgroup."""
+    env = os.getenv("ORDERS_GROUP_ID", "")
+    if env.lstrip("-").isdigit() and int(env) != 0:
+        return int(env)
+    try:
+        return int(_load().get("orders_group_id") or 0)
+    except (ValueError, TypeError):
+        return 0
+
+
+def set_orders_group(chat_id: int) -> bool:
+    global _cache
+    current = _load()
+    current["orders_group_id"] = int(chat_id)
+    try:
+        atomic_write_json(_SETTINGS_FILE, current, ensure_ascii=False, indent=2)
+        _cache = current
+        return True
+    except Exception as e:
+        logger.error(f"set_orders_group xatolik: {e}")
         return False

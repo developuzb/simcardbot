@@ -623,6 +623,14 @@ async def _place_order(data: dict, user_id: int, bot,
 
     # Adminga tasdiqlash kartochkasi (pin bilan)
     order = await orders_db.get_order_by_num(order_num)
+
+    # Alohida buyurtmalar guruhida (forum) shu buyurtma uchun topic ochamiz —
+    # kuryer guruhi oqimidan TASHQARI (qo'shimcha). Best-effort, asosiy oqimni buzmaydi.
+    try:
+        await dispatch.open_order_topic(bot, order)
+    except Exception:
+        logger.warning("Buyurtma topic ochilmadi (#%s)", order_num)
+
     sent = 0
     for admin_id in ADMIN_IDS:
         try:

@@ -89,6 +89,8 @@ async def create_order(data: dict, status: str = "Yangi") -> int:
             "courier_id": "",
             "courier_name": "",
             "group_msg_id": None,
+            "topic_id": None,       # forum topic (message_thread_id) buyurtmalar guruhida
+            "topic_msg_id": None,   # topic ichidagi kartochka xabari id
             "rating": "",
             "note": "",
         }
