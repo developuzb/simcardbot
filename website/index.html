@@ -115,15 +115,19 @@
   </section>
 
   <!-- ===== SAYTDA BUYURTMA (WIZARD) ===== -->
-  <section id="buyurtma" style="background: linear-gradient(180deg,#f3f9f5 0%,#ffffff 100%); padding: clamp(52px,8vw,96px) clamp(18px,5vw,40px); scroll-margin-top: 80px;">
-    <div style="max-width: 700px; margin: 0 auto;">
-      <div data-reveal style="text-align: center; max-width: 560px; margin: 0 auto;">
-        <span style="font-family: 'Space Grotesk',sans-serif; font-weight: 700; font-size: 13px; color: #0a7d55; letter-spacing: .14em; text-transform: uppercase;">Buyurtma</span>
-        <h2 style="font-family: 'Space Grotesk',sans-serif; font-weight: 700; font-size: clamp(28px,4.6vw,42px); line-height: 1.08; letter-spacing: -.02em; color: #06382a; margin: 12px 0 0;">Saytdan to'g'ridan-to'g'ri buyurtma</h2>
-        <p style="font-size: 16px; line-height: 1.55; color: #50615a; margin: 14px 0 0;">4 ta oddiy qadamda — tarif, manzil va aloqa ma'lumotlarini kiriting. Buyurtma to'liq shu yerda, saytda rasmiylashtiriladi.</p>
+  <section id="buyurtma" style="position: relative; background: radial-gradient(125% 95% at 50% 0%, #0c573f 0%, #06382a 52%, #042a20 100%); padding: clamp(56px,8vw,108px) clamp(18px,5vw,40px); scroll-margin-top: 80px; overflow: hidden;">
+    <div aria-hidden="true" style="position: absolute; top: -120px; left: 50%; transform: translateX(-50%); width: 620px; height: 620px; background: radial-gradient(circle, rgba(18,168,111,.22), transparent 62%); pointer-events: none;"></div>
+    <div style="position: relative; max-width: 700px; margin: 0 auto;">
+      <div data-reveal style="text-align: center; max-width: 600px; margin: 0 auto;">
+        <span style="display: inline-flex; align-items: center; gap: 8px; background: rgba(18,168,111,.16); border: 1px solid rgba(110,231,183,.34); color: #9ff0cd; font-family: 'Space Grotesk',sans-serif; font-weight: 700; font-size: 12.5px; letter-spacing: .13em; text-transform: uppercase; padding: 8px 16px; border-radius: 999px;">🛒 Shu yerda buyurtma bering</span>
+        <h2 style="font-family: 'Space Grotesk',sans-serif; font-weight: 700; font-size: clamp(29px,4.8vw,44px); line-height: 1.06; letter-spacing: -.02em; color: #ffffff; margin: 16px 0 0;">Saytdan to'g'ridan-to'g'ri buyurtma</h2>
+        <p style="font-size: 16px; line-height: 1.55; color: #b6d3c6; margin: 14px 0 0;">Bor-yo'g'i 4 ta oddiy qadam — tarif, manzil va aloqa ma'lumotini kiriting. Buyurtma to'liq shu yerda, saytda rasmiylashtiriladi.</p>
       </div>
-      <div data-reveal style="margin-top: 32px; background: #fff; border: 1px solid #e7eee9; border-radius: 24px; padding: clamp(22px,4vw,36px); box-shadow: 0 24px 60px -34px rgba(6,56,42,.4);">
-        <div id="tx-order-body"></div>
+      <div data-reveal style="position: relative; margin-top: 30px; background: #fff; border-radius: 26px; padding: 0; box-shadow: 0 44px 100px -36px rgba(0,0,0,.62), 0 8px 24px -12px rgba(0,0,0,.3); overflow: hidden;">
+        <div style="height: 6px; background: linear-gradient(90deg, #12a86f, #4ade80, #12a86f);"></div>
+        <div style="padding: clamp(22px,4vw,38px);">
+          <div id="tx-order-body"></div>
+        </div>
       </div>
     </div>
   </section>
@@ -665,30 +669,41 @@
   }
 
   // ── Geolocation ──
+  // Aniq koordinata (GPS) -> reverse-geocode -> manzilni to'ldiradi.
+  function fillFromCoords(lat, lng) {
+    var maps = "https://maps.google.com/?q=" + lat.toFixed(6) + "," + lng.toFixed(6);
+    var done = false;
+    function finish(addr) {
+      if (done) return; done = true; clearTimeout(fb);
+      state.form.address = (addr ? addr + "  —  " : "") + "📍 " + maps;
+      state.geoLoading = false; state.geoErr = ""; renderWizard();
+    }
+    var fb = setTimeout(function () { finish(""); }, 6000);
+    fetch("https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=" + lat + "&lon=" + lng + "&accept-language=uz")
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) { finish(d && d.display_name ? d.display_name : ""); })
+      .catch(function () { finish(""); });
+  }
   function detectLocation() {
     if (!navigator.geolocation) { state.geoErr = "Brauzeringiz joylashuvni qo’llab-quvvatlamaydi. Manzilni qo’lda kiriting."; renderWizard(); return; }
+    // GPS faqat xavfsiz (HTTPS) kontekstda ishlaydi. IP orqali aniqlash ISHLATILMAYDI —
+    // u provayder shahrini (odatda Toshkent) qaytaradi va yetkazish uchun noto'g'ri bo'ladi.
+    if (!window.isSecureContext) {
+      state.geoErr = "Aniq joylashuv faqat xavfsiz (https://) saytda ishlaydi. Hozircha manzilni qo’lda kiriting.";
+      renderWizard(); return;
+    }
     state.geoLoading = true; state.geoErr = ""; renderWizard();
-    navigator.geolocation.getCurrentPosition(function (pos) {
-      var lat = pos.coords.latitude, lng = pos.coords.longitude;
-      var maps = "https://maps.google.com/?q=" + lat.toFixed(6) + "," + lng.toFixed(6);
-      var done = false;
-      function finish(addr) {
-        if (done) return; done = true; clearTimeout(fb);
-        state.form.address = (addr ? addr + "  —  " : "") + "📍 " + maps;
-        state.geoLoading = false; state.geoErr = ""; renderWizard();
-      }
-      var fb = setTimeout(function () { finish(""); }, 6000);
-      fetch("https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=" + lat + "&lon=" + lng + "&accept-language=uz")
-        .then(function (r) { return r.ok ? r.json() : null; })
-        .then(function (d) { finish(d && d.display_name ? d.display_name : ""); })
-        .catch(function () { finish(""); });
-    }, function (err) {
-      state.geoLoading = false;
-      state.geoErr = (err && err.code === 1)
-        ? "Joylashuvga ruxsat berilmadi. Brauzer sozlamalaridan ruxsat bering yoki manzilni qo’lda kiriting."
-        : "Joylashuvni aniqlab bo’lmadi. Manzilni qo’lda kiriting.";
-      renderWizard();
-    }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
+    navigator.geolocation.getCurrentPosition(
+      function (pos) { fillFromCoords(pos.coords.latitude, pos.coords.longitude); },
+      function (err) {
+        state.geoLoading = false;
+        state.geoErr = (err && err.code === 1)
+          ? "Joylashuvga ruxsat berilmadi. Brauzer sozlamalaridan ruxsat bering yoki manzilni qo’lda kiriting."
+          : "Joylashuvni aniqlab bo’lmadi. Iltimos, manzilni qo’lda kiriting.";
+        renderWizard();
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
   }
 
   // ── Wizard ──
@@ -766,13 +781,14 @@
   function step2Html() {
     var f = state.form;
     var geoLabel = state.geoLoading ? "⏳ Aniqlanmoqda…" : "📍 Joylashuvni avtomatik aniqlash";
-    var geoErr = state.geoErr ? '<p style="font-size:12.5px;color:#d23b2f;font-weight:600;margin:0 0 10px;line-height:1.45;">' + state.geoErr + '</p>' : "";
+    var geoErr = state.geoErr ? '<p style="display:flex;align-items:flex-start;gap:8px;font-size:12.5px;color:#8a6516;font-weight:600;margin:8px 0 0;line-height:1.45;background:#fff8ea;border:1px solid #f3e2bd;border-radius:10px;padding:10px 12px;"><span>ℹ️</span><span>' + state.geoErr + '</span></p>' : "";
     var delPills = DELIVERY_OPTIONS.map(function (l) { return '<button type="button" class="tx-wdel" data-val="' + l + '" style="' + pillStyle(f.delivery === l) + '">' + l + '</button>'; }).join("");
     var timePills = TIME_OPTIONS.map(function (l) { return '<button type="button" class="tx-wtime" data-val="' + l + '" style="' + pillStyle(f.deliveryTime === l) + '">' + l + '</button>'; }).join("");
     return '<div><label style="display:block;font-weight:700;font-size:13px;color:#3a4a42;margin-bottom:7px;">Yetkazish manzili *</label>'
-      + '<button type="button" id="tx-geo"' + (state.geoLoading ? " disabled" : "") + ' style="width:100%;display:inline-flex;align-items:center;justify-content:center;gap:8px;margin-bottom:10px;background:#eef7f2;color:#0a7d55;border:1.5px dashed #aedcc6;cursor:pointer;padding:12px;border-radius:12px;font-family:\'Manrope\',sans-serif;font-weight:700;font-size:14.5px;transition:all .18s;">' + geoLabel + '</button>'
-      + geoErr
-      + '<textarea id="txf-address" class="tx-inp" rows="2" placeholder="Tuman, shaharcha, ko\'cha, uy, xonadon — yoki joylashuvni avtomatik aniqlang" style="width:100%;padding:14px 15px;border:1.5px solid #dce6e0;border-radius:12px;font-family:\'Manrope\',sans-serif;font-size:15px;color:#0c1611;background:#fff;outline:none;resize:vertical;"></textarea></div>'
+      + '<textarea id="txf-address" class="tx-inp" rows="2" placeholder="Tuman, shaharcha, ko\'cha, uy, xonadon — masalan: Chilonzor t., 12-kvartal, 5-uy, 23-xonadon" style="width:100%;padding:14px 15px;border:1.5px solid #dce6e0;border-radius:12px;font-family:\'Manrope\',sans-serif;font-size:15px;color:#0c1611;background:#fff;outline:none;resize:vertical;"></textarea>'
+      + '<button type="button" id="tx-geo"' + (state.geoLoading ? " disabled" : "") + ' style="display:inline-flex;align-items:center;gap:7px;margin-top:9px;background:transparent;color:#0a7d55;border:none;cursor:pointer;padding:4px 0;font-family:\'Manrope\',sans-serif;font-weight:700;font-size:13.5px;text-decoration:underline;text-underline-offset:3px;">' + geoLabel + '</button>'
+      + '<span style="font-size:12.5px;color:#94a39a;font-weight:600;margin-left:8px;">(ixtiyoriy)</span>'
+      + geoErr + '</div>'
       + '<div style="margin-top:18px;"><label style="display:block;font-weight:700;font-size:13px;color:#3a4a42;margin-bottom:8px;">Yetkazish turi</label><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;">' + delPills + '</div></div>'
       + '<div style="margin-top:18px;"><label style="display:block;font-weight:700;font-size:13px;color:#3a4a42;margin-bottom:8px;">🕒 Qulay vaqt</label><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;">' + timePills + '</div></div>'
       + '<div style="margin-top:18px;"><label style="display:block;font-weight:700;font-size:13px;color:#3a4a42;margin-bottom:7px;">🚚 Kuryerga izoh <span style="color:#94a39a;font-weight:600;">(ixtiyoriy)</span></label><textarea id="txf-note" class="tx-inp" rows="2" placeholder="Masalan: domofon ishlamaydi, 2-qavat, qo\'ng\'iroq qiling..." style="width:100%;padding:14px 15px;border:1.5px solid #dce6e0;border-radius:12px;font-family:\'Manrope\',sans-serif;font-size:15px;color:#0c1611;background:#fff;outline:none;resize:vertical;"></textarea></div>';
