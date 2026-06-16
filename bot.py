@@ -81,5 +81,19 @@ async def main():
         await bot.session.close()
 
 
+def _start_static_web():
+    """Statik saytni (website/index.html) shu jarayonда beradi — alohida
+    'web' dyno o'rniga. Heroku 'web' dyno $PORT'ni 60s ichida ushlashi shart,
+    shuning uchun bot polling'idan OLDIN, alohida thread'da ishga tushiramiz."""
+    try:
+        import web_server
+        web_server.main()  # serve_forever (bloklaydi — shuning uchun threadда)
+    except Exception as e:
+        logger.error("Statik web server xatolik: %s", e)
+
+
 if __name__ == "__main__":
+    # Bitta dyno: sayt (web thread) + bot (asyncio). Xarajatni 2x kamaytiradi.
+    import threading
+    threading.Thread(target=_start_static_web, daemon=True).start()
     asyncio.run(main())

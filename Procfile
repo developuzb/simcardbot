@@ -1,2 +1,3 @@
-worker: python bot.py
-web: python web_server.py
+# Bitta 'web' dyno: statik sayt (thread) + Telegram bot (asyncio) birga.
+# Alohida 'worker' kerak emas — xarajat 2x kam.
+web: python bot.py
