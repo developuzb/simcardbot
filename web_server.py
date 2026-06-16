@@ -14,7 +14,15 @@ WEB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "website")
 
 class Handler(http.server.SimpleHTTPRequestHandler):
     def end_headers(self):
-        self.send_header("Cache-Control", "public, max-age=600")
+        # HTML, manifest va service-worker hech qachon uzoq keshlanmasin —
+        # aks holda yangi versiya chiqsa ham foydalanuvchi eskisini ko'radi.
+        path = self.path.split("?", 1)[0].lower()
+        if (path in ("", "/") or path.endswith((".html", ".json", ".webmanifest"))
+                or path.endswith("service-worker.js")):
+            self.send_header("Cache-Control", "no-cache, must-revalidate")
+        else:
+            # Rasm/ikona/statik resurslar — uzoq keshlansin
+            self.send_header("Cache-Control", "public, max-age=86400")
         super().end_headers()
 
     def do_GET(self):
