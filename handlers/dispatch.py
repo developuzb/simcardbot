@@ -838,6 +838,11 @@ async def topic_stop(message: Message, is_admin: bool = False):
         return
     gid, thread = res
     n = await _archive_topic_to_general(message.bot, gid, thread)
+    # General'ga qisqa yozuv (topic o'chgach reply yo'qoladi — bu saqlanib qoladi)
+    try:
+        await message.bot.send_message(gid, f"🗑 <b>Topic o'chirildi (/stop)</b> — {n} ta buyurtma arxivlandi (yuqorida).")
+    except Exception:
+        pass
     # Mijoz xaritasini tozalaymiz (qaytib kelsa yangi topic ochilsin)
     try:
         for o in await orders_db.get_orders_by_topic(thread):
@@ -846,7 +851,8 @@ async def topic_stop(message: Message, is_admin: bool = False):
     except Exception:
         pass
     try:
-        await message.bot.close_forum_topic(chat_id=gid, message_thread_id=thread)
-        await message.reply(f"🔒 <b>Topic yopildi.</b>\nTo'liq tafsilot General'ga saqlandi ({n} ta buyurtma).")
+        await message.bot.delete_forum_topic(chat_id=gid, message_thread_id=thread)
+        logger.info("Topic /stop bilan o'chirildi (thread=%s)", thread)
     except Exception as e:
-        await message.reply(f"⚠️ Topic yopilmadi: {e}\nBot 'Manage Topics' huquqiga ega ekanini tekshiring.")
+        # O'chirib bo'lmasa topic hali turibdi — reply ishlaydi
+        await message.reply(f"⚠️ Topic o'chirilmadi: {e}\nBot 'Manage Topics' huquqiga ega ekanini tekshiring.")
