@@ -162,6 +162,13 @@ async def get_orders_by_courier(courier_id) -> list:
                 if str(o.get("courier_id")) == str(courier_id)]
 
 
+async def get_orders_by_topic(thread_id) -> list:
+    """Berilgan forum topic (thread) ga biriktirilgan buyurtmalar."""
+    with _lock:
+        return [dict(o) for o in _load()
+                if o.get("topic_id") is not None and str(o.get("topic_id")) == str(thread_id)]
+
+
 async def get_stats() -> dict:
     with _lock:
         orders = [dict(o) for o in _load()]

@@ -10,6 +10,7 @@ Xavfsizlik: har callback'da buyurtmaning noyob `token`'i tekshiriladi
 (eski/forward qilingan tugma boshqa buyurtmaga ta'sir qilmaydi);
 «Qabul qilish» faqat kuryerlar guruhi a'zolariga ruxsat.
 """
+import asyncio
 import logging
 from aiogram import Router, F
 from aiogram.filters import Command
@@ -147,19 +148,12 @@ async def _update_group_card(bot, order: dict, title: str = "", kb=None):
 # (telefon bilan) va holatga mos admin status tugmalari turadi.
 
 def kb_topic(o: dict) -> InlineKeyboardMarkup | None:
-    """Topic ichidagi holatga mos admin tugmalari."""
-    status = o.get("status")
-    if status == "Yangi":
-        # Tasdiqlash/Bekor — mavjud admin handlerlari (disp_ok_/disp_rej_)
-        return kb_admin_confirm(o)
-    if status in ("Tasdiqlangan", "Kuryerda", "Yo'lda"):
-        b = InlineKeyboardBuilder()
-        b.button(text="✅ Yetkazildi", callback_data=_cb("tdone_", o))
-        b.button(text="🚫 Mijoz yo'q", callback_data=_cb("tnoshow_", o))
-        b.button(text="❌ Bekor qilish", callback_data=_cb("tcancel_", o))
-        b.adjust(2, 1)
-        return b.as_markup()
-    return None  # yakuniy holatlar (Yetkazildi/Bekor/Mijoz yo'q) — tugmasiz
+    """Topic ichidagi tugmalar. FAQAT 'Yangi' holatda admin uchun
+    Tasdiqlash/Bekor. Admin tasdiqlagandan keyin topic'da tugma chiqmaydi
+    (yetkazish kuryer guruhida boshqariladi) — topic faqat kuzatuv/yozuv."""
+    if o.get("status") == "Yangi":
+        return kb_admin_confirm(o)  # disp_ok_ / disp_rej_ (mavjud handlerlar)
+    return None
 
 
 async def _update_topic_card(bot, order: dict, title: str = ""):
@@ -751,3 +745,108 @@ async def topic_cancel(callback: CallbackQuery, is_admin: bool = False):
         callback.bot, order,
         f"😔 Afsuski, buyurtmangiz #{num} bekor qilindi.\nSavollar uchun: {ADMIN_CONTACT}",
     )
+
+
+# ─── TOPIC: ARXIV (General) + /sleep + /stop ────────────────────
+
+def full_order_detail(o: dict) -> str:
+    """Buyurtma haqida TO'LIQ tafsilot — General'ga arxivlash uchun."""
+    maps = f"\n🗺 https://maps.google.com/?q={o['lat']},{o['lon']}" if o.get("lat") and o.get("lon") else ""
+    courier = f"\n🚴 Kuryer: {o['courier_name']}" if o.get("courier_name") else ""
+    rating = f"\n⭐ Baho: {'⭐' * int(o['rating'])}" if o.get("rating") else ""
+    note = f"\n📝 Izoh: {o['note']}" if o.get("note") else ""
+    return (
+        f"🗂 <b>BUYURTMA ARXIVI — #{o.get('num')}</b>\n"
+        f"➖➖➖➖➖➖➖➖➖➖\n"
+        f"🕐 {o.get('date', '')} {o.get('time', '')}\n"
+        f"👤 {o.get('name', '—')}\n"
+        f"📞 <code>{o.get('phone', '—')}</code>\n"
+        f"🆔 TG: {o.get('user_id', '—')}\n"
+        f"📡 {o.get('operator', '')} — {o.get('tariff', '')} ({int(o.get('tariff_price', 0)):,} so'm/oy)\n"
+        f"🚀 {o.get('delivery_type', '—')} — {int(o.get('delivery_price', 0)):,} so'm\n"
+        f"📍 {o.get('region', '—')}{maps}\n"
+        f"💳 Jami: {int(o.get('total', 0)):,} so'm{courier}{rating}{note}\n"
+        f"🔖 Holat: {o.get('status', '—')}"
+    )
+
+
+async def _archive_topic_to_general(bot, gid: int, thread_id: int) -> int:
+    """Topic'dagi buyurtma(lar)ning to'liq tafsilotini General'ga yuboradi.
+    Arxivlangan buyurtmalar sonini qaytaradi."""
+    orders = await orders_db.get_orders_by_topic(thread_id)
+    for o in orders:
+        try:
+            await bot.send_message(gid, full_order_detail(o))  # thread_id yo'q => General
+        except Exception as e:
+            logger.warning("Arxiv General'ga yuborilmadi (#%s): %s", o.get("num"), e)
+    return len(orders)
+
+
+def _topic_cmd_ok(message: Message, is_admin: bool):
+    """Buyruq buyurtmalar guruhi topic'i ichida, admin tomonidan ekanini tekshiradi.
+    OK bo'lsa (gid, thread_id) qaytaradi, aks holda (None, sabab-matn)."""
+    if not is_admin:
+        return None, None  # jim
+    gid = settings_store.get_orders_group()
+    if not gid or message.chat.id != gid:
+        return None, None  # boshqa joy — jim
+    thread = message.message_thread_id
+    if not thread:
+        return None, "Bu buyruq buyurtma <b>topic</b>'i ichida ishlaydi (General'da emas)."
+    return (gid, thread), ""
+
+
+@router.message(Command("sleep"))
+async def topic_sleep(message: Message, is_admin: bool = False):
+    res, err = _topic_cmd_ok(message, is_admin)
+    if res is None:
+        if err:
+            await message.reply(err)
+        return
+    gid, thread = res
+    n = await _archive_topic_to_general(message.bot, gid, thread)
+    await message.reply(
+        f"😴 <b>Topic 1 soatdan keyin o'chiriladi.</b>\n"
+        f"To'liq tafsilot General'ga saqlandi ({n} ta buyurtma)."
+    )
+    asyncio.create_task(_delete_topic_later(message.bot, gid, thread, 3600))
+
+
+async def _delete_topic_later(bot, gid: int, thread_id: int, delay: float):
+    await asyncio.sleep(delay)
+    # O'chirishdan oldin shu topic mijozining xaritasini tozalaymiz (qayta /start yangi topic ochsin)
+    try:
+        for o in await orders_db.get_orders_by_topic(thread_id):
+            if o.get("user_id"):
+                lead_topics_store.clear_topic(o["user_id"])
+    except Exception:
+        pass
+    try:
+        await bot.delete_forum_topic(chat_id=gid, message_thread_id=thread_id)
+        logger.info("Topic o'chirildi (thread=%s)", thread_id)
+    except Exception as e:
+        logger.warning("Topic o'chirilmadi (thread=%s): %s — bot 'Manage Topics' "
+                       "huquqiga ega ekanini tekshiring.", thread_id, e)
+
+
+@router.message(Command("stop"))
+async def topic_stop(message: Message, is_admin: bool = False):
+    res, err = _topic_cmd_ok(message, is_admin)
+    if res is None:
+        if err:
+            await message.reply(err)
+        return
+    gid, thread = res
+    n = await _archive_topic_to_general(message.bot, gid, thread)
+    # Mijoz xaritasini tozalaymiz (qaytib kelsa yangi topic ochilsin)
+    try:
+        for o in await orders_db.get_orders_by_topic(thread):
+            if o.get("user_id"):
+                lead_topics_store.clear_topic(o["user_id"])
+    except Exception:
+        pass
+    try:
+        await message.bot.close_forum_topic(chat_id=gid, message_thread_id=thread)
+        await message.reply(f"🔒 <b>Topic yopildi.</b>\nTo'liq tafsilot General'ga saqlandi ({n} ta buyurtma).")
+    except Exception as e:
+        await message.reply(f"⚠️ Topic yopilmadi: {e}\nBot 'Manage Topics' huquqiga ega ekanini tekshiring.")
