@@ -1419,7 +1419,10 @@ def _home_help_keyboard() -> object:
 
 
 @router.message(StateFilter(None), F.chat.type == "private", F.text & ~F.text.startswith("/"))
-async def home_assistant(message: Message):
+async def home_assistant(message: Message, state: FSMContext):
+    """Bosh ekran (holatsiz) — mijoz matn yozsa, to'liq AI sotuv suhbatini
+    AVTOMATIK boshlaymiz va xabarni o'sha oqim orqali qayta ishlaymiz.
+    Ya'ni /start'dan keyin shunchaki yozish AI yordamchini ishga soladi."""
     if message.text.strip() in ("❌ Bekor qilish", "❌ Bekor"):
         return await message.answer("Bosh sahifa uchun /start bosing 😊", reply_markup=ReplyKeyboardRemove())
 
@@ -1442,22 +1445,14 @@ async def home_assistant(message: Message):
             reply_markup=_home_help_keyboard(),
         )
         return
-    if _rate_limited(_last_ai_call, message.from_user.id, _AI_COOLDOWN):
-        await message.answer("Birozdan so'ng yozing 🙂", reply_markup=_home_help_keyboard())
-        return
 
-    redirect = (
-        "\n\nAgar boshqa savolingiz bo'lsa — <b>«📞 Aloqa»</b> orqali operator bilan bog'laning."
-    )
-    streamer = _Streamer(message)
-    await streamer.start()
-    try:
-        reply = await _general_reply(message.text, on_update=streamer.update)
-        if not reply:
-            reply = ("Kechirasiz, savolingizni to'liq tushunmadim 😔" + redirect)
-        await streamer.finish(reply, _home_help_keyboard())
-    except Exception:
-        await streamer.finish("Kechirasiz, hozir javob berolmadim 😔" + redirect, _home_help_keyboard())
+    # To'liq AI sotuv suhbatini boshlaymiz va shu xabarni o'sha oqimga uzatamiz
+    user_name = message.from_user.first_name or "Mijoz"
+    await state.set_state(AIState.chatting)
+    await state.update_data(ai_history=[], user_name=user_name, ai_stage="operator")
+    analytics_store.ai_session()
+    followups_store.touch(message.from_user.id, "operator", user_name)
+    await handle_ai_message(message, state)
 
 
 # ─── ABANDONMENT FOLLOW-UP (2 soat) ─────────────────────────────
