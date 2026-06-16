@@ -621,31 +621,33 @@ async def _place_order(data: dict, user_id: int, bot,
         "promo": tariff_price >= PROMO_1PLUS1_MIN_PRICE,
     })
 
-    # Adminga tasdiqlash kartochkasi (pin bilan)
     order = await orders_db.get_order_by_num(order_num)
 
-    # Alohida buyurtmalar guruhida (forum) shu buyurtma uchun topic ochamiz —
-    # kuryer guruhi oqimidan TASHQARI (qo'shimcha). Best-effort, asosiy oqimni buzmaydi.
+    # Buyurtma kartochkasi (Tasdiqlash/Bekor tugmalari bilan) — buyurtmalar
+    # GURUHIga tushadi (mijoz topic'ida, bo'lmasa guruhning umumiy qismida).
+    placed_in_group = False
     try:
-        await dispatch.open_order_topic(bot, order)
+        placed_in_group = await dispatch.open_order_topic(bot, order)
     except Exception:
-        logger.warning("Buyurtma topic ochilmadi (#%s)", order_num)
+        logger.warning("Buyurtma guruhga joylanmadi (#%s)", order_num)
 
-    sent = 0
-    for admin_id in ADMIN_IDS:
-        try:
-            await bot.send_message(
-                admin_id,
-                dispatch.order_card(order, f"🆕 <b>YANGI BUYURTMA #{order_num}</b> — tasdiqlang"),
-                reply_markup=dispatch.kb_admin_confirm(order),
-            )
-            if lat and lon:
-                await bot.send_location(admin_id, latitude=lat, longitude=lon)
-            sent += 1
-        except Exception as e:
-            logger.warning("Adminga (%s) buyurtma #%s yuborilmadi: %s", admin_id, order_num, e)
-    if sent == 0:
-        logger.error("DIQQAT: #%s buyurtma hech bir adminga yetib bormadi!", order_num)
+    # Guruhga tushmasa (guruh ulanmagan yoki xato) — admin SHAXSIY chatiga (fallback)
+    if not placed_in_group:
+        sent = 0
+        for admin_id in ADMIN_IDS:
+            try:
+                await bot.send_message(
+                    admin_id,
+                    dispatch.order_card(order, f"🆕 <b>YANGI BUYURTMA #{order_num}</b> — tasdiqlang"),
+                    reply_markup=dispatch.kb_admin_confirm(order),
+                )
+                if lat and lon:
+                    await bot.send_location(admin_id, latitude=lat, longitude=lon)
+                sent += 1
+            except Exception as e:
+                logger.warning("Adminga (%s) buyurtma #%s yuborilmadi: %s", admin_id, order_num, e)
+        if sent == 0:
+            logger.error("DIQQAT: #%s buyurtma hech bir adminga yetib bormadi!", order_num)
 
     if discount:
         try:

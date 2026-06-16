@@ -209,27 +209,37 @@ async def ensure_lead_topic(bot, user) -> int | None:
         return None
 
 
-async def open_order_topic(bot, order: dict):
-    """Buyurtma kartochkasini buyurtmalar guruhidagi topic ichiga joylaydi.
-    Mijozning mavjud lead topic'i bo'lsa — o'shanda (yangi ochmaydi), aks
-    holda yangi topic ochadi. Guruh ulanmagan/forum bo'lmasa — jim o'tadi."""
+async def open_order_topic(bot, order: dict) -> bool:
+    """Buyurtma kartochkasini (Tasdiqlash/Bekor tugmalari bilan) buyurtmalar
+    GURUHIga joylaydi. Mijozning lead topic'i bo'lsa — o'shanda; bo'lmasa
+    yangi topic ochadi; topic ochib bo'lmasa (Manage Topics yo'q) — guruhning
+    UMUMIY (General) qismiga tushiradi. Guruh ulanmagan bo'lsa — False.
+    Muvaffaqiyatli joylasa True qaytaradi (admin DM'ni o'tkazib yuborish uchun)."""
     gid = settings_store.get_orders_group()
     if not gid:
-        return
+        return False
     num = order["num"]
     uid = order.get("user_id")
     thread_id = lead_topics_store.get_topic(uid) if uid else None
-    try:
-        if not thread_id:
-            name = f"#{num} · {order.get('name', '—')} · {order.get('operator', '')} {order.get('tariff', '')}".strip()
+
+    # Topic ochishga harakat (bo'lmasa General'ga tushamiz — fallback)
+    if not thread_id:
+        name = f"#{num} · {order.get('name', '—')} · {order.get('operator', '')} {order.get('tariff', '')}".strip()
+        try:
             topic = await bot.create_forum_topic(chat_id=gid, name=name[:128])
             thread_id = topic.message_thread_id
             if uid:
                 lead_topics_store.set_topic(uid, thread_id)
+        except Exception as e:
+            logger.warning("Topic ochilmadi (#%s): %s — guruh UMUMIY qismiga tushiramiz "
+                           "(doimiy topic uchun botga 'Manage Topics' huquqini bering).", num, e)
+            thread_id = None  # General'ga
+
+    try:
         msg = await bot.send_message(
             gid,
             order_card(order, f"🛒 <b>BUYURTMA BERDI — #{num}</b>"),
-            message_thread_id=thread_id,
+            message_thread_id=thread_id,   # None => umumiy (General)
             reply_markup=kb_topic(order),
         )
         await orders_db.update_order(num, {"topic_id": thread_id, "topic_msg_id": msg.message_id})
@@ -241,10 +251,11 @@ async def open_order_topic(bot, order: dict):
                                         message_thread_id=thread_id)
             except Exception:
                 pass
-        logger.info("Buyurtma topic'ga joylandi #%s (thread=%s)", num, thread_id)
+        logger.info("Buyurtma guruhga joylandi #%s (thread=%s)", num, thread_id)
+        return True
     except Exception as e:
-        logger.warning("Buyurtma topic ochilmadi (#%s): %s — guruh forum bo'lib, "
-                       "bot 'Manage Topics' huquqiga ega ekanini tekshiring.", num, e)
+        logger.warning("Buyurtma guruhga joylanmadi (#%s): %s", num, e)
+        return False
 
 
 # ─── BUYURTMALAR GURUHINI ULASH ──────────────────────────────────
