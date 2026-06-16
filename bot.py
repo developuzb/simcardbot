@@ -35,14 +35,19 @@ async def daily_report_loop(bot: Bot):
             report = ai_analytics.daily_report_text()
             insight = await ai_analytics.generate_insight()
             full = f"{report}\n\n🤖 <b>AI tahlil:</b>\n{insight}"
-            sent = 0
-            for admin_id in ADMIN_IDS:
-                try:
-                    await bot.send_message(admin_id, full)
-                    sent += 1
-                except Exception as e:
-                    logger.warning("Kunlik hisobot %s ga yuborilmadi: %s", admin_id, e)
-            logger.info("Kunlik hisobot yuborildi (%s admin).", sent)
+            # Kunlik hisobot — buyurtmalar guruhining UMUMIY (General) qismiga.
+            # Guruh ulanmagan bo'lsa — adminlar shaxsiy chatiga (fallback).
+            if not await dispatch.post_to_orders_group(bot, full):
+                sent = 0
+                for admin_id in ADMIN_IDS:
+                    try:
+                        await bot.send_message(admin_id, full)
+                        sent += 1
+                    except Exception as e:
+                        logger.warning("Kunlik hisobot %s ga yuborilmadi: %s", admin_id, e)
+                logger.info("Kunlik hisobot yuborildi (%s admin).", sent)
+            else:
+                logger.info("Kunlik hisobot buyurtmalar guruhiga (General) yuborildi.")
         except Exception as e:
             logger.error(f"daily_report xatolik: {e}")
 

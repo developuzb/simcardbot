@@ -27,10 +27,14 @@ _STATUS_ICONS = {
 
 # ─── /admin BUYRUG'I ──────────────────────────────────────────────
 
-@router.message(Command("admin"), F.chat.type == "private")
+@router.message(Command("admin"))
 async def cmd_admin(message: Message, state: FSMContext, is_admin: bool = False):
     if not is_admin:
-        await message.answer("⛔ Ruxsat yo'q.")
+        if message.chat.type == "private":
+            await message.answer("⛔ Ruxsat yo'q.")
+        return  # guruhda — jim
+    # Faqat shaxsiy chat yoki buyurtmalar guruhida (boshqa guruhlarда emas)
+    if message.chat.type != "private" and message.chat.id != settings_store.get_orders_group():
         return
     await state.set_state(AdminState.main_menu)
     await _show_admin_menu(message)

@@ -177,6 +177,30 @@ async def _update_topic_card(bot, order: dict, title: str = ""):
         pass
 
 
+async def post_to_orders_group(bot, text: str, user_id=None, reply_markup=None) -> bool:
+    """Buyurtmalar guruhiga xabar yuboradi.
+    user_id berilsa — o'sha mijozning topic'iga; bo'lmasa yoki topic yo'q
+    bo'lsa — guruhning UMUMIY (General) qismiga. Guruh ulanmagan yoki
+    yuborib bo'lmasa — False (chaqiruvchi admin DM'ga qaytishi mumkin)."""
+    gid = settings_store.get_orders_group()
+    if not gid:
+        return False
+    thread_id = lead_topics_store.get_topic(user_id) if user_id else None
+    try:
+        await bot.send_message(gid, text, message_thread_id=thread_id, reply_markup=reply_markup)
+        return True
+    except Exception as e:
+        # Topic eskirgan/o'chgan bo'lishi mumkin — General'ga urinib ko'ramiz
+        if thread_id is not None:
+            try:
+                await bot.send_message(gid, text, reply_markup=reply_markup)
+                return True
+            except Exception:
+                pass
+        logger.warning("Buyurtmalar guruhiga yuborilmadi: %s", e)
+        return False
+
+
 async def ensure_lead_topic(bot, user) -> int | None:
     """Mijoz /start bosganda unга forum topic ochadi (BITTA mijozga bitta).
     Mavjud bo'lsa qayta ochmaydi. Guruh ulanmagan/forum bo'lmasa — None."""

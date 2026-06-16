@@ -769,7 +769,8 @@ async def _notify_hot_lead(bot, data: dict, user, last_text: str):
         f"💬 Oxirgi xabar: «{last_text[:120]}»"
         + (f"\n\n🧠 <b>AI Insight:</b>\n{insight}" if insight else "")
     )
-    await _send_admin(bot, msg)
+    if not await dispatch.post_to_orders_group(bot, msg, user_id=user.id):
+        await _send_admin(bot, msg)
 
 
 # ─── ERKIN MATN HANDLERI ────────────────────────────────────────
@@ -993,14 +994,17 @@ async def _handle_out_of_zone(message: Message, state: FSMContext, data: dict, l
         f"📞 Tel: <code>{data.get('customer_phone', '—')}</code>\n"
         f"📡 {operator['name']} — {tariff['name'] if tariff else '—'}\n"
         f"📍 Masofa: ~{distance:.1f} km (ruxsat {office['radius_km']:.0f} km)\n"
+        f"🗺 https://maps.google.com/?q={lat},{lon}\n"
         "Mijoz bilan bog'lanib, qo'lda kelishishingiz mumkin."
     )
-    for admin_id in ADMIN_IDS:
-        try:
-            await message.bot.send_message(admin_id, admin_text)
-            await message.bot.send_location(admin_id, latitude=lat, longitude=lon)
-        except Exception as e:
-            logger.warning("Adminga (%s) lead yuborilmadi: %s", admin_id, e)
+    # Mijoz topic'iga (yoki General'ga); guruh ishlamasa — admin DM fallback
+    if not await dispatch.post_to_orders_group(message.bot, admin_text, user_id=message.from_user.id):
+        for admin_id in ADMIN_IDS:
+            try:
+                await message.bot.send_message(admin_id, admin_text)
+                await message.bot.send_location(admin_id, latitude=lat, longitude=lon)
+            except Exception as e:
+                logger.warning("Adminga (%s) lead yuborilmadi: %s", admin_id, e)
     analytics_store.out_of_zone()
     await state.update_data(ai_stage="done")
 
@@ -1009,8 +1013,8 @@ def _customer_questions(data: dict) -> list:
     return [m["content"] for m in data.get("ai_history", []) if m.get("role") == "user"]
 
 
-async def _send_admin_chat_summary(bot, data: dict, order_num, outcome: str):
-    """Har bir mijoz bilan chat xulosasi + AI sotuv tavsiyasini adminga yuboradi."""
+async def _send_admin_chat_summary(bot, data: dict, order_num, outcome: str, user_id=None):
+    """Har bir mijoz bilan chat xulosasi + AI sotuv tavsiyasi — mijoz topic'iga."""
     op = OPERATORS.get(data.get("sel_operator", ""), {}).get("name", "—")
     tariff = data.get("sel_tariff", "—")
     questions = _customer_questions(data)
@@ -1032,11 +1036,12 @@ async def _send_admin_chat_summary(bot, data: dict, order_num, outcome: str):
         f"💬 <b>Savollari:</b>\n{q_block}"
         f"{rec_line}"
     )
-    for admin_id in ADMIN_IDS:
-        try:
-            await bot.send_message(admin_id, text)
-        except Exception:
-            pass
+    if not await dispatch.post_to_orders_group(bot, text, user_id=user_id):
+        for admin_id in ADMIN_IDS:
+            try:
+                await bot.send_message(admin_id, text)
+            except Exception:
+                pass
 
 
 @router.callback_query(AIState.chatting, F.data == "ai_confirm")
@@ -1067,7 +1072,7 @@ async def ai_confirm_order(callback: CallbackQuery, state: FSMContext):
         )
 
     followups_store.complete(callback.from_user.id)
-    asyncio.create_task(_send_admin_chat_summary(callback.bot, data, order_num, "BUYURTMA BERDI ✅"))
+    asyncio.create_task(_send_admin_chat_summary(callback.bot, data, order_num, "BUYURTMA BERDI ✅", user_id=callback.from_user.id))
 
     op_id = data.get("sel_operator", "")
     hint = operator_number_hint(op_id)
@@ -1422,11 +1427,12 @@ async def _record_and_analyze_feedback(bot, user_id, name: str, feedback: str):
         f"💬 «{feedback}»"
         f"{rec_line}"
     )
-    for admin_id in ADMIN_IDS:
-        try:
-            await bot.send_message(admin_id, text)
-        except Exception:
-            pass
+    if not await dispatch.post_to_orders_group(bot, text, user_id=user_id):
+        for admin_id in ADMIN_IDS:
+            try:
+                await bot.send_message(admin_id, text)
+            except Exception:
+                pass
 
 
 @router.callback_query(F.data.startswith("fb_reason_"))
