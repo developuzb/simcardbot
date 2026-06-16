@@ -707,6 +707,11 @@
       .then(function (d) { finish(d && d.display_name ? d.display_name : ""); })
       .catch(function () { finish(""); });
   }
+  // Telegram/Instagram kabi ilova-ichi brauzerlar geolokatsiyani ko'pincha bloklaydi.
+  function isInAppBrowser() {
+    var ua = navigator.userAgent || "";
+    return /Instagram|FBAN|FBAV|FB_IAB|Line\/|MicroMessenger|TikTok|Snapchat|Telegram/i.test(ua);
+  }
   function detectLocation() {
     if (!navigator.geolocation) { state.geoErr = "Brauzeringiz joylashuvni qo’llab-quvvatlamaydi. Manzilni qo’lda kiriting."; renderWizard(); return; }
     // GPS faqat xavfsiz (HTTPS) kontekstda ishlaydi. IP orqali aniqlash ISHLATILMAYDI —
@@ -716,17 +721,32 @@
       renderWizard(); return;
     }
     state.geoLoading = true; state.geoErr = ""; renderWizard();
-    navigator.geolocation.getCurrentPosition(
-      function (pos) { fillFromCoords(pos.coords.latitude, pos.coords.longitude); },
-      function (err) {
+    var triedLow = false;
+    var inApp = isInAppBrowser();
+    function ok(pos) { fillFromCoords(pos.coords.latitude, pos.coords.longitude); }
+    function fail(err) {
+      // Ruxsat berilmadi (code 1) — qayta urinish foyda bermaydi.
+      if (err && err.code === 1) {
         state.geoLoading = false;
-        state.geoErr = (err && err.code === 1)
-          ? "Joylashuvga ruxsat berilmadi. Brauzer sozlamalaridan ruxsat bering yoki manzilni qo’lda kiriting."
-          : "Joylashuvni aniqlab bo’lmadi. Iltimos, manzilni qo’lda kiriting.";
+        state.geoErr = inApp
+          ? "Joylashuvga ruxsat berilmadi. Telegram ichidan ochган bo‘lsangiz — o‘ng yuqoridagi «⋮» orqali «Brauzerda ochish»ni tanlang, yoki manzilni qo‘lda kiriting."
+          : "Joylashuvga ruxsat berilmadi. Brauzer sozlamalaridan ruxsat bering yoki manzilni qo‘lda kiriting.";
         renderWizard();
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-    );
+        return;
+      }
+      // Timeout / aniqlab bo'lmadi — past aniqlik bilan bir marta qayta urinib ko'ramiz (Wi-Fi/uyali tarmoq orqali).
+      if (!triedLow) {
+        triedLow = true;
+        navigator.geolocation.getCurrentPosition(ok, fail, { enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 });
+        return;
+      }
+      state.geoLoading = false;
+      state.geoErr = inApp
+        ? "Joylashuvni aniqlab bo‘lmadi. Saytni Chrome yoki Safari'da oching (Telegram brauzerida ishlamaydi), yoki manzilni qo‘lda kiriting."
+        : "Joylashuvni aniqlab bo‘lmadi. Telefon GPS/joylashuvini yoqing, yoki manzilni qo‘lda kiriting.";
+      renderWizard();
+    }
+    navigator.geolocation.getCurrentPosition(ok, fail, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
   }
 
   // ── Wizard ──
