@@ -1,5 +1,5 @@
 // Texnoset SIMCARD — service worker (offline-capable PWA)
-const CACHE = 'texnoset-v1';
+const CACHE = 'texnoset-v3';
 const ASSETS = [
   './',
   './index.html',
@@ -28,25 +28,32 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch: network-first for navigations (fresh content when online),
-// cache-first for static assets, with offline fallback to cached index.
+// Fetch: network-first for HTML/app documents (so the LATEST design always loads
+// when online — including app.html in the iframe), cache-first for static assets.
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   if (req.method !== 'GET') return;
 
-  if (req.mode === 'navigate') {
+  const url = new URL(req.url);
+  const isDoc = req.mode === 'navigate'
+    || url.pathname.endsWith('.html')
+    || url.pathname.endsWith('/')
+    || url.pathname.endsWith('manifest.json');
+
+  if (isDoc) {
     event.respondWith(
       fetch(req)
         .then((res) => {
           const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put('./index.html', copy));
+          caches.open(CACHE).then((c) => c.put(req, copy));
           return res;
         })
-        .catch(() => caches.match('./index.html'))
+        .catch(() => caches.match(req).then((m) => m || caches.match('./app.html') || caches.match('./index.html')))
     );
     return;
   }
 
+  // Static assets (icons, images): cache-first with background fill.
   event.respondWith(
     caches.match(req).then((cached) =>
       cached ||
