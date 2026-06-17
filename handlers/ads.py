@@ -25,7 +25,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 import ads_store
 import settings_store
 from states import AdminState, AdsState
-from keyboards import ads_menu_keyboard, admin_menu_keyboard
+from keyboards import ads_menu_keyboard, admin_menu_keyboard, ads_post_keyboard
 
 logger = logging.getLogger(__name__)
 router = Router()
@@ -42,13 +42,14 @@ async def send_ads_round(bot) -> int:
         return 0
     text = post.get("text") or ""
     photo = post.get("photo") or ""
+    kb = ads_post_keyboard()  # har postga 2 tugma: bot + sayt
     sent = 0
     for g in groups:
         try:
             if photo:
-                await bot.send_photo(g["id"], photo, caption=(text or None))
+                await bot.send_photo(g["id"], photo, caption=(text or None), reply_markup=kb)
             else:
-                await bot.send_message(g["id"], text)
+                await bot.send_message(g["id"], text, reply_markup=kb)
             sent += 1
         except Exception as e:
             logger.warning("Reklama yuborilmadi (guruh %s): %s", g.get("id"), e)

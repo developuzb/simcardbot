@@ -47,6 +47,15 @@ def admin_menu_keyboard() -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
+def ads_post_keyboard() -> InlineKeyboardMarkup:
+    """Reklama postlari ostidagi 2 ta tugma: Telegram bot + sayt."""
+    builder = InlineKeyboardBuilder()
+    builder.button(text="🤖 Telegram bot — buyurtma", url="https://t.me/texnoset_onlayn_bot")
+    builder.button(text="🌐 sim.texnoset.uz", url="https://sim.texnoset.uz")
+    builder.adjust(1)
+    return builder.as_markup()
+
+
 def ads_menu_keyboard(enabled: bool) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.button(text="📝 Post qo'shish", callback_data="ads_post_add")
