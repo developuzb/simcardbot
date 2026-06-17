@@ -15,7 +15,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 import settings_store
 import referrals_store
 import web_bridge
-from handlers import dispatch
+from handlers import dispatch, ai_chat
 
 router = Router()
 
@@ -127,6 +127,15 @@ async def cmd_start(message: Message, state: FSMContext, command: CommandObject 
             "⏳ Buyurtma ma'lumotini topa olmadim (eskirgan bo'lishi mumkin). "
             "Quyidan 🛒 «Buyurtma berish»ni tanlab, shu yerda davom eting 👇"
         )
+    # Suxrob (sun'iy intellekt) bilan suhbat: /start ai_yordamchi
+    if payload == "ai_yordamchi":
+        if not is_admin:
+            try:
+                await dispatch.ensure_lead_topic(message.bot, message.from_user)
+            except Exception:
+                pass
+        await ai_chat.start_ai_chat(message, state)
+        return
     # Mijoz keldi — buyurtmalar guruhida unга topic ochamiz (adminlar uchun emas).
     # Best-effort: asosiy oqimni hech qachon buzmaydi.
     if not is_admin:

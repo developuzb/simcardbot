@@ -9,7 +9,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 
 from config import BOT_TOKEN, ADMIN_IDS
 from middlewares.auth import RoleMiddleware
-from handlers import start, admin, ai_chat, dispatch
+from handlers import start, admin, ai_chat, dispatch, ads
 import ai_analytics
 
 logging.basicConfig(
@@ -64,8 +64,10 @@ async def main():
     dp.message.middleware(RoleMiddleware())
     dp.callback_query.middleware(RoleMiddleware())
 
-    # Routerlar: dispatch (guruh + statuslar) va admin birinchi (prioritet)
+    # Routerlar: dispatch (guruh + statuslar), keyin ads (reklama —
+    # admin'dan oldin, holat/forward handlerlari prioritet olishi uchun)
     dp.include_router(dispatch.router)
+    dp.include_router(ads.router)
     dp.include_router(admin.router)
     dp.include_router(ai_chat.router)
     dp.include_router(start.router)
@@ -73,11 +75,13 @@ async def main():
     logger.info("Bot ishga tushmoqda...")
     report_task = asyncio.create_task(daily_report_loop(bot))
     followup_task = asyncio.create_task(ai_chat.followup_loop(bot))
+    ads_task = asyncio.create_task(ads.ads_loop(bot))
     try:
         await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
     finally:
         report_task.cancel()
         followup_task.cancel()
+        ads_task.cancel()
         await bot.session.close()
 
 

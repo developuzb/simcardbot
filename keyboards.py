@@ -41,8 +41,25 @@ def admin_menu_keyboard() -> InlineKeyboardMarkup:
     builder.button(text="📊 Statistika", callback_data="adm_stats")
     builder.button(text="📈 AI Analitika", callback_data="adm_analytics")
     builder.button(text="📢 Xabar yuborish", callback_data="adm_broadcast")
+    builder.button(text="📣 Reklama", callback_data="adm_ads")
     builder.button(text="📍 Ofis lokatsiyasi", callback_data="adm_office")
-    builder.adjust(2, 2, 1)
+    builder.adjust(2, 2, 1, 1)
+    return builder.as_markup()
+
+
+def ads_menu_keyboard(enabled: bool) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.button(text="📝 Post qo'shish", callback_data="ads_post_add")
+    builder.button(text="🗂 Postlar", callback_data="ads_posts")
+    builder.button(text="👥 Guruhlar", callback_data="ads_groups")
+    builder.button(text="⏰ Vaqtlar", callback_data="ads_times")
+    builder.button(
+        text=("🔴 O'chirish" if enabled else "🟢 Yoqish"),
+        callback_data="ads_toggle",
+    )
+    builder.button(text="🚀 Hozir yuborish", callback_data="ads_send_now")
+    builder.button(text="⬅️ Orqaga", callback_data="adm_back_menu")
+    builder.adjust(2, 2, 2, 1)
     return builder.as_markup()
 
 

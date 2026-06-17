@@ -11,3 +11,8 @@ class AdminState(StatesGroup):
 
 class AIState(StatesGroup):
     chatting = State()
+
+
+class AdsState(StatesGroup):
+    adding_post = State()
+    setting_times = State()
