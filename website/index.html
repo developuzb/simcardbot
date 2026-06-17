@@ -326,10 +326,12 @@
   function $(id) { return document.getElementById(id); }
 
   // ── Reliable Telegram open (deep-link + fallback; in-app webview safe) ──
-  function openTelegram(href) {
+  function openTelegram(href, startParam) {
     var m = (href || "").match(/t\.me\/([^/?#]+)/);
     var domain = m ? m[1] : "texnoset_onlayn_bot";
-    var web = "https://t.me/" + domain, app = "tg://resolve?domain=" + domain;
+    var sp = startParam ? "?start=" + encodeURIComponent(startParam) : "";
+    var asp = startParam ? "&start=" + encodeURIComponent(startParam) : "";
+    var web = "https://t.me/" + domain + sp, app = "tg://resolve?domain=" + domain + asp;
     var ua = navigator.userAgent || "";
     if (/Instagram|FBAN|FBAV|FB_IAB|Line\/|MicroMessenger|TikTok|Snapchat/i.test(ua)) { window.location.href = web; return; }
     var fell = false, timer = setTimeout(function () { fell = true; window.location.href = web; }, 1000);
@@ -349,7 +351,7 @@
     if (typeof url === "string" && /t\.me\//.test(url)) { openTelegram(url); return null; }
     return _open.apply(window, arguments);
   };
-  function openBot() { openTelegram(BOT); }
+  function openBot(startParam) { openTelegram(BOT, startParam); }
 
   // ── Helpers ──
   function money(n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, " "); }
@@ -538,7 +540,7 @@
   ];
   function deliveryDef(key) { return deliveryDefs.find(function (d) { return d.key === key; }) || deliveryDefs[0]; }
   function freshForm() { return { name: "", phone: "", address: "", operator: "", tariff: "", price: "", delivery: deliveryDefs[0].key, deliveryTime: timeDefs[0].label, note: "" }; }
-  var state = { cart: [], form: freshForm(), step: 1, geoLoading: false, geoErr: "", sent: false, err: "", orderText: "" };
+  var state = { cart: [], form: freshForm(), step: 1, geoLoading: false, geoErr: "", sent: false, err: "", orderText: "", pendingToken: "" };
 
   function scrollToOrder() {
     var el = $("buyurtma");
@@ -904,8 +906,8 @@
   function renderWizard() {
     var body = $("tx-order-body");
     if (state.sent) {
-      body.innerHTML = '<div style="text-align:center;"><div style="width:72px;height:72px;border-radius:50%;background:#e6f6ee;display:inline-flex;align-items:center;justify-content:center;margin-bottom:6px;"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#12a86f" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg></div><h3 style="font-family:' + SG + ';font-weight:700;font-size:24px;color:#06382a;margin:12px 0 0;">Buyurtma qabul qilindi! 🎉</h3><p style="font-size:15.5px;line-height:1.55;color:#50615a;margin:10px auto 0;max-width:440px;">Rahmat! Kuryerimiz tez orada siz bilan telefon orqali bog\'lanib, SIM kartani belgilangan manzilga yetkazadi. Buyurtma tafsilotlari:</p><div style="text-align:left;background:#f7faf8;border:1px solid #e7eee9;border-radius:14px;padding:18px 20px;margin:20px 0 0;font-size:14.5px;line-height:1.7;color:#2c3b34;white-space:pre-wrap;font-family:\'Manrope\',sans-serif;">' + esc(state.orderText) + '</div><div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:22px;"><button type="button" id="tx-okbot" class="txg" style="display:inline-flex;align-items:center;gap:8px;background:#12a86f;color:#fff;border:none;cursor:pointer;padding:14px 22px;border-radius:13px;font-family:' + SG + ';font-weight:700;font-size:15.5px;box-shadow:0 10px 24px rgba(18,168,111,.28);">🤖 Telegramda tasdiqlash</button><button type="button" id="tx-okreset" class="tx-out" style="display:inline-flex;align-items:center;gap:8px;background:#fff;color:#06382a;border:1.5px solid #d9e4dd;cursor:pointer;padding:14px 20px;border-radius:13px;font-family:\'Manrope\',sans-serif;font-weight:700;font-size:15.5px;">↺ Yangi buyurtma</button></div><p style="text-align:center;font-size:13px;line-height:1.6;color:#7a8a82;margin:16px 0 0;">Tezroq bog\'lanish uchun buyurtmangizni Telegram orqali ham yuborishingiz mumkin — tafsilotlar avtomatik nusxalangan.</p></div>';
-      $("tx-okbot").addEventListener("click", openBot);
+      body.innerHTML = '<div style="text-align:center;"><div style="width:72px;height:72px;border-radius:50%;background:#e6f6ee;display:inline-flex;align-items:center;justify-content:center;margin-bottom:6px;"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#12a86f" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg></div><h3 style="font-family:' + SG + ';font-weight:700;font-size:24px;color:#06382a;margin:12px 0 0;">Buyurtma qabul qilindi! 🎉</h3><p style="font-size:15.5px;line-height:1.55;color:#50615a;margin:10px auto 0;max-width:440px;">Rahmat! Kuryerimiz tez orada siz bilan telefon orqali bog\'lanib, SIM kartani belgilangan manzilga yetkazadi. Buyurtma tafsilotlari:</p><div style="text-align:left;background:#f7faf8;border:1px solid #e7eee9;border-radius:14px;padding:18px 20px;margin:20px 0 0;font-size:14.5px;line-height:1.7;color:#2c3b34;white-space:pre-wrap;font-family:\'Manrope\',sans-serif;">' + esc(state.orderText) + '</div><div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:22px;"><button type="button" id="tx-okbot" class="txg" style="display:inline-flex;align-items:center;gap:8px;background:#12a86f;color:#fff;border:none;cursor:pointer;padding:14px 22px;border-radius:13px;font-family:' + SG + ';font-weight:700;font-size:15.5px;box-shadow:0 10px 24px rgba(18,168,111,.28);">🤖 Botda davom ettirish</button><button type="button" id="tx-okreset" class="tx-out" style="display:inline-flex;align-items:center;gap:8px;background:#fff;color:#06382a;border:1.5px solid #d9e4dd;cursor:pointer;padding:14px 20px;border-radius:13px;font-family:\'Manrope\',sans-serif;font-weight:700;font-size:15.5px;">↺ Yangi buyurtma</button></div><p style="text-align:center;font-size:13px;line-height:1.6;color:#7a8a82;margin:16px 0 0;">Tezroq bog\'lanish uchun buyurtmangizni Telegram orqali ham yuborishingiz mumkin — tafsilotlar avtomatik nusxalangan.</p></div>';
+      $("tx-okbot").addEventListener("click", function () { openBot(state.pendingToken ? "ord" + state.pendingToken : undefined); });
       $("tx-okreset").addEventListener("click", resetOrder);
       observeReveal();
       return;
@@ -960,8 +962,34 @@
       + "💰 Birinchi to'lov: " + money(monthly + d.fee) + " so'm\n"
       + "📝 Izoh: " + (f.note || "—");
     try { var p = navigator.clipboard && navigator.clipboard.writeText(msg); if (p && p.catch) p.catch(function () {}); } catch (e) {}
+    // Buyurtmani botga uzatamiz: token olib, mijozni Telegram botiga yo'naltiramiz.
+    // Bot /start bosilganda buyurtma o'sha yerda davom etadi (guruhda topic ochiladi).
+    state.pendingToken = "";
     state.sent = true; state.err = ""; state.orderText = msg;
     renderWizard();
+    try {
+      fetch("/api/order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: f.name.trim(),
+          phone: f.phone.trim(),
+          address: f.address.trim(),
+          operator: f.operator || "",
+          tariff: f.tariff || "",
+          tariff_price: monthly || 0,
+          delivery_type: f.delivery || "",
+          delivery_price: (d && d.fee) || 0,
+          delivery_time: f.deliveryTime || "",
+          note: f.note || ""
+        })
+      }).then(function (r) { return r.json(); }).then(function (res) {
+        if (res && res.ok && res.token) {
+          state.pendingToken = res.token;
+          openBot("ord" + res.token);   // Telegram botiga yo'naltirish (start bosilib davom etadi)
+        }
+      }).catch(function () {});
+    } catch (e) {}
   }
   function resetOrder() {
     state.sent = false; state.err = ""; state.step = 1; state.form = freshForm();

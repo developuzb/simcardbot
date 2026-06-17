@@ -856,3 +856,71 @@ async def topic_stop(message: Message, is_admin: bool = False):
     except Exception as e:
         # O'chirib bo'lmasa topic hali turibdi — reply ishlaydi
         await message.reply(f"⚠️ Topic o'chirilmadi: {e}\nBot 'Manage Topics' huquqiga ega ekanini tekshiring.")
+
+
+# ─── SAYTDAN KELGAN BUYURTMA (web → topic) ────────────────
+
+async def place_web_order(bot, data: dict) -> int:
+    """sim.texnoset.uz saytidan kelgan buyurtmani bazaga yozadi va buyurtmalar
+    guruhida \u2014 xuddi Telegram buyurtmasi kabi \u2014 alohida TOPIC ochadi
+    (Tasdiqlash/Bekor tugmalari bilan). Guruh ulanmagan bo'lsa adminlarga
+    shaxsiy chatga yuboradi. Buyurtma raqamini qaytaradi."""
+    from config import PROMO_1PLUS1_MIN_PRICE
+
+    def _int(v):
+        try:
+            return int(float(str(v).replace(" ", "").replace(",", "") or 0))
+        except (ValueError, TypeError):
+            return 0
+
+    tariff_price = _int(data.get("tariff_price"))
+    delivery_price = _int(data.get("delivery_price"))
+    note = (data.get("note") or "").strip()
+
+    order_num = await orders_db.create_order({
+        "name": (data.get("name") or "Sayt mijozi").strip(),
+        "user_id": data.get("user_id", ""),  # bot /start orqali kelsa mijoz IDsi biriktiriladi
+        "phone": (data.get("phone") or "").strip(),
+        "operator": (data.get("operator") or "\u2014").strip(),
+        "op_id": "",
+        "tariff": (data.get("tariff") or "\u2014").strip(),
+        "region": (data.get("address") or data.get("region") or "\u2014").strip(),
+        "delivery_price": delivery_price,
+        "delivery_type": (data.get("delivery_type") or "\u2014").strip(),
+        "tariff_price": tariff_price,
+        "promo": tariff_price >= PROMO_1PLUS1_MIN_PRICE,
+    })
+    order = await orders_db.get_order_by_num(order_num)
+
+    placed = False
+    try:
+        placed = await open_order_topic(bot, order)
+    except Exception:
+        logger.warning("Sayt buyurtmasi guruhga joylanmadi (#%s)", order_num)
+
+    gid = settings_store.get_orders_group()
+    if placed and gid:
+        extra = "\U0001F310 <b>Manba:</b> Sayt (sim.texnoset.uz)"
+        dtime = (data.get("delivery_time") or "").strip()
+        if dtime:
+            extra += f"\n\U0001F552 <b>Qulay vaqt:</b> {dtime}"
+        if note:
+            extra += f"\n\U0001F4DD <b>Izoh:</b> {note}"
+        try:
+            await bot.send_message(gid, extra, message_thread_id=order.get("topic_id"))
+        except Exception:
+            pass
+
+    if not placed:
+        for admin_id in ADMIN_IDS:
+            try:
+                await bot.send_message(
+                    admin_id,
+                    order_card(order, f"\U0001F310 <b>SAYTDAN BUYURTMA #{order_num}</b> \u2014 tasdiqlang"),
+                    reply_markup=kb_admin_confirm(order),
+                )
+            except Exception as e:
+                logger.warning("Saytdan #%s adminga (%s) yuborilmadi: %s", order_num, admin_id, e)
+
+    logger.info("SAYT buyurtmasi yaratildi #%s (guruhga joylandi=%s)", order_num, placed)
+    return order_num

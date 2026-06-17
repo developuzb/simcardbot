@@ -14,6 +14,7 @@ from config import (
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 import settings_store
 import referrals_store
+import web_bridge
 from handlers import dispatch
 
 router = Router()
@@ -101,6 +102,31 @@ async def cmd_start(message: Message, state: FSMContext, command: CommandObject 
                 f"🎁 Xush kelibsiz! Do'stingiz tavsiyasi bilan keldingiz — "
                 f"birinchi buyurtmangizga <b>{REFERRAL_DISCOUNT:,} so'm chegirma</b> qo'shildi!"
             )
+    # Saytdan kelgan buyurtma: /start ord<token> -> buyurtma botda davom etadi
+    if payload.startswith("ord"):
+        token = payload[3:].strip()
+        pdata = web_bridge.pop_pending(token) if token else None
+        if pdata:
+            pdata["user_id"] = message.from_user.id
+            if not str(pdata.get("name", "")).strip():
+                pdata["name"] = message.from_user.full_name
+            try:
+                num = await dispatch.place_web_order(message.bot, pdata)
+                await message.answer(
+                    f"✅ <b>Buyurtmangiz qabul qilindi!</b>  №<b>{num}</b>\n"
+                    "Saytda tanlaganingiz bo'yicha rasmiylashtiramiz — operatorimiz "
+                    "tez orada siz bilan bog'lanadi. 🚀"
+                )
+            except Exception:
+                await message.answer(
+                    "✅ Buyurtmangiz qabul qilindi! Operatorimiz tez orada bog'lanadi."
+                )
+            await _send_home(message, message.from_user.first_name or "mehmon")
+            return
+        await message.answer(
+            "⏳ Buyurtma ma'lumotini topa olmadim (eskirgan bo'lishi mumkin). "
+            "Quyidan 🛒 «Buyurtma berish»ni tanlab, shu yerda davom eting 👇"
+        )
     # Mijoz keldi — buyurtmalar guruhida unга topic ochamiz (adminlar uchun emas).
     # Best-effort: asosiy oqimni hech qachon buzmaydi.
     if not is_admin:
@@ -176,7 +202,7 @@ async def show_tariffs(callback: CallbackQuery):
             continue
         min_price = min(t["price"] for t in tariffs)
         max_price = max(t["price"] for t in tariffs)
-        promo = f" {PROMO_1PLUS1_BADGE}" if max_price >= PROMO_1PLUS1_MIN_PRICE else ""
+        promo = f" 🎁 {PROMO_1PLUS1_MIN_PRICE:,}+ da 1+1" if max_price >= PROMO_1PLUS1_MIN_PRICE else ""
         lines.append(f"{op['emoji']} <b>{op['name']}</b> — {min_price:,} so'mdan{promo}")
     lines.append(
         "\n🤖 <b>Aniq tarif tanlash uchun «AI yordamchi»dan foydalaning</b> — "
@@ -290,4 +316,4 @@ async def cancel_handler(message: Message, state: FSMContext):
     )
 
 # Eslatma: holatdan tashqari erkin matnni endi ai_chat.home_assistant
-# (Suxrob AI) javob beradi — kuryerlar guruhiga aralashmaydi (private).
+# (Suxrob AI) javob beradi — kuryerlar guruhiga arala
