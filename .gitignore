@@ -8,6 +8,7 @@ __pycache__/
 bot_log.txt
 numbers_db.json
 office_settings.json
+ads.json
 analytics.json
 orders.json
 followups.json
