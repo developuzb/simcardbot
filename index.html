@@ -342,22 +342,23 @@
 
   // ── Reliable Telegram open (deep-link + fallback; in-app webview safe) ──
   function openTelegram(href, startParam) {
-    var m = (href || "").match(/t\.me\/([^/?#]+)/);
-    var domain = m ? m[1] : "texnoset_onlayn_bot";
-    var sp = startParam ? "?start=" + encodeURIComponent(startParam) : "";
-    var asp = startParam ? "&start=" + encodeURIComponent(startParam) : "";
-    var web = "https://t.me/" + domain + sp, app = "tg://resolve?domain=" + domain + asp;
-    var ua = navigator.userAgent || "";
-    if (/Instagram|FBAN|FBAV|FB_IAB|Line\/|MicroMessenger|TikTok|Snapchat/i.test(ua)) { window.location.href = web; return; }
-    var fell = false, timer = setTimeout(function () { fell = true; window.location.href = web; }, 1000);
-    function cancel() { if (!fell) clearTimeout(timer); }
-    document.addEventListener("visibilitychange", function () { if (document.hidden) cancel(); }, { once: true });
-    window.addEventListener("pagehide", cancel, { once: true });
-    window.location.href = app;
+    var url = href || BOT;
+    if (startParam) { url += (url.indexOf("?") >= 0 ? "&" : "?") + "start=" + encodeURIComponent(startParam); }
+    // Ishonchli usul: target=_blank anchor click — brauzer Telegram ilovasiga uzatadi
+    // (window.location = "tg://" mobil in-app brauzerlarda ishlamaydi).
+    try {
+      var a = document.createElement("a");
+      a.href = url; a.target = "_blank"; a.rel = "noopener noreferrer";
+      a.setAttribute("data-tg-raw", "1");
+      document.body.appendChild(a); a.click();
+      setTimeout(function () { try { a.remove(); } catch (e2) {} }, 0);
+      return;
+    } catch (e3) {}
+    try { window.top.location.href = url; } catch (e4) { window.location.href = url; }
   }
   document.addEventListener("click", function (e) {
     var a = e.target && e.target.closest && e.target.closest('a[href*="t.me/"]');
-    if (!a) return;
+    if (!a || a.getAttribute("data-tg-raw")) return;
     e.preventDefault();
     openTelegram(a.getAttribute("href"));
   }, true);
