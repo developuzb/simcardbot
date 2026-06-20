@@ -10,6 +10,7 @@ import logging
 import http.server
 from functools import partial
 
+import requests
 import chat_ai
 
 logger = logging.getLogger(__name__)
@@ -25,6 +26,37 @@ _ALLOWED = [o.strip() for o in ALLOW_ORIGIN.split(",") if o.strip()]
 # Chat uchun oddiy per-IP sekinlashtirish (suiiste'molni kamaytiradi)
 _CHAT_COOLDOWN = 1.5
 _last_chat = {}
+
+# ─── Lead (sayt formasi -> Telegram) ────────────────────────────
+# Lead qabul qiladigan Telegram chat: LEAD_CHAT_ID, bo'lmasa kuryer guruhi,
+# bo'lmasa birinchi admin. Bot token bot.py bilan bir xil (.env / config var).
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "").strip()
+_LEAD_CHAT = (os.environ.get("LEAD_CHAT_ID")
+              or os.environ.get("COURIER_GROUP_ID")
+              or (os.environ.get("ADMIN_IDS", "").split(",")[0].strip() or ""))
+_lead_last = {}          # IP bo'yicha lead spam himoyasi
+_LEAD_COOLDOWN = 5.0
+
+
+def _send_lead_to_telegram(name, phone, source, plan):
+    """Lead'ni Telegram chatga yuboradi. True/False qaytaradi."""
+    if not BOT_TOKEN or not _LEAD_CHAT:
+        logger.warning("[lead] BOT_TOKEN yoki LEAD_CHAT_ID sozlanmagan")
+        return False
+    text = ("\U0001F525 YANGI LEAD (saytdan)\n\n"
+            "\U0001F464 Ism: %s\n\U0001F4DE Tel: %s\n\U0001F3F7 Tarif: %s\n\U0001F310 Manba: %s"
+            % (name, phone, plan or "—", source or "sayt"))
+    try:
+        r = requests.post(
+            "https://api.telegram.org/bot%s/sendMessage" % BOT_TOKEN,
+            json={"chat_id": _LEAD_CHAT, "text": text}, timeout=15,
+        )
+        if not r.ok:
+            logger.error("[lead] Telegram javobi: %s %s", r.status_code, r.text[:200])
+        return r.ok
+    except Exception as e:
+        logger.error("[lead] yuborilmadi: %s", e)
+        return False
 
 
 class Handler(http.server.SimpleHTTPRequestHandler):
@@ -96,11 +128,42 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self._send_json(200, {"reply": "Kechirasiz, bir oz texnik nosozlik 😅 "
                                            "Iltimos, to'g'ridan-to'g'ri yozing: +998 77 009 71 71"})
 
+    def _handle_lead(self):
+        """Sayt lead-formasi (ism+telefon) -> Telegram operator chatiga."""
+        ip = self.headers.get("X-Forwarded-For", self.client_address[0]).split(",")[0].strip()
+        now = time.monotonic()
+        if now - _lead_last.get(ip, 0) < _LEAD_COOLDOWN:
+            self._send_json(429, {"ok": False, "error": "too_many"})
+            return
+        _lead_last[ip] = now
+        try:
+            length = int(self.headers.get("Content-Length", 0) or 0)
+            raw = self.rfile.read(length) if length else b""
+            data = json.loads(raw.decode("utf-8")) if raw else {}
+            if not isinstance(data, dict):
+                raise ValueError
+        except Exception:
+            self._send_json(400, {"ok": False, "error": "bad_request"})
+            return
+        name = str(data.get("name", "")).strip()[:80]
+        phone = str(data.get("phone", "")).strip()[:40]
+        source = str(data.get("source", "sayt")).strip()[:40]
+        plan = str(data.get("plan", "")).strip()[:40]
+        if not name or len("".join(c for c in phone if c.isdigit())) < 7:
+            self._send_json(400, {"ok": False, "error": "name_phone_required"})
+            return
+        ok = _send_lead_to_telegram(name, phone, source, plan)
+        self._send_json(200 if ok else 502, {"ok": ok})
+
     def do_POST(self):
         path = self.path.split("?", 1)[0]
         # Sayt chati -> AI sotuv agenti
         if path == "/chat":
             self._handle_chat()
+            return
+        # Sayt lead-formasi -> Telegram
+        if path == "/lead":
+            self._handle_lead()
             return
         # Saytdagi buyurtma formasi shu yerga JSON yuboradi -> bot topic ochadi
         if path != "/api/order":

@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sun'iy intellektli sotuv agenti — SIM biznesingiz o'zi sotsin | Texnoset</title>
+<meta name="description" content="SIM-karta dilerlari uchun AI sotuv agenti: mijoz bilan o'zbekcha gaplashadi, tarif tanlaydi, buyurtma oladi va kuryerga yuboradi. 24/7, maossiz. Bepul sinab ko'ring.">
+<link rel="canonical" href="https://developuzb.github.io/simcardbot/">
+<meta name="theme-color" content="#0c1a36">
+
+<!-- Open Graph (Telegram/ijtimoiy tarmoq preview) -->
+<meta property="og:type" content="website">
+<meta property="og:locale" content="uz_UZ">
+<meta property="og:site_name" content="Texnoset AI">
+<meta property="og:title" content="SIM biznesingiz o'zi sotsin — sun'iy intellektli sotuv agenti">
+<meta property="og:description" content="AI mijoz bilan o'zbekcha gaplashadi, tarif tanlaydi, buyurtma oladi. 24/7, maossiz. Bepul sinab ko'ring.">
+<meta property="og:url" content="https://developuzb.github.io/simcardbot/">
+<meta property="og:image" content="https://developuzb.github.io/simcardbot/assets/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="SIM biznesingiz o'zi sotsin — AI sotuv agenti">
+<meta name="twitter:description" content="24/7 mijoz bilan gaplashadi, tarif tanlaydi, buyurtma oladi. Bepul sinab ko'ring.">
+<meta name="twitter:image" content="https://developuzb.github.io/simcardbot/assets/og.jpg">
+
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+
+<!-- KRITIK CSS (inline — birinchi ekran tez chiqishi uchun) -->
+<style>
+  :root{
+    --bg:#fff; --ink:#0b1424; --navy:#0c1a36; --navy2:#13284f; --mut:#5a6b82; --dim:#8a99ad;
+    --soft:#f4f8fd; --soft2:#eaf1fb; --line:#e2eaf4;
+    --blue:#2563eb; --blueD:#1d4ed8; --blueL:#eaf1ff;
+    --green:#16a34a; --greenD:#12863d;
+    --gold:#eab308; --red:#e11d48;
+    --rad:16px; --sh:0 10px 30px -12px rgba(12,30,70,.18); --sh2:0 24px 60px -22px rgba(12,30,70,.34);
+    --wrap:1100px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{font-family:Inter,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink);background:var(--bg);
+    line-height:1.55;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+  h1,h2,h3{font-family:"Space Grotesk",Inter,sans-serif;letter-spacing:-.02em;line-height:1.1}
+  a{color:inherit;text-decoration:none}
+  img{max-width:100%;display:block}
+  .wrap{max-width:var(--wrap);margin:0 auto;padding:0 20px}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;font-family:inherit;font-weight:700;
+    border:none;border-radius:13px;cursor:pointer;text-align:center;transition:transform .15s,box-shadow .15s,background .15s;
+    font-size:16px;padding:15px 26px}
+  .btn:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+  .btn-cta{background:var(--green);color:#fff;box-shadow:0 12px 26px -10px rgba(22,163,74,.6)}
+  .btn-cta:hover{background:var(--greenD);transform:translateY(-2px)}
+  .btn-lg{padding:18px 34px;font-size:18px}
+  .btn-ghost{background:#fff;color:var(--navy);border:1.5px solid var(--line)}
+  .btn-ghost:hover{border-color:var(--blue);color:var(--blue)}
+  .eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--blueD);
+    background:var(--blueL);padding:7px 14px;border-radius:999px;letter-spacing:.01em}
+
+  /* Header */
+  .hdr{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.86);backdrop-filter:blur(12px);
+    border-bottom:1px solid var(--line)}
+  .hdr .wrap{display:flex;align-items:center;justify-content:space-between;height:62px}
+  .logo{display:flex;align-items:center;gap:9px;font-family:"Space Grotesk";font-weight:700;font-size:18px;color:var(--navy)}
+  .logo .dot{width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,var(--blue),var(--navy));
+    display:grid;place-items:center;color:#fff;font-size:16px}
+  .hdr .btn{padding:10px 18px;font-size:14.5px}
+  .hdr-cta-wrap{display:flex;align-items:center;gap:14px}
+  .hdr a.nav{font-size:14.5px;color:var(--mut);font-weight:500}
+  .hdr a.nav:hover{color:var(--ink)}
+
+  /* Hero */
+  .hero{position:relative;padding:64px 0 56px;background:
+    radial-gradient(900px 400px at 80% -10%,rgba(37,99,235,.10),transparent 60%),
+    radial-gradient(700px 380px at 0% 0%,rgba(22,163,74,.07),transparent 55%)}
+  .hero-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:48px;align-items:center}
+  .hero h1{font-size:clamp(30px,5vw,52px);font-weight:700;color:var(--navy)}
+  .hero h1 .hl{color:var(--blue)}
+  .hero .lead{font-size:clamp(16px,2.2vw,20px);color:var(--mut);margin:18px 0 26px;max-width:560px}
+  .hero-cta{display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+  .trust-row{display:flex;flex-wrap:wrap;gap:16px;margin-top:22px;color:var(--mut);font-size:13.5px}
+  .trust-row span{display:inline-flex;align-items:center;gap:7px}
+  .trust-row b{color:var(--green)}
+  /* Hero chat-mockup */
+  .mock{background:#fff;border:1px solid var(--line);border-radius:22px;box-shadow:var(--sh2);overflow:hidden;max-width:380px;margin-left:auto}
+  .mock-top{display:flex;align-items:center;gap:10px;padding:13px 16px;border-bottom:1px solid var(--line);background:var(--navy);color:#fff}
+  .mock-top .av{width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.16);display:grid;place-items:center;font-size:17px}
+  .mock-top .live{margin-left:auto;font-size:11px;color:#7ee2a6;display:flex;align-items:center;gap:5px}
+  .mock-top .live i{width:7px;height:7px;border-radius:50%;background:#34e07a;display:inline-block}
+  .mock-body{padding:16px;display:flex;flex-direction:column;gap:10px;background:var(--soft)}
+  .mb{max-width:84%;padding:10px 13px;border-radius:14px;font-size:14px;line-height:1.45}
+  .mb.b{background:#fff;border:1px solid var(--line);border-bottom-left-radius:5px}
+  .mb.u{background:var(--blue);color:#fff;align-self:flex-end;border-bottom-right-radius:5px}
+  .mock-foot{padding:11px 16px;border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;font-size:13px;color:var(--dim)}
+
+  @media(max-width:860px){
+    .hero{padding:40px 0 36px}
+    .hero-grid{grid-template-columns:1fr;gap:34px}
+    .mock{margin:0 auto;max-width:340px}
+    .hdr a.nav{display:none}
+  }
+</style>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<!-- ============ HEADER ============ -->
+<header class="hdr">
+  <div class="wrap">
+    <a class="logo" href="#"><span class="dot">🤖</span> Texnoset <span style="color:var(--blue)">AI</span></a>
+    <div class="hdr-cta-wrap">
+      <a class="nav" href="#narx">Narxlar</a>
+      <a class="nav" href="#faq">Savollar</a>
+      <button class="btn btn-cta" data-openchat aria-label="Jonli botni ochish">Sinab ko'rish</button>
+    </div>
+  </div>
+</header>
+
+<!-- ============ HERO ============ -->
+<section class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <span class="eyebrow">⚡ Sun'iy intellektli sotuv agenti</span>
+      <h1>SIM biznesingiz <span class="hl">o'zi sotsin</span> — siz uxlab yotganingizda ham.</h1>
+      <p class="lead">AI agent mijoz bilan o'zbekcha gaplashadi, mos tarifni tanlaydi, buyurtmani oladi va kuryeringizga yuboradi. <b>24/7, charchamasdan, maossiz.</b></p>
+      <div class="hero-cta">
+        <button class="btn btn-cta btn-lg" data-openchat aria-label="Botni jonli sinab ko'rish">🤖 Botni jonli sinab ko'ring</button>
+        <a class="btn btn-ghost btn-lg" href="#narx">Narxlarni ko'rish</a>
+      </div>
+      <div class="trust-row">
+        <span>✅ <b>Bepul</b> sinov</span>
+        <span>💳 Oldindan to'lov <b>yo'q</b></span>
+        <span>🔄 Istalgan vaqtda bekor</span>
+      </div>
+    </div>
+    <div class="mock" aria-hidden="true">
+      <div class="mock-top"><span class="av">🤖</span> <b>Texnoset sotuvchi</b> <span class="live"><i></i> onlayn</span></div>
+      <div class="mock-body">
+        <div class="mb b">Assalomu alaykum! 😊 Qanaqa SIM qidiryapsiz — internet, arzon yoki YouTube uchunmi?</div>
+        <div class="mb u">Internet ko'p bo'lsin</div>
+        <div class="mb b">Unda <b>Ucell Bor 110</b> — 300GB, cheksiz qo'ng'iroq, 110 000. Uyga bepul yetkazamiz 📦 Olamizmi?</div>
+        <div class="mb u">Olaman 👍</div>
+      </div>
+      <div class="mock-foot"><span>Bu — atigi 15 soniyada</span><span>↑ 92% yopilish</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ OG'RIQ NUQTALARI ============ -->
+<section class="sec" id="muammo">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="eyebrow">Tanish-mi?</span>
+      <h2>Har bir yo'qolgan mijoz — yo'qolgan pul.</h2>
+      <p class="sub">Qo'lda sotish biznesingizni ushlab turibdi — lekin sizni ham charchatyapti.</p>
+    </div>
+    <div class="pain-grid">
+      <div class="pain reveal"><span>😴</span><h3>Tunda kelgan mijoz</h3><p>Ertalab javob berguningizcha, u allaqachon boshqa do'kondan olib bo'ladi.</p></div>
+      <div class="pain reveal"><span>🔁</span><h3>Bir xil savollar</h3><p>"Qaysi tarif arzon?", "Qancha GB?" — kuniga yuz marta, o'zingiz.</p></div>
+      <div class="pain reveal"><span>💸</span><h3>Operator xarajati</h3><p>Maosh, dam olish, kasallik, xato — hammasi sizning bo'yningizda.</p></div>
+      <div class="pain reveal"><span>📉</span><h3>Cheklangan vaqt</h3><p>Bir vaqtda faqat bitta mijoz. Navbat — ketgan savdo.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ UCHTA RAQAM ============ -->
+<section class="sec stats-sec">
+  <div class="wrap stats-grid">
+    <div class="stat reveal"><div class="num" data-count="24" data-suffix="/7">24/7</div><p>To'xtovsiz ishlaydi — uyqu, dam olish, bayram yo'q.</p></div>
+    <div class="stat reveal"><div class="num" data-count="15" data-suffix="×">15×</div><p>Mijozga tezroq javob — soniyalarda, navbatsiz.</p></div>
+    <div class="stat reveal"><div class="num" data-count="30" data-suffix="+">30+</div><p>Biznes allaqachon AI agent bilan sotmoqda.</p></div>
+  </div>
+</section>
+
+<!-- ============ JONLI DEMO (ASOSIY ILMOQ) ============ -->
+<section class="sec demo-sec" id="demo">
+  <div class="wrap demo-card reveal">
+    <div>
+      <span class="eyebrow" style="background:rgba(255,255,255,.16);color:#dbe6ff">🎯 Bir marta yozing — farqni his eting</span>
+      <h2 style="color:#fff;margin-top:14px">Botni hoziroq sinab ko'ring. 30 soniyada sizni ishontiradi.</h2>
+      <p style="color:#c3d2ee;margin:14px 0 24px;max-width:540px">O'zbekcha yozing — go'yo haqiqiy mijozdek. Bot qanday savdo qilishini o'z ko'zingiz bilan ko'ring. Aynan shu narsa <b>sizning har bir mijozingiz</b> bilan ishlaydi.</p>
+      <button class="btn btn-cta btn-lg" data-openchat aria-label="Bot bilan suhbatni boshlash">💬 Suhbatni boshlash</button>
+    </div>
+  </div>
+</section>
+
+<!-- ============ QANDAY ISHLAYDI ============ -->
+<section class="sec" id="qanday">
+  <div class="wrap">
+    <div class="sec-head reveal"><span class="eyebrow">Oddiy</span><h2>Qanday ishlaydi?</h2><p class="sub">Siz hech narsa o'rnatmaysiz — biz tayyor qilib beramiz, siz ishlatasiz.</p></div>
+    <div class="steps">
+      <div class="step reveal"><div class="step-n">1</div><h3>Mijoz yozadi</h3><p>Telegram botga yoki saytga. AI o'zbekcha iliq javob beradi.</p></div>
+      <div class="step reveal"><div class="step-n">2</div><h3>AI tarif tanlaydi</h3><p>Ehtiyojni so'rab, eng mos tarifni tavsiya qiladi va buyurtmani rasmiylashtiradi.</p></div>
+      <div class="step reveal"><div class="step-n">3</div><h3>Kuryerga tushadi</h3><p>Buyurtma avtomatik kuryer guruhingizga. Siz faqat yetkazasiz.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ TAQQOSLASH ============ -->
+<section class="sec soft-sec" id="taqqoslash">
+  <div class="wrap">
+    <div class="sec-head reveal"><span class="eyebrow">Farqi</span><h2>Oddiy sotuvchi va AI agent</h2></div>
+    <div class="cmp reveal">
+      <table>
+        <thead><tr><th>&nbsp;</th><th>Oddiy sotuvchi</th><th class="hl-col">AI sotuv agenti</th></tr></thead>
+        <tbody>
+          <tr><td>Ish vaqti</td><td>8–10 soat</td><td class="hl-col">24/7</td></tr>
+          <tr><td>Bir vaqtda mijoz</td><td>1 ta</td><td class="hl-col">Cheksiz</td></tr>
+          <tr><td>Oylik xarajat</td><td>Maosh + soliq</td><td class="hl-col">Abonement (arzon)</td></tr>
+          <tr><td>Charchaydi / xato</td><td>Ha</td><td class="hl-col">Yo'q</td></tr>
+          <tr><td>Javob tezligi</td><td>Daqiqalar</td><td class="hl-col">Soniyalar</td></tr>
+          <tr><td>Dam olish / bayram</td><td>Kerak</td><td class="hl-col">Kerak emas</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ============ IJTIMOIY ISBOT ============ -->
+<section class="sec" id="isbot">
+  <div class="wrap">
+    <div class="sec-head reveal"><span class="eyebrow">Ishonch</span><h2>Bizga ishonganlar</h2><p class="sub">Haqiqiy dilerlar, haqiqiy natijalar.</p></div>
+    <div class="rev-grid">
+      <figure class="rev reveal"><div class="stars">★★★★★</div><blockquote>"Tunda kelgan buyurtmalar endi yo'qolmayapti. Sotuvim 30% oshdi."</blockquote><figcaption><span class="ava">A</span><div><b>Akmal</b><small>SIM diler, Qarshi</small></div></figcaption></figure>
+      <figure class="rev reveal"><div class="stars">★★★★★</div><blockquote>"O'zim javob berib charchardim. Endi bot gaplashadi, men yetkazaman."</blockquote><figcaption><span class="ava">D</span><div><b>Dilshod</b><small>Aloqa do'koni, Shahrisabz</small></div></figcaption></figure>
+      <figure class="rev reveal"><div class="stars">★★★★★</div><blockquote>"Mijoz o'zbekcha gaplashayotganini sezmaydi ham. Juda tabiiy."</blockquote><figcaption><span class="ava">N</span><div><b>Nodira</b><small>Distribyutor, Qarshi</small></div></figcaption></figure>
+    </div>
+    <div class="proof-bar reveal">
+      <div><b data-count="30" data-suffix="+">30+</b><span>faol biznes</span></div>
+      <div><b data-count="100" data-suffix="%">100%</b><span>o'zbek tilida</span></div>
+      <div><b>24/7</b><span>texnik yordam</span></div>
+    </div>
+    <div class="video-slot reveal" aria-label="Demo video (keyin qo'shiladi)">
+      <div class="play">▶</div><p>Demo video — tez orada</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ NARX ============ -->
+<section class="sec soft-sec" id="narx">
+  <div class="wrap">
+    <div class="sec-head reveal"><span class="eyebrow">Tarif</span><h2>Sizga mos rejani tanlang</h2><p class="sub">O'rnatish <b>yillik tarifda bepul</b>. Asosiysi — arzon oylik abonement.</p></div>
+    <div class="toggle reveal" role="tablist" aria-label="To'lov davri">
+      <button class="tg active" data-period="month" role="tab" aria-selected="true">Oylik</button>
+      <button class="tg" data-period="year" role="tab" aria-selected="false">Yillik <span class="save">−2 oy</span></button>
+    </div>
+    <div class="plans">
+      <div class="plan reveal">
+        <h3>START</h3><p class="p-sub">Kichik do'kon uchun</p>
+        <div class="price"><span class="amt" data-month="390 000" data-year="325 000">390 000</span><span class="per">so'm/oy</span></div>
+        <ul><li>✅ AI suhbat (~500/oy)</li><li>✅ 1 kuryer guruhi</li><li>✅ Hosting + yangilanish</li><li>✅ Asosiy analitika</li></ul>
+        <button class="btn btn-ghost" data-openchat data-plan="start">Tanlash</button>
+      </div>
+      <div class="plan featured reveal">
+        <div class="badge">⭐ Eng ommabop</div>
+        <h3>BIZNES</h3><p class="p-sub">O'sayotgan biznes uchun</p>
+        <div class="price"><span class="amt" data-month="690 000" data-year="575 000">690 000</span><span class="per">so'm/oy</span></div>
+        <ul><li>✅ AI suhbat (~2000/oy)</li><li>✅ Bir nechta kuryer guruhi</li><li>✅ Sayt → bot integratsiya</li><li>✅ To'liq analitika + hisobot</li><li>✅ Tezkor texnik yordam</li></ul>
+        <button class="btn btn-cta" data-openchat data-plan="biznes">Boshlash</button>
+      </div>
+      <div class="plan reveal">
+        <h3>PREMIUM</h3><p class="p-sub">Yirik diler uchun</p>
+        <div class="price"><span class="amt" data-month="1 200 000" data-year="1 000 000">1 200 000</span><span class="per">so'm/oy</span></div>
+        <ul><li>✅ Cheksiz AI suhbat</li><li>✅ Cheksiz kuryer guruhi</li><li>✅ To'liq oq-yorliq brending</li><li>✅ 24/7 ustuvor yordam</li></ul>
+        <button class="btn btn-ghost" data-openchat data-plan="premium">Tanlash</button>
+      </div>
+    </div>
+    <p class="setup-note reveal">O'rnatish to'lovi bir martalik va <b>yillik tarifda bepul</b>. Batafsil — chatda so'rang.</p>
+    <div class="risk-bar reveal"><span>✅ Bepul demo</span><span>💳 Oldindan to'lov yo'q</span><span>🔄 Istalgan vaqtda bekor</span></div>
+  </div>
+</section>
+
+<!-- ============ EKSKLYUZIVLIK / TANQISLIK ============ -->
+<section class="sec excl-sec" id="eksklyuziv">
+  <div class="wrap excl-card reveal">
+    <span class="eyebrow" style="background:rgba(234,179,8,.16);color:#a16207">🔒 Cheklangan</span>
+    <h2>Har hududda — faqat <span style="color:var(--gold)">bitta</span> biznes.</h2>
+    <p>Raqobatchingizga emas, <b>sizga</b> beramiz. Hudud band bo'lsa — keyingisini kutasiz.</p>
+    <div class="slots"><b id="slotN">7</b> <span>o'rin qoldi — sizning hududingizda</span></div>
+    <button class="btn btn-cta btn-lg" data-openchat aria-label="O'rinni band qilish">🚀 O'rnimni band qilaman</button>
+  </div>
+</section>
+
+<!-- ============ FAQ ============ -->
+<section class="sec" id="faq">
+  <div class="wrap" style="max-width:780px">
+    <div class="sec-head reveal"><span class="eyebrow">Savol-javob</span><h2>Ko'p so'raladigan savollar</h2></div>
+    <div class="faq-list">
+      <details class="faq-i reveal"><summary>Men dasturchi emasman — uddalay olamanmi?</summary><p>Ha. Siz hech narsa o'rnatmaysiz. Biz botni to'liq sizning brendingiz ostida sozlab, ishga tushirib beramiz. Siz faqat buyurtmalarni qabul qilib, kuryer yuborasiz.</p></details>
+      <details class="faq-i reveal"><summary>Bot haqiqatan o'zbekcha gaplashadimi?</summary><p>Ha, tabiiy o'zbek (va rus) tilida. Mijoz ko'pincha bot bilan gaplashayotganini sezmaydi ham. Yuqorida — jonli sinab ko'ring.</p></details>
+      <details class="faq-i reveal"><summary>Oldindan to'lov kerakmi?</summary><p>Yo'q. Avval bepul sinab ko'rasiz, ishonch hosil qilasiz, keyin qaror qilasiz. Istalgan vaqtda bekor qilish mumkin.</p></details>
+      <details class="faq-i reveal"><summary>Buyurtmalar qayerga tushadi?</summary><p>To'g'ridan-to'g'ri sizning Telegram kuryer guruhingizga — avtomatik. Admin panelidan telefondan boshqarasiz.</p></details>
+      <details class="faq-i reveal"><summary>O'rnatish qancha turadi?</summary><p>Bir martalik o'rnatish bor, lekin yillik tarifni tanlasangiz — bepul. Aniq raqamni chatda yoki Telegramda aytamiz.</p></details>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FINAL CTA ============ -->
+<section class="sec final-sec">
+  <div class="wrap final-card reveal">
+    <h2>Hududingiz band bo'lishidan oldin sinab ko'ring.</h2>
+    <p>30 soniya — botni sinang. Yoqsa, raqamingizni qoldiring, qolganini biz qilamiz.</p>
+    <div class="hero-cta" style="justify-content:center">
+      <button class="btn btn-cta btn-lg" data-openchat>🤖 Botni sinab ko'rish</button>
+      <a class="btn btn-ghost btn-lg" id="tgFinal" href="#" data-tg>✈️ Telegram orqali yozish</a>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FOOTER ============ -->
+<footer class="ftr">
+  <div class="wrap ftr-grid">
+    <div><a class="logo" href="#" style="color:#fff"><span class="dot">🤖</span> Texnoset <span style="color:#7fb0ff">AI</span></a>
+      <p style="color:#9fb0c9;margin-top:10px;font-size:14px">SIM dilerlari uchun sun'iy intellektli sotuv agenti.</p></div>
+    <div class="ftr-cta">
+      <a class="btn btn-cta" id="tgFooter" href="#" data-tg>✈️ Telegram</a>
+      <a class="btn btn-ghost" id="phoneFooter" href="#" data-phone style="background:transparent;color:#fff;border-color:#33476b">📞 Qo'ng'iroq</a>
+    </div>
+  </div>
+  <div class="wrap ftr-bot"><span>© 2026 Texnoset AI</span><span>Bepul sinov · Oldindan to'lov yo'q</span></div>
+</footer>
+
+<!-- ============ MOBIL STICKY CTA ============ -->
+<div class="mob-cta" id="mobCta">
+  <button class="btn btn-cta" data-openchat style="flex:1" aria-label="Botni sinab ko'rish">🤖 Botni sinab ko'rish</button>
+</div>
+
+<!-- ============ CHAT VIDJETI (chat.js to'ldiradi) ============ -->
+<div id="chatRoot"></div>
+
+<script src="js/config.js"></script>
+<script src="js/analytics.js" defer></script>
+<script src="js/chat.js" defer></script>
+<script src="js/main.js" defer></script>
+</body>
+</html>
