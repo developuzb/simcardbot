@@ -117,7 +117,7 @@
 /* --- Mobil sticky CTA --- */
 .mob-cta{position:fixed;left:0;right:0;bottom:0;z-index:45;display:none;gap:10px;padding:10px 14px calc(10px + env(safe-area-inset-bottom));
   background:rgba(255,255,255,.95);backdrop-filter:blur(12px);border-top:1px solid var(--line)}
-.mob-cta.show{display:flex}
+/* sticky CTA faqat mobil (≤860px) — ko'rsatish media query'da */
 
 /* ============================================================
    CHAT VIDJETI
