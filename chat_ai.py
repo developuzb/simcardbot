@@ -23,9 +23,12 @@ BASE_URL    = os.getenv("LLM_BASE_URL", "https://api.groq.com/openai/v1")
 MODEL       = os.getenv("LLM_MODEL", "llama-3.3-70b-versatile")
 MAX_HISTORY = 16
 MAX_TOKENS  = int(os.getenv("LLM_MAX_TOKENS", "384"))
+# Token chegarasi parametri nomi: klassik modellar "max_tokens", yangi OpenAI
+# gpt-5.x modellari "max_completion_tokens" talab qiladi.
+TOKEN_PARAM = os.getenv("LLM_TOKEN_PARAM", "max_tokens").strip()
 # Gemini "thinking" modellari (gemini-2.5/3.x) max_tokens'ni ichki fikrlashga
-# sarflaydi — qisqa sotuv javobiga kerak emas. "none" = fikrlash o'chiq.
-# Bo'sh qoldirilsa, payloadga umuman qo'shilmaydi (Groq modellari uchun xavfsiz).
+# sarflaydi — qisqa sotuv javobiga kerak emas. Gemini: "none". OpenAI reasoning:
+# "minimal"/"low". Bo'sh qoldirilsa payloadga qo'shilmaydi (klassik modellar uchun xavfsiz).
 REASONING_EFFORT = os.getenv("LLM_REASONING_EFFORT", "").strip()
 
 # ─── Sotuv agenti "miyasi" ──────────────────────────────────────
@@ -241,7 +244,7 @@ def reply_for(history) -> str:
     yengil va bashoratli tez; openai SDK (httpx) ba'zi tarmoqlarda sekin ulanadi.
     """
     messages = [{"role": "system", "content": SYSTEM_PROMPT}] + _clean(history)
-    payload = {"model": MODEL, "messages": messages, "max_tokens": MAX_TOKENS, "temperature": 0.7}
+    payload = {"model": MODEL, "messages": messages, TOKEN_PARAM: MAX_TOKENS, "temperature": 0.7}
     if REASONING_EFFORT:
         payload["reasoning_effort"] = REASONING_EFFORT
     r = requests.post(
