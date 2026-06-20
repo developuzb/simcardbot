@@ -183,6 +183,35 @@
 .clead small{color:var(--dim);font-size:12px;text-align:center}
 
 /* ============================================================
+   STORIES (Instagram-uslub "tizim qanday ishlaydi" slayder)
+   ============================================================ */
+.stories-block{margin:34px auto 0;max-width:360px;text-align:center}
+.stories-title{font-size:19px;color:var(--navy);margin-bottom:16px}
+.stories{position:relative;width:100%;aspect-ratio:9/16;margin:0 auto;border-radius:22px;overflow:hidden;
+  box-shadow:var(--sh2);background:var(--navy);user-select:none;-webkit-user-select:none;touch-action:manipulation}
+.stories:focus-visible{outline:3px solid var(--blue);outline-offset:3px}
+.st-bars{position:absolute;top:10px;left:10px;right:10px;display:flex;gap:5px;z-index:3}
+.st-bar{flex:1;height:3px;background:rgba(255,255,255,.34);border-radius:3px;overflow:hidden}
+.st-bar .fill{display:block;height:100%;width:0;background:#fff;border-radius:3px}
+.st-slides{position:absolute;inset:0}
+.st-slide{position:absolute;inset:0;opacity:0;transition:opacity .45s ease}
+.st-slide.on{opacity:1}
+.st-slide img{width:100%;height:100%;object-fit:cover;display:block}
+.st-cap{position:absolute;left:0;right:0;bottom:0;z-index:3;padding:42px 20px 22px;text-align:left;
+  background:linear-gradient(transparent,rgba(8,16,30,.55) 38%,rgba(8,16,30,.93))}
+.st-cap .st-num{display:inline-block;font-size:11.5px;font-weight:700;color:#cfe0ff;background:rgba(37,99,235,.55);
+  padding:3px 10px;border-radius:999px;margin-bottom:9px;letter-spacing:.03em}
+.st-cap h4{font-family:"Space Grotesk";color:#fff;font-size:20px;margin-bottom:5px}
+.st-cap p{color:#dbe6f7;font-size:14px;line-height:1.45}
+.st-nav{position:absolute;top:0;bottom:0;background:transparent;border:none;cursor:pointer;z-index:2;padding:0}
+.st-nav.prev{left:0;width:32%}
+.st-nav.next{right:0;width:68%}
+.st-pp{position:absolute;top:9px;right:11px;z-index:4;width:30px;height:30px;border-radius:50%;border:none;cursor:pointer;
+  background:rgba(8,16,30,.42);color:#fff;font-size:12px;display:grid;place-items:center;backdrop-filter:blur(4px)}
+.st-pp:hover{background:rgba(8,16,30,.7)}
+.stories-hint{margin-top:14px;font-size:13px;color:var(--dim)}
+
+/* ============================================================
    RESPONSIVE
    ============================================================ */
 @media(max-width:860px){

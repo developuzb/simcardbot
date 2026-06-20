@@ -232,8 +232,17 @@
       <div><b data-count="100" data-suffix="%">100%</b><span>o'zbek tilida</span></div>
       <div><b>24/7</b><span>texnik yordam</span></div>
     </div>
-    <div class="video-slot reveal" aria-label="Demo video (keyin qo'shiladi)">
-      <div class="play">▶</div><p>Demo video — tez orada</p>
+    <div class="stories-block reveal">
+      <h3 class="stories-title">📱 Tizim qanday ishlaydi</h3>
+      <div class="stories" id="stories" role="group" aria-label="Tizim qanday ishlaydi — avtomatik slayd" tabindex="0">
+        <div class="st-bars" id="stBars" aria-hidden="true"></div>
+        <div class="st-slides" id="stSlides"></div>
+        <div class="st-cap" id="stCap" aria-live="polite"></div>
+        <button class="st-nav prev" id="stPrev" type="button" aria-label="Oldingi slayd"></button>
+        <button class="st-nav next" id="stNext" type="button" aria-label="Keyingi slayd"></button>
+        <button class="st-pp" id="stPP" type="button" aria-label="To'xtatish yoki davom ettirish">⏸</button>
+      </div>
+      <p class="stories-hint">Avtomatik aylanadi — yon tomonlarni bosib boshqaring 👆</p>
     </div>
   </div>
 </section>
@@ -333,6 +342,7 @@
 <script src="js/config.js"></script>
 <script src="js/analytics.js" defer></script>
 <script src="js/chat.js" defer></script>
+<script src="js/stories.js" defer></script>
 <script src="js/main.js" defer></script>
 </body>
 </html>
