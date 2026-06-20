@@ -5,13 +5,14 @@
    ============================================================ */
 (function () {
   var T = window.track || function () {};
+  var V = "?v=2";  // rasm versiyasi (yangilanganda oshiring — kesh tozalanadi)
   var STEPS = [
-    { img: "assets/story-1.jpg", t: "Mijoz keladi",      d: "Mijoz SIM qidirib sizga murojaat qiladi." },
-    { img: "assets/story-2.jpg", t: "Chatga ulanadi",    d: "Bir tugma — va AI bot bilan suhbat boshlanadi." },
-    { img: "assets/story-3.jpg", t: "AI gaplashadi",     d: "Bot ehtiyojni so'rab, mos tarifni tanlaydi." },
-    { img: "assets/story-4.jpg", t: "Buyurtma olinadi",  d: "Ism, telefon, manzil — avtomatik yig'iladi." },
-    { img: "assets/story-5.jpg", t: "Guruhga tushadi",   d: "Buyurtma operator/kuryer Telegram guruhiga ketadi." },
-    { img: "assets/story-6.jpg", t: "Kuryer yetkazadi",  d: "Siz faqat yetkazasiz. Mijoz xursand 🎉" }
+    { img: "assets/story-1.jpg" + V, t: "Mijoz keladi",      d: "Mijoz SIM qidirib sizga murojaat qiladi." },
+    { img: "assets/story-2.jpg" + V, t: "Chatga ulanadi",    d: "Bir tugma — va AI bot bilan suhbat boshlanadi." },
+    { img: "assets/story-3.jpg" + V, t: "AI gaplashadi",     d: "Bot ehtiyojni so'rab, mos tarifni tanlaydi." },
+    { img: "assets/story-4.jpg" + V, t: "Buyurtma olinadi",  d: "Ism, telefon, manzil — avtomatik yig'iladi." },
+    { img: "assets/story-5.jpg" + V, t: "Guruhga tushadi",   d: "Buyurtma operator/kuryer Telegram guruhiga ketadi." },
+    { img: "assets/story-6.jpg" + V, t: "Kuryer yetkazadi",  d: "Siz faqat yetkazasiz. Mijoz xursand 🎉" }
   ];
   var DUR = 3800;  // har slayd (ms)
 
