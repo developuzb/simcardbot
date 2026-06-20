@@ -5,16 +5,19 @@
    ============================================================ */
 (function () {
   var T = window.track || function () {};
-  var V = "?v=2";  // rasm versiyasi (yangilanganda oshiring — kesh tozalanadi)
+  var V = "?v=3";  // rasm versiyasi (yangilanganda oshiring — kesh tozalanadi)
   var STEPS = [
-    { img: "assets/story-1.jpg" + V, t: "Mijoz keladi",      d: "Mijoz SIM qidirib sizga murojaat qiladi." },
-    { img: "assets/story-2.jpg" + V, t: "Chatga ulanadi",    d: "Bir tugma — va AI bot bilan suhbat boshlanadi." },
-    { img: "assets/story-3.jpg" + V, t: "AI gaplashadi",     d: "Bot ehtiyojni so'rab, mos tarifni tanlaydi." },
-    { img: "assets/story-4.jpg" + V, t: "Buyurtma olinadi",  d: "Ism, telefon, manzil — avtomatik yig'iladi." },
-    { img: "assets/story-5.jpg" + V, t: "Guruhga tushadi",   d: "Buyurtma operator/kuryer Telegram guruhiga ketadi." },
-    { img: "assets/story-6.jpg" + V, t: "Kuryer yetkazadi",  d: "Siz faqat yetkazasiz. Mijoz xursand 🎉" }
+    { img: "assets/story-1.jpg" + V, t: "Mijoz keladi",        d: "Mijoz SIM qidirib sizga yozadi — kechasimi, bayrammi, farqi yo'q." },
+    { img: "assets/story-2.jpg" + V, t: "Chatga ulanadi",      d: "Bir tugma bilan AI bot suhbatni boshlaydi — siz band bo'lsangiz ham." },
+    { img: "assets/story-3.jpg" + V, t: "AI gaplashadi",       d: "Bot o'zbekcha gaplashib, ehtiyojni so'rab, eng mos tarifni tavsiya qiladi." },
+    { img: "assets/story-4.jpg" + V, t: "Buyurtma olinadi",    d: "Ism, telefon, manzil — hammasini o'zi so'rab, avtomatik yig'adi." },
+    { img: "assets/story-5.jpg" + V, t: "Guruhga tushadi",     d: "Tayyor buyurtma operator va kuryer guruhingizga o'zi tushadi." },
+    { img: "assets/story-6.jpg" + V, t: "Kuryer yetkazadi",    d: "Kuryer yetkazadi, mijoz xursand — siz faqat nazorat qilasiz." },
+    { img: "assets/story-7.jpg" + V, t: "Siz dam olasiz",      d: "Siz dam olasiz yoki yangi g'oyalar ustida ishlaysiz — tizim o'zi sotaveradi." },
+    { img: "assets/story-8.jpg" + V, t: "AI kunlik hisobot",   d: "Har kuni AI tayyor hisobot beradi: nechta buyurtma, qancha daromad." },
+    { img: "assets/story-9.jpg" + V, t: "Har bir mijoz yodda", d: "Har bir mijoz haqida ma'lumot va AI insayt — hammasi bir joyda." }
   ];
-  var DUR = 3800;  // har slayd (ms)
+  var DUR = 3600;  // har slayd (ms)
 
   var root = document.getElementById("stories");
   if (!root) return;
@@ -81,7 +84,17 @@
   // --- Boshqaruv ---
   document.getElementById("stPrev").onclick = function () { go(idx - 1); };
   document.getElementById("stNext").onclick = function () { go(idx + 1); };
+  var aPrev = document.getElementById("stArrowPrev"), aNext = document.getElementById("stArrowNext");
+  if (aPrev) aPrev.onclick = function (e) { e.stopPropagation(); go(idx - 1); };
+  if (aNext) aNext.onclick = function (e) { e.stopPropagation(); go(idx + 1); };
   pp.onclick = function () { if (playing) pause(); else play(); };
+
+  // Suzuvchi chat tugmasi (FAB) stories ko'rinishda yashirinadi — qoplab qolmasligi uchun
+  function dimFab(on) {
+    ["cFab", "cBubble"].forEach(function (id) {
+      var el = document.getElementById(id); if (el) el.classList.toggle("dim", on);
+    });
+  }
   root.addEventListener("keydown", function (e) {
     if (e.key === "ArrowLeft") { go(idx - 1); } else if (e.key === "ArrowRight") { go(idx + 1); }
     else if (e.key === " ") { e.preventDefault(); playing ? pause() : play(); }
@@ -94,8 +107,8 @@
       es.forEach(function (e) {
         if (e.isIntersecting) {
           if (!started) { started = true; T("stories_view", {}); }
-          play();
-        } else { pause(); }
+          play(); dimFab(true);
+        } else { pause(); dimFab(false); }
       });
     }, { threshold: 0.5 });
     io.observe(root);

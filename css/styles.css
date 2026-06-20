@@ -206,10 +206,21 @@
 .st-nav{position:absolute;top:0;bottom:0;background:transparent;border:none;cursor:pointer;z-index:2;padding:0}
 .st-nav.prev{left:0;width:32%}
 .st-nav.next{right:0;width:68%}
-.st-pp{position:absolute;top:9px;right:11px;z-index:4;width:30px;height:30px;border-radius:50%;border:none;cursor:pointer;
+.st-pp{position:absolute;top:9px;right:11px;z-index:5;width:30px;height:30px;border-radius:50%;border:none;cursor:pointer;
   background:rgba(8,16,30,.42);color:#fff;font-size:12px;display:grid;place-items:center;backdrop-filter:blur(4px)}
 .st-pp:hover{background:rgba(8,16,30,.7)}
+/* Ko'rinadigan oldinga/orqaga tugmalar (kartaning yon o'rtasida — FAB bilan qoplanmaydi) */
+.st-arrow{position:absolute;top:50%;transform:translateY(-50%);z-index:5;width:42px;height:42px;border-radius:50%;
+  border:none;cursor:pointer;background:rgba(255,255,255,.92);color:var(--navy);font-size:26px;line-height:1;
+  display:grid;place-items:center;box-shadow:0 4px 14px rgba(8,16,30,.28);font-family:inherit;padding:0 0 3px}
+.st-arrow:hover{background:#fff;transform:translateY(-50%) scale(1.06)}
+.st-arrow:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+.st-arrow.prev{left:9px}
+.st-arrow.next{right:9px}
 .stories-hint{margin-top:14px;font-size:13px;color:var(--dim)}
+
+/* Stories ko'rinishda — suzuvchi chat tugmasi (FAB) vaqtincha yashirinadi (qoplanmasligi uchun) */
+.cfab.dim,.cbubble.dim{opacity:0;pointer-events:none;transform:scale(.6);transition:.25s}
 
 /* ============================================================
    RESPONSIVE
