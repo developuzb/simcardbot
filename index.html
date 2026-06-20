@@ -2,595 +2,337 @@
 <html lang="uz">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Siz uxlaysiz — sotuv agenti sotadi | Sun'iy intellekt orqali ishlaydigan sotuv agenti</title>
-<meta name="description" content="Sun'iy intellekt orqali ishlaydigan sotuv agenti: mijoz bilan o'zi gaplashadi, buyurtma oladi, kuryeringizga yuboradi. Maossiz, charchamasdan, 24/7. Bepul sinab ko'ring.">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sun'iy intellektli sotuv agenti — SIM biznesingiz o'zi sotsin | Texnoset</title>
+<meta name="description" content="SIM-karta dilerlari uchun AI sotuv agenti: mijoz bilan o'zbekcha gaplashadi, tarif tanlaydi, buyurtma oladi va kuryerga yuboradi. 24/7, maossiz. Bepul sinab ko'ring.">
+<link rel="canonical" href="https://developuzb.github.io/simcardbot/">
+<meta name="theme-color" content="#0c1a36">
+
+<!-- Open Graph (Telegram/ijtimoiy tarmoq preview) -->
+<meta property="og:type" content="website">
+<meta property="og:locale" content="uz_UZ">
+<meta property="og:site_name" content="Texnoset AI">
+<meta property="og:title" content="SIM biznesingiz o'zi sotsin — sun'iy intellektli sotuv agenti">
+<meta property="og:description" content="AI mijoz bilan o'zbekcha gaplashadi, tarif tanlaydi, buyurtma oladi. 24/7, maossiz. Bepul sinab ko'ring.">
+<meta property="og:url" content="https://developuzb.github.io/simcardbot/">
+<meta property="og:image" content="https://developuzb.github.io/simcardbot/assets/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="SIM biznesingiz o'zi sotsin — AI sotuv agenti">
+<meta name="twitter:description" content="24/7 mijoz bilan gaplashadi, tarif tanlaydi, buyurtma oladi. Bepul sinab ko'ring.">
+<meta name="twitter:image" content="https://developuzb.github.io/simcardbot/assets/og.jpg">
+
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+
+<!-- KRITIK CSS (inline — birinchi ekran tez chiqishi uchun) -->
 <style>
   :root{
-    --ink:#0a1322; --navy:#0c1a36; --navy2:#10254e; --mut:#5a6b82; --dim:#8696ad;
-    --bg:#fff; --soft:#f4f8fd; --soft2:#eaf2fb; --line:#e3ebf5;
+    --bg:#fff; --ink:#0b1424; --navy:#0c1a36; --navy2:#13284f; --mut:#5a6b82; --dim:#8a99ad;
+    --soft:#f4f8fd; --soft2:#eaf1fb; --line:#e2eaf4;
     --blue:#2563eb; --blueD:#1d4ed8; --blueL:#eaf1ff;
-    --green:#16a34a; --greenD:#12863d; --greenL:#e8f8ef;
-    --gold:#eab308; --goldD:#b88a06; --red:#e3473b;
-    --sh:0 10px 30px -12px rgba(12,30,70,.16); --sh2:0 26px 60px -20px rgba(12,30,70,.32);
+    --green:#16a34a; --greenD:#12863d;
+    --gold:#eab308; --red:#e11d48;
+    --rad:16px; --sh:0 10px 30px -12px rgba(12,30,70,.18); --sh2:0 24px 60px -22px rgba(12,30,70,.34);
+    --wrap:1100px;
   }
   *{margin:0;padding:0;box-sizing:border-box}
   html{scroll-behavior:smooth}
-  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
-    color:var(--ink);background:var(--bg);line-height:1.55;-webkit-font-smoothing:antialiased;overflow-x:hidden}
-  .wrap{max-width:1060px;margin:0 auto;padding:0 22px}
-  a{text-decoration:none;color:inherit}
-  h1,h2,h3{letter-spacing:-.5px;line-height:1.08}
-  .hl{color:var(--green)} .hlb{color:var(--blue)} .hlg{color:var(--gold)}
+  body{font-family:Inter,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink);background:var(--bg);
+    line-height:1.55;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+  h1,h2,h3{font-family:"Space Grotesk",Inter,sans-serif;letter-spacing:-.02em;line-height:1.1}
+  a{color:inherit;text-decoration:none}
+  img{max-width:100%;display:block}
+  .wrap{max-width:var(--wrap);margin:0 auto;padding:0 20px}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;font-family:inherit;font-weight:700;
+    border:none;border-radius:13px;cursor:pointer;text-align:center;transition:transform .15s,box-shadow .15s,background .15s;
+    font-size:16px;padding:15px 26px}
+  .btn:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+  .btn-cta{background:var(--green);color:#fff;box-shadow:0 12px 26px -10px rgba(22,163,74,.6)}
+  .btn-cta:hover{background:var(--greenD);transform:translateY(-2px)}
+  .btn-lg{padding:18px 34px;font-size:18px}
+  .btn-ghost{background:#fff;color:var(--navy);border:1.5px solid var(--line)}
+  .btn-ghost:hover{border-color:var(--blue);color:var(--blue)}
+  .eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--blueD);
+    background:var(--blueL);padding:7px 14px;border-radius:999px;letter-spacing:.01em}
 
-  .btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;font-weight:800;border:none;border-radius:14px;
-    cursor:pointer;font-family:inherit;transition:transform .15s,box-shadow .15s,background .15s;text-align:center}
-  .btn-cta{background:var(--green);color:#fff;padding:18px 36px;font-size:17px;box-shadow:0 12px 30px -8px rgba(22,163,74,.55)}
-  .btn-cta:hover{background:var(--greenD);transform:translateY(-3px);box-shadow:0 18px 40px -8px rgba(22,163,74,.6)}
-  .btn-lg{padding:21px 44px;font-size:18.5px}
-  .btn-ghost{background:rgba(255,255,255,.1);color:#fff;border:1.5px solid rgba(255,255,255,.4);padding:16px 30px;font-size:16px}
-  .btn-ghost:hover{background:rgba(255,255,255,.2)}
-  .btn-line{background:#fff;color:var(--ink);border:1.5px solid var(--line);padding:15px 28px;font-size:16px}
-  .btn-line:hover{border-color:var(--blue);color:var(--blue)}
+  /* Header */
+  .hdr{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.86);backdrop-filter:blur(12px);
+    border-bottom:1px solid var(--line)}
+  .hdr .wrap{display:flex;align-items:center;justify-content:space-between;height:62px}
+  .logo{display:flex;align-items:center;gap:9px;font-family:"Space Grotesk";font-weight:700;font-size:18px;color:var(--navy)}
+  .logo .dot{width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,var(--blue),var(--navy));
+    display:grid;place-items:center;color:#fff;font-size:16px}
+  .hdr .btn{padding:10px 18px;font-size:14.5px}
+  .hdr-cta-wrap{display:flex;align-items:center;gap:14px}
+  .hdr a.nav{font-size:14.5px;color:var(--mut);font-weight:500}
+  .hdr a.nav:hover{color:var(--ink)}
 
-  /* nav */
-  header.nav{position:sticky;top:0;z-index:60;background:rgba(255,255,255,.85);backdrop-filter:blur(14px) saturate(160%);border-bottom:1px solid var(--line)}
-  .nav .wrap{display:flex;align-items:center;justify-content:space-between;height:60px}
-  .brand{display:flex;align-items:center;gap:9px;font-weight:850;font-size:17px}
-  .brand .m{width:31px;height:31px;border-radius:9px;background:linear-gradient(135deg,var(--blue),var(--blueD));display:grid;place-items:center;color:#fff;font-size:15px}
-  .nav-r{display:flex;align-items:center;gap:14px}
-  .nav-ph{font-weight:800;font-size:15px}
-  .nav .btn-cta{padding:10px 20px;font-size:14.5px;border-radius:11px}
-  @media(max-width:600px){.nav-ph{display:none}}
+  /* Hero */
+  .hero{position:relative;padding:64px 0 56px;background:
+    radial-gradient(900px 400px at 80% -10%,rgba(37,99,235,.10),transparent 60%),
+    radial-gradient(700px 380px at 0% 0%,rgba(22,163,74,.07),transparent 55%)}
+  .hero-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:48px;align-items:center}
+  .hero h1{font-size:clamp(30px,5vw,52px);font-weight:700;color:var(--navy)}
+  .hero h1 .hl{color:var(--blue)}
+  .hero .lead{font-size:clamp(16px,2.2vw,20px);color:var(--mut);margin:18px 0 26px;max-width:560px}
+  .hero-cta{display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+  .trust-row{display:flex;flex-wrap:wrap;gap:16px;margin-top:22px;color:var(--mut);font-size:13.5px}
+  .trust-row span{display:inline-flex;align-items:center;gap:7px}
+  .trust-row b{color:var(--green)}
+  /* Hero chat-mockup */
+  .mock{background:#fff;border:1px solid var(--line);border-radius:22px;box-shadow:var(--sh2);overflow:hidden;max-width:380px;margin-left:auto}
+  .mock-top{display:flex;align-items:center;gap:10px;padding:13px 16px;border-bottom:1px solid var(--line);background:var(--navy);color:#fff}
+  .mock-top .av{width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.16);display:grid;place-items:center;font-size:17px}
+  .mock-top .live{margin-left:auto;font-size:11px;color:#7ee2a6;display:flex;align-items:center;gap:5px}
+  .mock-top .live i{width:7px;height:7px;border-radius:50%;background:#34e07a;display:inline-block}
+  .mock-body{padding:16px;display:flex;flex-direction:column;gap:10px;background:var(--soft)}
+  .mb{max-width:84%;padding:10px 13px;border-radius:14px;font-size:14px;line-height:1.45}
+  .mb.b{background:#fff;border:1px solid var(--line);border-bottom-left-radius:5px}
+  .mb.u{background:var(--blue);color:#fff;align-self:flex-end;border-bottom-right-radius:5px}
+  .mock-foot{padding:11px 16px;border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;font-size:13px;color:var(--dim)}
 
-  /* hero */
-  .hero{position:relative;overflow:hidden;background:radial-gradient(1100px 520px at 50% -10%,var(--blueL),#fff 62%);padding:72px 0 50px;text-align:center}
-  .hero .orb{position:absolute;border-radius:50%;filter:blur(76px);opacity:.5;pointer-events:none;z-index:0}
-  .hero .orb.a{width:360px;height:360px;background:#9ec3ff;top:-100px;left:-80px}
-  .hero .orb.b{width:300px;height:300px;background:#aef0c9;bottom:-120px;right:-60px}
-  .hero .orb.c{width:200px;height:200px;background:#d9e6ff;top:46%;right:14%;opacity:.4}
-  .hero .wrap{position:relative;z-index:1}
-  .eyebrow{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.7);backdrop-filter:blur(10px);
-    border:1px solid rgba(255,255,255,.8);box-shadow:var(--sh);border-radius:999px;padding:8px 17px;font-size:13.5px;font-weight:700;color:var(--ink);margin-bottom:26px}
-  .eyebrow .d{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 0 0 rgba(22,163,74,.5);animation:pl 2s infinite}
-  @keyframes pl{0%{box-shadow:0 0 0 0 rgba(22,163,74,.5)}70%{box-shadow:0 0 0 9px rgba(22,163,74,0)}100%{box-shadow:0 0 0 0 rgba(22,163,74,0)}}
-  .hero h1{font-size:clamp(40px,7.5vw,76px);font-weight:900;letter-spacing:-2px;margin-bottom:18px}
-  .hero .sub{font-size:clamp(17px,2.5vw,22px);color:var(--mut);max-width:600px;margin:0 auto 30px;font-weight:500}
-  .hero .sub b{color:var(--ink)}
-  .hero-cta{display:flex;gap:13px;justify-content:center;flex-wrap:wrap;margin-bottom:14px}
-  .micro{font-size:14px;color:var(--dim);font-weight:600}
-  .micro b{color:var(--green)}
-
-  /* operators */
-  .ops{padding:22px 0;background:#fff;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
-  .ops .lab{text-align:center;color:var(--dim);font-size:12.5px;font-weight:800;letter-spacing:.9px;text-transform:uppercase;margin-bottom:14px}
-  .ops-row{display:flex;flex-wrap:wrap;justify-content:center;gap:10px 13px}
-  .op{display:flex;align-items:center;gap:9px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 17px;box-shadow:var(--sh);transition:transform .15s}
-  .op:hover{transform:translateY(-3px)}
-  .op .nm{font-weight:850;font-size:15.5px;letter-spacing:-.3px}
-  .simic{width:26px;height:19px;border-radius:4px;background:linear-gradient(135deg,#f7d774,#dca52f);position:relative;flex-shrink:0;box-shadow:inset 0 0 0 1px rgba(0,0,0,.1)}
-  .simic::before{content:"";position:absolute;inset:5px 6px;border:1px solid rgba(0,0,0,.28);border-radius:2px}
-  .simic::after{content:"";position:absolute;left:50%;top:4px;bottom:4px;width:1px;background:rgba(0,0,0,.28);transform:translateX(-50%)}
-
-  section{padding:72px 0}
-  .head{text-align:center;max-width:680px;margin:0 auto 48px}
-  .kick{color:var(--blue);font-weight:850;font-size:13px;letter-spacing:1.5px;text-transform:uppercase}
-  .head h2{font-size:clamp(28px,4.6vw,44px);font-weight:880;margin:12px 0 12px}
-  .head p{font-size:18px;color:var(--mut)}
-
-  /* problem (compact) */
-  .pains{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;max-width:920px;margin:0 auto}
-  @media(max-width:760px){.pains{grid-template-columns:1fr;max-width:440px}}
-  .pain{background:#fff;border:1px solid var(--line);border-radius:16px;padding:24px 22px;text-align:center;box-shadow:var(--sh)}
-  .pain .x{font-size:34px;display:block;margin-bottom:10px}
-  .pain h4{font-size:17px;font-weight:780;margin-bottom:5px}
-  .pain p{font-size:14.5px;color:var(--mut)}
-  .pain-foot{text-align:center;margin-top:34px;font-size:clamp(19px,2.6vw,24px);font-weight:820}
-
-  /* dark statement band */
-  .band{background:linear-gradient(140deg,var(--navy),var(--navy2));color:#fff;position:relative;overflow:hidden}
-  .band::before{content:"";position:absolute;width:500px;height:500px;border-radius:50%;background:#1e4fd1;filter:blur(140px);opacity:.3;top:-200px;left:-100px}
-  .band::after{content:"";position:absolute;width:420px;height:420px;border-radius:50%;background:#16a34a;filter:blur(150px);opacity:.22;bottom:-180px;right:-80px}
-  .band .wrap{position:relative;z-index:1}
-  .band .head h2{color:#fff}.band .head .kick{color:#8fb4ff}
-  .stats3{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
-  @media(max-width:720px){.stats3{grid-template-columns:1fr;max-width:360px;margin:0 auto}}
-  .st{text-align:center;padding:26px 18px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);border-radius:20px;backdrop-filter:blur(6px)}
-  .st .n{font-size:clamp(46px,7vw,68px);font-weight:900;letter-spacing:-2px;line-height:1;
-    background:linear-gradient(120deg,#fff,#9ec3ff);-webkit-background-clip:text;background-clip:text;color:transparent}
-  .st.g .n{background:linear-gradient(120deg,#fff,#7ef0aa);-webkit-background-clip:text;background-clip:text;color:transparent}
-  .st .t{margin-top:12px;font-size:16px;font-weight:700;color:#dfe9fb}
-  .st .s{font-size:13.5px;color:#9fb2cf;margin-top:3px}
-
-  /* compare table */
-  .cmp{max-width:860px;margin:0 auto;border:1px solid var(--line);border-radius:22px;overflow:hidden;box-shadow:var(--sh2);background:#fff}
-  .cmp .row{display:grid;grid-template-columns:1.1fr 1fr 1fr}
-  .cmp .row+.row{border-top:1px solid var(--line)}
-  .cmp .c{padding:17px 20px;font-size:14.8px;display:flex;align-items:center;gap:9px}
-  .cmp .c.lbl{font-weight:750;color:var(--mut);background:var(--soft);font-size:14px}
-  .cmp .c.old{color:var(--ink2,#2a3a52)}
-  .cmp .c.bot{background:var(--greenL);font-weight:700}
-  .cmp .head-row .c{font-weight:850;font-size:15.5px;background:#fff;padding:20px}
-  .cmp .head-row .c.bot{background:var(--green);color:#fff}
-  .cmp .head-row .c.old{color:var(--mut)}
-  .cmp .c.bot .ck{color:var(--green);font-weight:900}
-  .cmp .c.old .xk{color:var(--red);font-weight:900}
-  @media(max-width:620px){.cmp .c{padding:13px 12px;font-size:13px}.cmp .head-row .c{padding:14px 12px;font-size:13.5px}.cmp .c .em{display:none}}
-  .cmp-foot{text-align:center;margin-top:30px;font-size:clamp(19px,2.7vw,26px);font-weight:840}
-
-  /* steps */
-  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
-  @media(max-width:760px){.steps{grid-template-columns:1fr;max-width:430px;margin:0 auto}}
-  .stp{background:#fff;border:1px solid var(--line);border-radius:18px;padding:28px 24px;box-shadow:var(--sh)}
-  .stp .num{width:44px;height:44px;border-radius:13px;background:var(--blueL);color:var(--blue);display:grid;place-items:center;font-weight:900;font-size:20px;margin-bottom:15px}
-  .stp h3{font-size:19px;font-weight:800;margin-bottom:7px}
-  .stp p{font-size:15px;color:var(--mut)}
-
-  /* chat proof */
-  .proof{text-align:center}
-  .proof .box{background:linear-gradient(135deg,var(--blueL),var(--greenL));border:1px solid var(--line);border-radius:26px;padding:50px 32px;max-width:760px;margin:0 auto;box-shadow:var(--sh)}
-  .proof h2{font-size:clamp(26px,4vw,40px);font-weight:880;margin-bottom:14px}
-  .proof p{font-size:18px;color:var(--mut);max-width:520px;margin:0 auto 28px}
-  .proof .hint{margin-top:16px;font-size:14px;color:var(--dim);font-weight:600}
-
-  /* exclusivity */
-  .excl .wrap{position:relative;z-index:1}
-  .excl-in{text-align:center;max-width:740px;margin:0 auto}
-  .excl-in .kick{color:#8fb4ff}
-  .excl-in h2{font-size:clamp(27px,4.3vw,42px);font-weight:900;color:#fff;margin:12px 0 16px}
-  .excl-in p{font-size:18.5px;color:#cdddf7;margin-bottom:10px}
-  .excl-in .slots{display:inline-flex;align-items:center;gap:10px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.3);border-radius:999px;padding:11px 22px;font-weight:800;font-size:15.5px;margin-top:16px;color:#fff}
-
-  /* pricing */
-  .urg{display:flex;align-items:center;justify-content:center;gap:11px;flex-wrap:wrap;text-align:center;background:#fff7e6;border:1px solid #f1d792;border-radius:14px;padding:15px 22px;margin:0 auto 28px;max-width:720px}
-  .urg .f{font-size:20px}.urg .s{font-weight:800;color:var(--goldD)}.urg span{color:var(--mut);font-size:14.5px}
-  .setup{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;background:linear-gradient(135deg,var(--blueL),#fff);border:1px solid var(--line);border-radius:18px;padding:24px 28px;margin-bottom:18px;box-shadow:var(--sh)}
-  .setup h3{font-size:19px;font-weight:850;margin-bottom:4px}.setup p{font-size:14px;color:var(--mut);max-width:480px}
-  .setup .pr{text-align:right;flex-shrink:0}.setup .pr .a{font-size:27px;font-weight:880}.setup .pr .a small{font-size:14px;color:var(--dim);font-weight:600}
-  .setup .pr .b{font-size:12.5px;color:var(--greenD);font-weight:800;margin-top:3px}
-  @media(max-width:600px){.setup{flex-direction:column;text-align:center}.setup .pr{text-align:center}.setup p{margin:0 auto}}
-  .toggle{display:flex;justify-content:center;gap:0;margin:18px auto;background:var(--soft);border:1px solid var(--line);border-radius:999px;padding:5px;width:max-content}
-  .toggle button{border:none;background:none;cursor:pointer;font-family:inherit;font-weight:800;font-size:15px;color:var(--mut);padding:10px 22px;border-radius:999px;transition:.18s}
-  .toggle button.on{background:#fff;color:var(--ink);box-shadow:var(--sh)}
-  .toggle .save{background:var(--green);color:#fff;font-size:11px;font-weight:900;padding:3px 8px;border-radius:999px;margin-left:6px}
-  .plans{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;align-items:stretch}
-  @media(max-width:860px){.plans{grid-template-columns:1fr;max-width:410px;margin:0 auto}}
-  .plan{background:#fff;border:1px solid var(--line);border-radius:20px;padding:28px 24px;display:flex;flex-direction:column;box-shadow:var(--sh);position:relative}
-  .plan.best{border:2px solid var(--green);box-shadow:var(--sh2)}
-  .plan .pop{position:absolute;top:-13px;left:50%;transform:translateX(-50%);background:var(--green);color:#fff;font-size:12.5px;font-weight:900;padding:5px 16px;border-radius:999px;white-space:nowrap}
-  .plan .tn{font-size:14px;font-weight:850;letter-spacing:.4px;text-transform:uppercase;color:var(--blue)}
-  .plan.best .tn{color:var(--green)}
-  .plan .nm{font-size:16px;color:var(--mut);margin:2px 0 12px}
-  .plan .amt{font-size:29px;font-weight:900}.plan .amt small{font-size:14.5px;color:var(--dim);font-weight:600}
-  .plan .annual{font-size:13px;color:var(--greenD);font-weight:800;margin-top:6px;min-height:18px}
-  .plan .annual.hide{visibility:hidden}
-  .premoffer{margin-top:10px;background:var(--greenL);border:1px solid #bce6cc;border-radius:11px;padding:9px 13px;font-size:13.5px;font-weight:850;color:var(--greenD);display:flex;align-items:center;gap:7px}
-  .premoffer .old{color:var(--dim);text-decoration:line-through;font-weight:700}
-  .plan ul{list-style:none;margin:18px 0 22px;display:flex;flex-direction:column;gap:10px;flex:1}
-  .plan li{font-size:14.5px;color:#2a3a52;display:flex;gap:9px;align-items:flex-start}
-  .plan li .c{color:var(--green);font-weight:900;flex-shrink:0}
-  .plan li.no{color:var(--dim)}.plan li.no .c{color:var(--dim)}
-  .plan .pick{text-align:center;padding:14px;border-radius:12px;font-weight:800;font-size:15.5px;background:var(--soft);color:var(--ink);border:1.5px solid var(--line);transition:.15s}
-  .plan.best .pick{background:var(--green);color:#fff;border-color:var(--green)}
-  .plan .pick:hover{transform:translateY(-2px)}
-  .setup-foot{text-align:center;margin-top:22px;background:var(--blueL);border:1px solid var(--line);border-radius:14px;padding:16px 22px;max-width:600px;margin-left:auto;margin-right:auto}
-  .setup-foot b{font-size:16px}.setup-foot span{display:block;color:var(--mut);font-size:13.5px;margin-top:2px}
-
-  /* guarantee */
-  .guar{display:flex;align-items:center;gap:24px;background:var(--greenL);border:1px solid #bce6cc;border-radius:20px;padding:30px 34px;max-width:800px;margin:0 auto}
-  @media(max-width:600px){.guar{flex-direction:column;text-align:center}}
-  .guar .seal{font-size:54px;flex-shrink:0}
-  .guar h3{font-size:21px;font-weight:850;margin-bottom:5px}.guar p{font-size:15.5px;color:#2a3a52}
-
-  /* faq */
-  .faq{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:11px}
-  details{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:var(--sh);overflow:hidden}
-  summary{cursor:pointer;padding:19px 22px;font-weight:780;font-size:16px;list-style:none;display:flex;justify-content:space-between;gap:14px;align-items:center}
-  summary::-webkit-details-marker{display:none}
-  summary::after{content:"+";font-size:23px;color:var(--blue);font-weight:700;transition:transform .2s}
-  details[open] summary::after{transform:rotate(45deg)}
-  details p{padding:0 22px 20px;color:var(--mut);font-size:15px}
-
-  /* final */
-  .final{background:linear-gradient(140deg,var(--navy),var(--navy2));color:#fff;text-align:center;position:relative;overflow:hidden}
-  .final::before{content:"";position:absolute;width:560px;height:560px;border-radius:50%;background:#16a34a;filter:blur(150px);opacity:.25;bottom:-220px;left:50%;transform:translateX(-50%)}
-  .final .wrap{position:relative;z-index:1}
-  .final h2{font-size:clamp(30px,5vw,52px);font-weight:900;max-width:680px;margin:0 auto 16px;color:#fff}
-  .final p{font-size:19px;color:#cdddf7;max-width:540px;margin:0 auto 30px}
-  .final .micro{color:#9fb2cf;margin-top:16px}
-
-  footer{background:#070d18;color:#94a3b8;padding:38px 0;text-align:center;font-size:14px}
-  footer .brand{justify-content:center;color:#fff;margin-bottom:10px;font-size:16px}
-  footer a{color:#8fb4ff}
-
-  /* reveal */
-  .reveal{opacity:0;transform:translateY(30px);transition:opacity .7s cubic-bezier(.2,.7,.2,1),transform .7s cubic-bezier(.2,.7,.2,1)}
-  .reveal.in{opacity:1;transform:none}
-
-  /* mobile sticky cta */
-  .mcta{position:fixed;left:0;right:0;bottom:0;z-index:70;background:#fff;border-top:1px solid var(--line);padding:10px 14px;display:none;box-shadow:0 -8px 24px -12px rgba(12,30,70,.25)}
-  .mcta .btn-cta{width:100%;padding:15px}
-  @media(max-width:760px){.mcta{display:block}body{padding-bottom:74px}}
-
-  /* floating chat */
-  .fab{position:fixed;right:22px;bottom:22px;z-index:90;display:flex;align-items:center;gap:10px;background:linear-gradient(135deg,var(--blue),var(--blueD));color:#fff;border:none;cursor:pointer;padding:14px 20px 14px 15px;border-radius:999px;font-family:inherit;font-weight:800;font-size:15px;box-shadow:0 14px 34px -8px rgba(29,78,216,.6);transition:transform .18s;animation:fabIn .5s both .9s}
-  .fab:hover{transform:translateY(-3px) scale(1.03)}
-  .fab .av{width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.22);display:grid;place-items:center;font-size:16px}
-  .fab .dotg{position:absolute;top:9px;right:13px;width:11px;height:11px;border-radius:50%;background:#33d977;border:2px solid #fff}
-  @keyframes fabIn{from{opacity:0;transform:translateY(20px) scale(.8)}to{opacity:1}}
-  @media(max-width:760px){.fab{bottom:84px;padding:13px}.fab .label{display:none}}
-  .fab.hide{opacity:0;pointer-events:none;transform:scale(.6)}
-  .cw{position:fixed;right:22px;bottom:22px;z-index:91;width:376px;max-width:calc(100vw - 28px);height:566px;max-height:calc(100vh - 100px);display:flex;flex-direction:column;border-radius:22px;overflow:hidden;background:rgba(255,255,255,.7);backdrop-filter:blur(18px) saturate(170%);border:1px solid rgba(255,255,255,.7);box-shadow:0 32px 72px -20px rgba(12,30,70,.5);transform:translateY(24px) scale(.95);opacity:0;pointer-events:none;transition:transform .26s cubic-bezier(.2,.8,.2,1),opacity .26s}
-  .cw.open{transform:none;opacity:1;pointer-events:auto}
-  @media(max-width:760px){.cw{bottom:10px;right:10px;left:10px;width:auto;height:80vh}}
-  .cw-h{background:linear-gradient(135deg,var(--blue),var(--blueD));color:#fff;padding:15px 18px;display:flex;align-items:center;gap:12px}
-  .cw-h .av{width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.2);display:grid;place-items:center;font-size:19px}
-  .cw-h b{font-size:15.5px;display:block}.cw-h small{font-size:12px;color:#cfe2ff;display:flex;align-items:center;gap:6px}
-  .cw-h small::before{content:"";width:7px;height:7px;border-radius:50%;background:#33d977;display:inline-block}
-  .cw-h .x{margin-left:auto;cursor:pointer;font-size:23px;background:none;border:none;color:#fff;opacity:.85;line-height:1;padding:4px}
-  .cw-b{flex:1;overflow-y:auto;padding:18px 16px;display:flex;flex-direction:column;gap:9px}
-  .cw-b::-webkit-scrollbar{width:6px}.cw-b::-webkit-scrollbar-thumb{background:#cdd8e8;border-radius:3px}
-  .msg{max-width:85%;padding:10px 14px;border-radius:16px;font-size:14px;line-height:1.5;animation:msgIn .3s both}
-  @keyframes msgIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
-  .msg.b{background:#fff;color:var(--ink);border:1px solid var(--line);border-bottom-left-radius:5px;align-self:flex-start}
-  .msg.b b{color:var(--blue)}
-  .msg.u{background:var(--blue);color:#fff;border-bottom-right-radius:5px;align-self:flex-end}
-  .typing{align-self:flex-start;background:#fff;border:1px solid var(--line);border-radius:16px;padding:12px 16px;display:flex;gap:4px}
-  .typing i{width:7px;height:7px;border-radius:50%;background:#b9c5d8;animation:tp 1.2s infinite}
-  .typing i:nth-child(2){animation-delay:.2s}.typing i:nth-child(3){animation-delay:.4s}
-  @keyframes tp{0%,60%,100%{transform:translateY(0);opacity:.5}30%{transform:translateY(-5px);opacity:1}}
-  .chips{display:flex;flex-wrap:wrap;gap:7px;padding:0 16px 10px}
-  .chip-b{background:#fff;border:1.5px solid var(--blue);color:var(--blue);border-radius:999px;padding:8px 14px;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;transition:.15s;animation:msgIn .3s both}
-  .chip-b:hover{background:var(--blue);color:#fff}
-  .chip-b.cta{background:var(--green);border-color:var(--green);color:#fff}.chip-b.cta:hover{background:var(--greenD)}
-  .cw-in{display:flex;gap:8px;padding:12px;border-top:1px solid var(--line);background:#fff}
-  .cw-in input{flex:1;border:1px solid var(--line);border-radius:11px;padding:11px 14px;font-size:14px;font-family:inherit;outline:none}
-  .cw-in input:focus{border-color:var(--blue)}
-  .cw-in button{background:var(--blue);color:#fff;border:none;border-radius:11px;width:44px;font-size:18px;cursor:pointer;flex-shrink:0}
+  @media(max-width:860px){
+    .hero{padding:40px 0 36px}
+    .hero-grid{grid-template-columns:1fr;gap:34px}
+    .mock{margin:0 auto;max-width:340px}
+    .hdr a.nav{display:none}
+  }
 </style>
+<link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
 
-<header class="nav">
+<!-- ============ HEADER ============ -->
+<header class="hdr">
   <div class="wrap">
-    <div class="brand"><span class="m">📡</span> Texnoset</div>
-    <div class="nav-r"><span class="nav-ph">📞 +998 77 009 71 71</span><a href="#contact" class="btn btn-cta">Sinab ko'rish</a></div>
+    <a class="logo" href="#"><span class="dot">🤖</span> Texnoset <span style="color:var(--blue)">AI</span></a>
+    <div class="hdr-cta-wrap">
+      <a class="nav" href="#narx">Narxlar</a>
+      <a class="nav" href="#faq">Savollar</a>
+      <button class="btn btn-cta" data-openchat aria-label="Jonli botni ochish">Sinab ko'rish</button>
+    </div>
   </div>
 </header>
 
-<!-- HERO -->
+<!-- ============ HERO ============ -->
 <section class="hero">
-  <span class="orb a"></span><span class="orb b"></span><span class="orb c"></span>
-  <div class="wrap">
-    <div class="eyebrow"><span class="d"></span> Sun'iy intellekt orqali ishlaydigan sotuv robot agenti</div>
-    <h1>Siz uxlaysiz —<br><span class="hl">sotuv agenti sotadi.</span></h1>
-    <p class="sub">Mijoz bilan o'zi gaplashadi, buyurtmani oladi va <b>kuryeringizga yuboradi</b>. Maossiz. Charchamasdan. 24/7.</p>
-    <div class="hero-cta">
-      <a href="#contact" class="btn btn-cta btn-lg" data-openchat>🤖 1 daqiqada sinab ko'ring</a>
-    </div>
-    <div class="micro">Bepul · majburiyatsiz · <b>1 kunda ishga tushadi</b></div>
-  </div>
-</section>
-
-<!-- OPERATORS -->
-<div class="ops">
-  <div class="wrap">
-    <div class="lab">📱 Barcha O'zbek aloqa operatorlari — bitta botda</div>
-    <div class="ops-row">
-      <div class="op"><span class="simic"></span><span class="nm" style="color:#5b2a86">Ucell</span></div>
-      <div class="op"><span class="simic"></span><span class="nm" style="color:#c98a00">Beeline</span></div>
-      <div class="op"><span class="simic"></span><span class="nm" style="color:#e2231a">Mobiuz</span></div>
-      <div class="op"><span class="simic"></span><span class="nm" style="color:#1f8fff">Humans</span></div>
-      <div class="op"><span class="simic"></span><span class="nm" style="color:#19a463">Uzmobile</span></div>
-    </div>
-  </div>
-</div>
-
-<!-- PROBLEM -->
-<section>
-  <div class="wrap">
-    <div class="head">
-      <div class="kick">Tanish holatmi?</div>
-      <h2>Har bir javobsiz xabar — yo'qolgan pul</h2>
-    </div>
-    <div class="pains">
-      <div class="pain"><span class="x">😴</span><h4>Tunda javob yo'q</h4><p>Siz uxlaysiz — mijoz kutadi, keyin raqobatchiga ketadi.</p></div>
-      <div class="pain"><span class="x">🔁</span><h4>Kun bo'yi bir xil savol</h4><p>"Qaysi tarif?", "Narxi?" — vaqtingiz shunga ketadi.</p></div>
-      <div class="pain"><span class="x">📋</span><h4>Buyurtmalar chalkash</h4><p>Kim, qayer, qancha — hammasi boshda. Xato bo'laveradi.</p></div>
-    </div>
-    <p class="pain-foot">Bitta sekin javob = <span class="hl">ketgan mijoz.</span></p>
-  </div>
-</section>
-
-<!-- STATEMENT BAND -->
-<section class="band">
-  <div class="wrap">
-    <div class="head"><div class="kick">Nega sotuv agenti?</div><h2>Uchta raqam — butun gap shu</h2></div>
-    <div class="stats3">
-      <div class="st"><div class="n">24/7</div><div class="t">Tinim bilmaydi</div><div class="s">Tunda, bayramda, to'yda — doim ishda</div></div>
-      <div class="st g"><div class="n"><span class="count" data-to="0">0</span> so'm</div><div class="t">Maosh yo'q</div><div class="s">Atigi kommunalka puliga sotadi</div></div>
-      <div class="st"><div class="n"><span class="count" data-to="15">0</span>×</div><div class="t">Do'kon kuchi</div><div class="s">Bitta ijaraga — 10-15 savdo nuqtasi</div></div>
-    </div>
-    <p style="text-align:center;margin-top:32px;font-size:clamp(18px,2.5vw,22px);font-weight:750;color:#dfe9fb">🤖 <b style="color:#7ef0aa">Eng tajribali sotuvchi</b> — adashmaydi, charchamaydi va mijozni qanday bo'lmasin <b style="color:#7ef0aa">sotib olishga undaydi.</b></p>
-  </div>
-</section>
-
-<!-- COMPARE TABLE -->
-<section>
-  <div class="wrap">
-    <div class="head">
-      <div class="kick">Eski usul vs Sotuv agenti</div>
-      <h2>Xodim ham, do'kon ham emas</h2>
-      <p>Xodim kasal bo'ladi, charchaydi, bayram-to'yda ketadi. Sotuv agenti — yo'q.</p>
-    </div>
-    <div class="cmp">
-      <div class="row head-row">
-        <div class="c lbl"></div>
-        <div class="c old">🧑‍💼 Xodim + do'kon</div>
-        <div class="c bot">🤖 Texnoset sotuv agenti</div>
+  <div class="wrap hero-grid">
+    <div>
+      <span class="eyebrow">⚡ Sun'iy intellektli sotuv agenti</span>
+      <h1>SIM biznesingiz <span class="hl">o'zi sotsin</span> — siz uxlab yotganingizda ham.</h1>
+      <p class="lead">AI agent mijoz bilan o'zbekcha gaplashadi, mos tarifni tanlaydi, buyurtmani oladi va kuryeringizga yuboradi. <b>24/7, charchamasdan, maossiz.</b></p>
+      <div class="hero-cta">
+        <button class="btn btn-cta btn-lg" data-openchat aria-label="Botni jonli sinab ko'rish">🤖 Botni jonli sinab ko'ring</button>
+        <a class="btn btn-ghost btn-lg" href="#narx">Narxlarni ko'rish</a>
       </div>
-      <div class="row"><div class="c lbl">Oylik xarajat</div><div class="c old"><span class="xk">✕</span> 3–5 mln maosh + ijara</div><div class="c bot"><span class="ck">✓</span> 390 000 so'mdan</div></div>
-      <div class="row"><div class="c lbl">Ish vaqti</div><div class="c old"><span class="xk">✕</span> 9:00–18:00</div><div class="c bot"><span class="ck">✓</span> 24/7, tunda ham</div></div>
-      <div class="row"><div class="c lbl">Kasallik / charchoq</div><div class="c old"><span class="xk">✕</span> Bo'ladi</div><div class="c bot"><span class="ck">✓</span> Hech qachon</div></div>
-      <div class="row"><div class="c lbl">Bayram / to'y / tadbir</div><div class="c old"><span class="xk">✕</span> Ishdan ketadi</div><div class="c bot"><span class="ck">✓</span> Doim ishda</div></div>
-      <div class="row"><div class="c lbl">Bir vaqtda mijoz</div><div class="c old"><span class="xk">✕</span> Bittasi</div><div class="c bot"><span class="ck">✓</span> Yuzlab</div></div>
-      <div class="row"><div class="c lbl">Xato / kayfiyat</div><div class="c old"><span class="xk">✕</span> Bo'ladi</div><div class="c bot"><span class="ck">✓</span> Har doim bir xil</div></div>
+      <div class="trust-row">
+        <span>✅ <b>Bepul</b> sinov</span>
+        <span>💳 Oldindan to'lov <b>yo'q</b></span>
+        <span>🔄 Istalgan vaqtda bekor</span>
+      </div>
     </div>
-    <p class="cmp-foot">Xodim dam oladi — <span class="hl">bot yo'q.</span></p>
+    <div class="mock" aria-hidden="true">
+      <div class="mock-top"><span class="av">🤖</span> <b>Texnoset sotuvchi</b> <span class="live"><i></i> onlayn</span></div>
+      <div class="mock-body">
+        <div class="mb b">Assalomu alaykum! 😊 Qanaqa SIM qidiryapsiz — internet, arzon yoki YouTube uchunmi?</div>
+        <div class="mb u">Internet ko'p bo'lsin</div>
+        <div class="mb b">Unda <b>Ucell Bor 110</b> — 300GB, cheksiz qo'ng'iroq, 110 000. Uyga bepul yetkazamiz 📦 Olamizmi?</div>
+        <div class="mb u">Olaman 👍</div>
+      </div>
+      <div class="mock-foot"><span>Bu — atigi 15 soniyada</span><span>↑ 92% yopilish</span></div>
+    </div>
   </div>
 </section>
 
-<!-- HOW -->
-<section class="band">
+<!-- ============ OG'RIQ NUQTALARI ============ -->
+<section class="sec" id="muammo">
   <div class="wrap">
-    <div class="head"><div class="kick">Qanday ishlaydi</div><h2>Siz hech narsa qilmaysiz</h2></div>
+    <div class="sec-head reveal">
+      <span class="eyebrow">Tanish-mi?</span>
+      <h2>Har bir yo'qolgan mijoz — yo'qolgan pul.</h2>
+      <p class="sub">Qo'lda sotish biznesingizni ushlab turibdi — lekin sizni ham charchatyapti.</p>
+    </div>
+    <div class="pain-grid">
+      <div class="pain reveal"><span>😴</span><h3>Tunda kelgan mijoz</h3><p>Ertalab javob berguningizcha, u allaqachon boshqa do'kondan olib bo'ladi.</p></div>
+      <div class="pain reveal"><span>🔁</span><h3>Bir xil savollar</h3><p>"Qaysi tarif arzon?", "Qancha GB?" — kuniga yuz marta, o'zingiz.</p></div>
+      <div class="pain reveal"><span>💸</span><h3>Operator xarajati</h3><p>Maosh, dam olish, kasallik, xato — hammasi sizning bo'yningizda.</p></div>
+      <div class="pain reveal"><span>📉</span><h3>Cheklangan vaqt</h3><p>Bir vaqtda faqat bitta mijoz. Navbat — ketgan savdo.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ UCHTA RAQAM ============ -->
+<section class="sec stats-sec">
+  <div class="wrap stats-grid">
+    <div class="stat reveal"><div class="num" data-count="24" data-suffix="/7">24/7</div><p>To'xtovsiz ishlaydi — uyqu, dam olish, bayram yo'q.</p></div>
+    <div class="stat reveal"><div class="num" data-count="15" data-suffix="×">15×</div><p>Mijozga tezroq javob — soniyalarda, navbatsiz.</p></div>
+    <div class="stat reveal"><div class="num" data-count="30" data-suffix="+">30+</div><p>Biznes allaqachon AI agent bilan sotmoqda.</p></div>
+  </div>
+</section>
+
+<!-- ============ JONLI DEMO (ASOSIY ILMOQ) ============ -->
+<section class="sec demo-sec" id="demo">
+  <div class="wrap demo-card reveal">
+    <div>
+      <span class="eyebrow" style="background:rgba(255,255,255,.16);color:#dbe6ff">🎯 Bir marta yozing — farqni his eting</span>
+      <h2 style="color:#fff;margin-top:14px">Botni hoziroq sinab ko'ring. 30 soniyada sizni ishontiradi.</h2>
+      <p style="color:#c3d2ee;margin:14px 0 24px;max-width:540px">O'zbekcha yozing — go'yo haqiqiy mijozdek. Bot qanday savdo qilishini o'z ko'zingiz bilan ko'ring. Aynan shu narsa <b>sizning har bir mijozingiz</b> bilan ishlaydi.</p>
+      <button class="btn btn-cta btn-lg" data-openchat aria-label="Bot bilan suhbatni boshlash">💬 Suhbatni boshlash</button>
+    </div>
+  </div>
+</section>
+
+<!-- ============ QANDAY ISHLAYDI ============ -->
+<section class="sec" id="qanday">
+  <div class="wrap">
+    <div class="sec-head reveal"><span class="eyebrow">Oddiy</span><h2>Qanday ishlaydi?</h2><p class="sub">Siz hech narsa o'rnatmaysiz — biz tayyor qilib beramiz, siz ishlatasiz.</p></div>
     <div class="steps">
-      <div class="stp"><div class="num">1</div><h3>Mijoz yozadi</h3><p>Sotuv agenti o'zbekcha javob beradi, mos tarifni o'zi tanlab beradi.</p></div>
-      <div class="stp"><div class="num">2</div><h3>Buyurtma oladi</h3><p>Telefon, joylashuv — va to'g'ri kuryeringizga yuboradi.</p></div>
-      <div class="stp"><div class="num">3</div><h3>Siz yetkazasiz</h3><p>Holati kuzatuvda, mijoz baho beradi. Hammasi tartibda.</p></div>
+      <div class="step reveal"><div class="step-n">1</div><h3>Mijoz yozadi</h3><p>Telegram botga yoki saytga. AI o'zbekcha iliq javob beradi.</p></div>
+      <div class="step reveal"><div class="step-n">2</div><h3>AI tarif tanlaydi</h3><p>Ehtiyojni so'rab, eng mos tarifni tavsiya qiladi va buyurtmani rasmiylashtiradi.</p></div>
+      <div class="step reveal"><div class="step-n">3</div><h3>Kuryerga tushadi</h3><p>Buyurtma avtomatik kuryer guruhingizga. Siz faqat yetkazasiz.</p></div>
     </div>
   </div>
 </section>
 
-<!-- CHAT PROOF -->
-<section class="proof">
+<!-- ============ TAQQOSLASH ============ -->
+<section class="sec soft-sec" id="taqqoslash">
   <div class="wrap">
-    <div class="box">
-      <div class="kick" style="color:var(--blue)">Gapga ishonmang</div>
-      <h2>30 soniya — o'zingiz sinab ko'ring</h2>
-      <p>Sotuv agentiga yozing. U sizni qanday qilib xaridga olib borishini o'z ko'zingiz bilan ko'rasiz.</p>
-      <a href="#" class="btn btn-cta btn-lg" data-openchat>💬 Sotuv agentini hoziroq sinab ko'rish</a>
-      <div class="hint">↘ Pastki o'ngdagi tugma orqali ham ochiladi</div>
+    <div class="sec-head reveal"><span class="eyebrow">Farqi</span><h2>Oddiy sotuvchi va AI agent</h2></div>
+    <div class="cmp reveal">
+      <table>
+        <thead><tr><th>&nbsp;</th><th>Oddiy sotuvchi</th><th class="hl-col">AI sotuv agenti</th></tr></thead>
+        <tbody>
+          <tr><td>Ish vaqti</td><td>8–10 soat</td><td class="hl-col">24/7</td></tr>
+          <tr><td>Bir vaqtda mijoz</td><td>1 ta</td><td class="hl-col">Cheksiz</td></tr>
+          <tr><td>Oylik xarajat</td><td>Maosh + soliq</td><td class="hl-col">Abonement (arzon)</td></tr>
+          <tr><td>Charchaydi / xato</td><td>Ha</td><td class="hl-col">Yo'q</td></tr>
+          <tr><td>Javob tezligi</td><td>Daqiqalar</td><td class="hl-col">Soniyalar</td></tr>
+          <tr><td>Dam olish / bayram</td><td>Kerak</td><td class="hl-col">Kerak emas</td></tr>
+        </tbody>
+      </table>
     </div>
   </div>
 </section>
 
-<!-- EXCLUSIVITY -->
-<section class="band excl">
+<!-- ============ IJTIMOIY ISBOT ============ -->
+<section class="sec" id="isbot">
   <div class="wrap">
-    <div class="excl-in">
-      <div class="kick">Eng muhimi</div>
-      <h2>Har hududda — faqat BITTA biznes</h2>
-      <p>Bir tumandagi raqobatchilarga bir vaqtda bermaymiz.</p>
-      <p style="font-size:21px;font-weight:800;color:#fff;margin-top:14px">Bu o'rin siznikimi — yoki qo'shni do'konnikimi?</p>
-      <div class="slots">🛡 Kim birinchi ulgursa</div>
+    <div class="sec-head reveal"><span class="eyebrow">Ishonch</span><h2>Bizga ishonganlar</h2><p class="sub">Haqiqiy dilerlar, haqiqiy natijalar.</p></div>
+    <div class="rev-grid">
+      <figure class="rev reveal"><div class="stars">★★★★★</div><blockquote>"Tunda kelgan buyurtmalar endi yo'qolmayapti. Sotuvim 30% oshdi."</blockquote><figcaption><span class="ava">A</span><div><b>Akmal</b><small>SIM diler, Qarshi</small></div></figcaption></figure>
+      <figure class="rev reveal"><div class="stars">★★★★★</div><blockquote>"O'zim javob berib charchardim. Endi bot gaplashadi, men yetkazaman."</blockquote><figcaption><span class="ava">D</span><div><b>Dilshod</b><small>Aloqa do'koni, Shahrisabz</small></div></figcaption></figure>
+      <figure class="rev reveal"><div class="stars">★★★★★</div><blockquote>"Mijoz o'zbekcha gaplashayotganini sezmaydi ham. Juda tabiiy."</blockquote><figcaption><span class="ava">N</span><div><b>Nodira</b><small>Distribyutor, Qarshi</small></div></figcaption></figure>
+    </div>
+    <div class="proof-bar reveal">
+      <div><b data-count="30" data-suffix="+">30+</b><span>faol biznes</span></div>
+      <div><b data-count="100" data-suffix="%">100%</b><span>o'zbek tilida</span></div>
+      <div><b>24/7</b><span>texnik yordam</span></div>
+    </div>
+    <div class="video-slot reveal" aria-label="Demo video (keyin qo'shiladi)">
+      <div class="play">▶</div><p>Demo video — tez orada</p>
     </div>
   </div>
 </section>
 
-<!-- PRICING -->
-<section id="price">
+<!-- ============ NARX ============ -->
+<section class="sec soft-sec" id="narx">
   <div class="wrap">
-    <div class="head"><div class="kick">Narxlar</div><h2>Oddiy va halol</h2></div>
-
-    <div class="urg"><span class="f">🔥</span><span class="s">Chegaralangan taklif:</span><span>narxlar va hudud o'rinlari cheklangan.</span></div>
-
-    <div class="setup">
-      <div><h3>⚡ Biznesni tayyorlab berish</h3><p>Telegram, Instagram va websayt — logosi bilan. Brendingizga moslab, to'liq sozlab ishga tushiramiz. Biz qilamiz — siz ishlatasiz.</p></div>
-      <div class="pr"><div class="a">9 999 900 <small>so'm</small></div><div class="b">🚀 1 kunda ishga tushadi</div></div>
+    <div class="sec-head reveal"><span class="eyebrow">Tarif</span><h2>Sizga mos rejani tanlang</h2><p class="sub">O'rnatish <b>yillik tarifda bepul</b>. Asosiysi — arzon oylik abonement.</p></div>
+    <div class="toggle reveal" role="tablist" aria-label="To'lov davri">
+      <button class="tg active" data-period="month" role="tab" aria-selected="true">Oylik</button>
+      <button class="tg" data-period="year" role="tab" aria-selected="false">Yillik <span class="save">−2 oy</span></button>
     </div>
-
     <div class="plans">
-      <div class="plan">
-        <div class="tn">🟢 Start</div><div class="nm">Yangi boshlovchi</div>
-        <div class="amt">390 000 <small>so'm/oy</small></div>
-        <ul><li><span class="c">✓</span> <b style="color:var(--ink)">📱 Faqat Telegram bot</b></li><li><span class="c">✓</span> 24/7 ishlaydi</li><li><span class="c">✓</span> Suhbat ~500/oy</li><li><span class="c">✓</span> 1 kuryer guruhi</li><li><span class="c">✓</span> Buyurtma yozuvi</li><li class="no"><span class="c">✕</span> Sayt integratsiyasi yo'q</li></ul>
-        <a href="#contact" class="pick">Boshlash</a>
+      <div class="plan reveal">
+        <h3>START</h3><p class="p-sub">Kichik do'kon uchun</p>
+        <div class="price"><span class="amt" data-month="390 000" data-year="325 000">390 000</span><span class="per">so'm/oy</span></div>
+        <ul><li>✅ AI suhbat (~500/oy)</li><li>✅ 1 kuryer guruhi</li><li>✅ Hosting + yangilanish</li><li>✅ Asosiy analitika</li></ul>
+        <button class="btn btn-ghost" data-openchat data-plan="start">Tanlash</button>
       </div>
-      <div class="plan best">
-        <div class="pop">⭐ Tavsiya</div>
-        <div class="tn">🔵 Biznes</div><div class="nm">Faol diler</div>
-        <div class="amt">690 000 <small>so'm/oy</small></div>
-        <ul><li><span class="c">✓</span> <b style="color:var(--ink)">📱 Telegram + Instagram + Websayt</b></li><li><span class="c">✓</span> <b style="color:var(--ink)">🎨 Logo dizayni — bepul</b></li><li><span class="c">✓</span> 24/7 · suhbat ~2 000/oy</li><li><span class="c">✓</span> Ko'p kuryer guruhi</li><li><span class="c">✓</span> <b style="color:var(--ink)">🧠 Har bir mijozni tahlil qiladi</b></li><li><span class="c">✓</span> <b style="color:var(--ink)">📊 Har kuni biznes hisoboti</b></li></ul>
-        <a href="#contact" class="pick">Boshlash</a>
+      <div class="plan featured reveal">
+        <div class="badge">⭐ Eng ommabop</div>
+        <h3>BIZNES</h3><p class="p-sub">O'sayotgan biznes uchun</p>
+        <div class="price"><span class="amt" data-month="690 000" data-year="575 000">690 000</span><span class="per">so'm/oy</span></div>
+        <ul><li>✅ AI suhbat (~2000/oy)</li><li>✅ Bir nechta kuryer guruhi</li><li>✅ Sayt → bot integratsiya</li><li>✅ To'liq analitika + hisobot</li><li>✅ Tezkor texnik yordam</li></ul>
+        <button class="btn btn-cta" data-openchat data-plan="biznes">Boshlash</button>
       </div>
-      <div class="plan">
-        <div class="pop" style="background:var(--gold)">🔥 Eng sermahsul · −30%</div>
-        <div class="tn">🟣 Premium</div><div class="nm">Tarmoq / distribyutor</div>
-        <div class="amt">1 200 000 <small>so'm/oy</small></div>
-        <div class="premoffer">🎁 Yillik to'lovda: <span class="old">1.2 mln</span> → 840 000 so'm/oy</div>
-        <ul><li><span class="c">✓</span> Biznes'dagi hammasi</li><li><span class="c">✓</span> Cheksiz suhbat</li><li><span class="c">✓</span> Cheksiz kuryer guruhi</li><li><span class="c">✓</span> <b style="color:var(--ink)">🎨 Logo + oq-yorliq brending</b></li><li><span class="c">✓</span> 24/7 ustuvor yordam</li></ul>
-        <a href="#contact" class="pick">Boshlash</a>
+      <div class="plan reveal">
+        <h3>PREMIUM</h3><p class="p-sub">Yirik diler uchun</p>
+        <div class="price"><span class="amt" data-month="1 200 000" data-year="1 000 000">1 200 000</span><span class="per">so'm/oy</span></div>
+        <ul><li>✅ Cheksiz AI suhbat</li><li>✅ Cheksiz kuryer guruhi</li><li>✅ To'liq oq-yorliq brending</li><li>✅ 24/7 ustuvor yordam</li></ul>
+        <button class="btn btn-ghost" data-openchat data-plan="premium">Tanlash</button>
       </div>
     </div>
-    <div class="setup-foot"><b>➕ Biznesni tayyorlab berish: 9 999 900 so'm</b><span>Bir martalik to'liq o'rnatish. Yillik chegirma faqat Premium tarifda — 30%.</span></div>
+    <p class="setup-note reveal">O'rnatish to'lovi bir martalik va <b>yillik tarifda bepul</b>. Batafsil — chatda so'rang.</p>
+    <div class="risk-bar reveal"><span>✅ Bepul demo</span><span>💳 Oldindan to'lov yo'q</span><span>🔄 Istalgan vaqtda bekor</span></div>
   </div>
 </section>
 
-<!-- GUARANTEE -->
-<section>
-  <div class="wrap">
-    <div class="guar">
-      <div class="seal">🛡️</div>
-      <div><h3>Avval ishonch — keyin to'lov</h3><p>Sotuv agentini bepul sinab ko'rasiz, o'z mijozlaringizda ishlashiga ishonch hosil qilasiz. Faqat shundan keyin qaror qilasiz. Yoqmasa — majburiyat yo'q.</p></div>
+<!-- ============ EKSKLYUZIVLIK / TANQISLIK ============ -->
+<section class="sec excl-sec" id="eksklyuziv">
+  <div class="wrap excl-card reveal">
+    <span class="eyebrow" style="background:rgba(234,179,8,.16);color:#a16207">🔒 Cheklangan</span>
+    <h2>Har hududda — faqat <span style="color:var(--gold)">bitta</span> biznes.</h2>
+    <p>Raqobatchingizga emas, <b>sizga</b> beramiz. Hudud band bo'lsa — keyingisini kutasiz.</p>
+    <div class="slots"><b id="slotN">7</b> <span>o'rin qoldi — sizning hududingizda</span></div>
+    <button class="btn btn-cta btn-lg" data-openchat aria-label="O'rinni band qilish">🚀 O'rnimni band qilaman</button>
+  </div>
+</section>
+
+<!-- ============ FAQ ============ -->
+<section class="sec" id="faq">
+  <div class="wrap" style="max-width:780px">
+    <div class="sec-head reveal"><span class="eyebrow">Savol-javob</span><h2>Ko'p so'raladigan savollar</h2></div>
+    <div class="faq-list">
+      <details class="faq-i reveal"><summary>Men dasturchi emasman — uddalay olamanmi?</summary><p>Ha. Siz hech narsa o'rnatmaysiz. Biz botni to'liq sizning brendingiz ostida sozlab, ishga tushirib beramiz. Siz faqat buyurtmalarni qabul qilib, kuryer yuborasiz.</p></details>
+      <details class="faq-i reveal"><summary>Bot haqiqatan o'zbekcha gaplashadimi?</summary><p>Ha, tabiiy o'zbek (va rus) tilida. Mijoz ko'pincha bot bilan gaplashayotganini sezmaydi ham. Yuqorida — jonli sinab ko'ring.</p></details>
+      <details class="faq-i reveal"><summary>Oldindan to'lov kerakmi?</summary><p>Yo'q. Avval bepul sinab ko'rasiz, ishonch hosil qilasiz, keyin qaror qilasiz. Istalgan vaqtda bekor qilish mumkin.</p></details>
+      <details class="faq-i reveal"><summary>Buyurtmalar qayerga tushadi?</summary><p>To'g'ridan-to'g'ri sizning Telegram kuryer guruhingizga — avtomatik. Admin panelidan telefondan boshqarasiz.</p></details>
+      <details class="faq-i reveal"><summary>O'rnatish qancha turadi?</summary><p>Bir martalik o'rnatish bor, lekin yillik tarifni tanlasangiz — bepul. Aniq raqamni chatda yoki Telegramda aytamiz.</p></details>
     </div>
   </div>
 </section>
 
-<!-- FAQ -->
-<section>
-  <div class="wrap">
-    <div class="head"><div class="kick">Savollar</div><h2>Ko'p so'raladi</h2></div>
-    <div class="faq">
-      <details open><summary>Men texnikani bilmayman — uddalaymanmi?</summary><p>Ha. Hammasini biz o'rnatib sozlaymiz. Sizga faqat telefondagi oddiy tugmalar qoladi. Telegram ishlatsangiz — yetarli.</p></details>
-      <details><summary>Qancha vaqtda ishga tushadi?</summary><p>Odatda 1 kun. Operatorlaringiz va narxlaringizni sozlab, sinab ko'rasiz — tasdiqlasangiz darhol ishlaydi.</p></details>
-      <details><summary>Narxi qimmat emasmi?</summary><p>Sotuv agenti kuniga 1-2 qo'shimcha buyurtma keltirsa, abonementni bir necha bor qoplaydi. Sinab ko'rish esa bepul.</p></details>
-      <details><summary>Mijozlar sotuv agenti bilan gaplashishni yoqtirmasa?</summary><p>Sotuv agenti iliq, o'zbekcha, inson kabi gaplashadi — ko'pchilik farqni sezmaydi. Istalgan paytda siz ham suhbatga qo'shilasiz.</p></details>
-      <details><summary>Keyin to'xtatsam bo'ladimi?</summary><p>Ha, istalgan vaqtda. Sizni majburlab ushlamaymiz — foyda uchun qolasiz.</p></details>
+<!-- ============ FINAL CTA ============ -->
+<section class="sec final-sec">
+  <div class="wrap final-card reveal">
+    <h2>Hududingiz band bo'lishidan oldin sinab ko'ring.</h2>
+    <p>30 soniya — botni sinang. Yoqsa, raqamingizni qoldiring, qolganini biz qilamiz.</p>
+    <div class="hero-cta" style="justify-content:center">
+      <button class="btn btn-cta btn-lg" data-openchat>🤖 Botni sinab ko'rish</button>
+      <a class="btn btn-ghost btn-lg" id="tgFinal" href="#" data-tg>✈️ Telegram orqali yozish</a>
     </div>
   </div>
 </section>
 
-<!-- FINAL -->
-<section class="final" id="contact">
-  <div class="wrap">
-    <h2>Hududingizdagi o'rinni band qiling</h2>
-    <p>Bepul sinab ko'ring. Pul oldindan emas — avval ishonch.</p>
-    <div class="hero-cta">
-      <a href="https://t.me/+998770097171" class="btn btn-cta btn-lg">✈️ Telegramda yozish</a>
-      <a href="tel:+998770097171" class="btn btn-ghost">📞 +998 77 009 71 71</a>
+<!-- ============ FOOTER ============ -->
+<footer class="ftr">
+  <div class="wrap ftr-grid">
+    <div><a class="logo" href="#" style="color:#fff"><span class="dot">🤖</span> Texnoset <span style="color:#7fb0ff">AI</span></a>
+      <p style="color:#9fb0c9;margin-top:10px;font-size:14px">SIM dilerlari uchun sun'iy intellektli sotuv agenti.</p></div>
+    <div class="ftr-cta">
+      <a class="btn btn-cta" id="tgFooter" href="#" data-tg>✈️ Telegram</a>
+      <a class="btn btn-ghost" id="phoneFooter" href="#" data-phone style="background:transparent;color:#fff;border-color:#33476b">📞 Qo'ng'iroq</a>
     </div>
-    <div class="micro">Bir daqiqada javob beramiz · Majburiyatsiz</div>
   </div>
-</section>
-
-<footer>
-  <div class="wrap">
-    <div class="brand"><span class="m">📡</span> Texnoset</div>
-    <p>SIM sotuv va yetkazib berish uchun AI tizimi.<br>Bog'lanish: <a href="https://t.me/+998770097171">Telegram</a> · +998 77 009 71 71</p>
-    <p style="margin-top:10px;opacity:.6">© 2026 Texnoset</p>
-  </div>
+  <div class="wrap ftr-bot"><span>© 2026 Texnoset AI</span><span>Bepul sinov · Oldindan to'lov yo'q</span></div>
 </footer>
 
-<button class="fab" id="fab"><span class="av">🤖</span><span class="label">Sinab ko'ring</span><span class="dotg"></span></button>
-<div class="cw" id="cw">
-  <div class="cw-h"><div class="av">📡</div><div><b>Texnoset sotuv agenti</b><small>onlayn — sun'iy intellekt</small></div><button class="x" id="cwx">×</button></div>
-  <div class="cw-b" id="cwb"></div>
-  <div class="chips" id="cwchips"></div>
-  <div class="cw-in"><input id="cwi" type="text" placeholder="Xabar yozing..." autocomplete="off"><button id="cws">➤</button></div>
+<!-- ============ MOBIL STICKY CTA ============ -->
+<div class="mob-cta" id="mobCta">
+  <button class="btn btn-cta" data-openchat style="flex:1" aria-label="Botni sinab ko'rish">🤖 Botni sinab ko'rish</button>
 </div>
 
-<div class="mcta"><a href="#contact" class="btn btn-cta" data-openchat>🤖 Sotuv agentini sinab ko'rish</a></div>
+<!-- ============ CHAT VIDJETI (chat.js to'ldiradi) ============ -->
+<div id="chatRoot"></div>
 
-<script>
-  /* reveal */
-  (function(){
-    var els=document.querySelectorAll('.head,.pain,.pain-foot,.st,.cmp,.cmp-foot,.stp,.proof .box,.excl-in,.urg,.setup,.toggle,.plan,.setup-foot,.guar,details');
-    els.forEach(function(e){e.classList.add('reveal');});
-    if(!('IntersectionObserver' in window)){els.forEach(function(e){e.classList.add('in');});return;}
-    var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}});},{threshold:.12});
-    els.forEach(function(e){io.observe(e);});
-  })();
-
-  /* count up */
-  (function(){
-    var done=new WeakSet();
-    function run(el){
-      if(done.has(el))return; done.add(el);
-      var to=parseFloat(el.dataset.to)||0,t0=null,dur=1200;
-      function step(ts){ if(!t0)t0=ts; var p=Math.min((ts-t0)/dur,1);
-        el.textContent=Math.round(to*(1-Math.pow(1-p,3))); if(p<1)requestAnimationFrame(step); }
-      requestAnimationFrame(step);
-    }
-    var cs=document.querySelectorAll('.count');
-    if(!('IntersectionObserver' in window)){cs.forEach(run);return;}
-    var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting)run(e.target);});},{threshold:.5});
-    cs.forEach(function(c){io.observe(c);});
-  })();
-
-  /* billing toggle */
-  (function(){
-    var t=document.getElementById('toggle'); if(!t)return;
-    var btns=t.querySelectorAll('button'),amts=document.querySelectorAll('.amt[data-m]'),lines=document.querySelectorAll('.annual[data-y]');
-    function set(m){btns.forEach(function(b){b.classList.toggle('on',b.dataset.mode===m);});
-      amts.forEach(function(a){a.innerHTML=m==='y'?a.dataset.y:a.dataset.m;});
-      lines.forEach(function(l){if(m==='y'){l.textContent=l.dataset.y;l.classList.remove('hide');}else{l.innerHTML='&nbsp;';l.classList.add('hide');}});}
-    btns.forEach(function(b){b.addEventListener('click',function(){set(b.dataset.mode);});});
-  })();
-
-  /* floating chat — REAL AI (backend) + scripted fallback */
-  (function(){
-    /* ====== SOZLAMA ======================================================
-       Backend tayyor bo'lgach, manzilini shu yerga yozing, masalan:
-       var CHAT_API = "https://sizning-backend.onrender.com/chat";
-       Bo'sh qoldirilsa, chat ssenariy (demo) rejimda ishlayveradi.        */
-    var CHAT_API = "https://sim.texnoset.uz/chat";
-    /* ==================================================================== */
-    var TG='https://t.me/+998770097171';
-    var fab=document.getElementById('fab'),cw=document.getElementById('cw'),x=document.getElementById('cwx'),
-        body=document.getElementById('cwb'),chips=document.getElementById('cwchips'),input=document.getElementById('cwi'),send=document.getElementById('cws');
-    if(!fab)return;
-    var started=false,busy=false,step=0,turns=0,history=[];
-    function open(){cw.classList.add('open');fab.classList.add('hide');if(!started){started=true;setTimeout(boot,300);}}
-    function close(){cw.classList.remove('open');fab.classList.remove('hide');}
-    fab.onclick=open; x.onclick=close;
-    document.querySelectorAll('[data-openchat]').forEach(function(b){b.addEventListener('click',function(e){e.preventDefault();open();});});
-    function scroll(){body.scrollTop=body.scrollHeight;}
-    function esc(s){return (s||'').replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});}
-    function addUser(t){var d=document.createElement('div');d.className='msg u';d.textContent=t;body.appendChild(d);scroll();}
-    function addBot(html){var d=document.createElement('div');d.className='msg b';d.innerHTML=html;body.appendChild(d);scroll();return d;}
-    function typing(){var d=document.createElement('div');d.className='typing';d.innerHTML='<i></i><i></i><i></i>';body.appendChild(d);scroll();return d;}
-    function bot(html,delay,cb){busy=true;setChips([]);var t=typing();setTimeout(function(){t.remove();addBot(html);busy=false;if(cb)cb();},delay||850);}
-    function setChips(a){chips.innerHTML='';a.forEach(function(c){var b=document.createElement('button');b.className='chip-b'+(c.cta?' cta':'');b.textContent=c.t;b.onclick=function(){if(c.href){window.open(c.href,'_blank');return;}routeUser(c.t,c.intent);};chips.appendChild(b);});}
-    function startChips(){setChips([{t:'📶 Internet ko\'p',intent:'internet'},{t:'💸 Arzonroq',intent:'arzon'},{t:'▶️ YouTube',intent:'youtube'}]);}
-    function ctaChips(){setChips([{t:'✈️ Menga o\'rnating',cta:true,href:TG},{t:'📞 Qo\'ng\'iroq',cta:true,href:'tel:+998770097171'}]);}
-    function boot(){history=[];turns=0;step=0;bot("Assalomu alaykum! 😊 Texnoset'ga xush kelibsiz. Men sizga mos SIM-tarifni tanlab beraman — nima qidiryapsiz?",800,startChips);}
-
-    function routeUser(text,intent){
-      if(busy||!text)return; addUser(text);
-      if(CHAT_API){history.push({role:'user',content:text});aiReply();}
-      else{scripted(text,intent);}
-    }
-
-    /* ===== REAL AI (backend) ===== */
-    function aiReply(){
-      busy=true; setChips([]); var t=typing();
-      fetch(CHAT_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:history})})
-        .then(function(r){return r.json();})
-        .then(function(d){ t.remove(); busy=false;
-          var reply=(d&&(d.reply||d.message||d.content))||'';
-          if(!reply) throw new Error('empty');
-          addBot(esc(reply).replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\*(.+?)\*/g,'<em>$1</em>').replace(/\n/g,'<br>'));
-          history.push({role:'assistant',content:reply});
-          turns++;
-        })
-        .catch(function(){ t.remove(); busy=false;
-          scripted(history.length?history[history.length-1].content:'',null);
-        });
-    }
-
-    /* ===== SSENARIY (backend yo'q bo'lsa / zaxira) ===== */
-    var recs={internet:{n:'Mobiuz ORZU 90',d:"180 GB · cheksiz qo'ng'iroq · 90 000/oy"},arzon:{n:'Beeline Standart',d:"10 GB · 700 daqiqa · 45 000/oy"},youtube:{n:'Mobiuz Xotirjam 80',d:"YouTube cheksiz · 80 GB · 80 000/oy"},qongiroq:{n:'Mobiuz Mazza 70',d:"cheksiz qo'ng'iroq · 150 GB · 70 000/oy"}};
-    function recommend(intent){var r=recs[intent]||recs.internet;bot("<b>"+r.n+"</b> — aynan siz uchun 👇<br>"+r.d,1000,function(){step=1;bot("Yoqdimi? 😊",700,function(){setChips([{t:'Ha 👍',intent:'yes'},{t:'Boshqa',intent:'other'}]);});});}
-    function ladder(){
-      if(step===1){step=2;bot("Zo'r! Va eshikkacha <b>BEPUL</b> yetkazamiz 🚚",850,function(){bot("Bu yoqadi-ku, a?",650,function(){setChips([{t:'Albatta',intent:'yes'},{t:'Ha',intent:'yes'}]);});});}
-      else if(step===2){step=3;bot("Ustiga <b>1+1</b> — 2-SIM SOVG'A 🎁",850,function(){bot("Olamizmi?",650,function(){setChips([{t:'Ha, bo\'ldi ✅',intent:'yes'}]);});});}
-      else{turn();}
-    }
-    function turn(){
-      bot("Mana 🔥 30 soniyada sizni \"ha\"ga olib keldim — bosimsiz, tabiiy.",1100,function(){
-        bot("Endi tasavvur qiling: bu sotuv agenti <b>SIZNING har bir mijozingiz</b> bilan shunday ishlayapti. 24/7. Maossiz.",1300,function(){
-          bot("Hududingizda atigi <b>1 o'rin</b> bor. Band qilaymi? 🚀",900,ctaChips);
-        });
-      });
-    }
-    function scripted(text,intent){
-      if(intent==='yes')return ladder();
-      if(intent==='other')return bot("Mayli! Qanaqasi — arzonmi, internetmi?",750,startChips);
-      if(recs[intent])return recommend(intent);
-      var t=(text||'').toLowerCase();
-      if(/(internet|gb|trafik)/.test(t))return recommend('internet');
-      if(/(arzon|narx|tejam|qancha|byudjet)/.test(t))return recommend('arzon');
-      if(/(youtube|video|tiktok|instagram|telegram|ijtimoiy)/.test(t))return recommend('youtube');
-      if(/(ng'iroq|ngiroq|daqiqa|gaplash)/.test(t))return recommend('qongiroq');
-      if(/(^ha|mayli|zo'r|albatta|bugun|olaman|xohlay|bo'ldi)/.test(t)&&step>=1)return ladder();
-      if(/(salom|assalom|hello)/.test(t))return bot("Va alaykum salom! 😊 Internetmi, arzonmi yoki YouTube?",750,startChips);
-      bot("Tushundim 👍 Eng ommabobi — <b>Mobiuz ORZU 90</b>: 180 GB, cheksiz qo'ng'iroq. Yoqdimi? 😊",950,function(){step=1;setChips([{t:'Ha 👍',intent:'yes'},{t:'Boshqa',intent:'other'}]);});
-    }
-
-    function sendTyped(){var v=input.value.trim();if(!v||busy)return;input.value='';routeUser(v,null);}
-    send.onclick=sendTyped; input.addEventListener('keydown',function(e){if(e.key==='Enter')sendTyped();});
-  })();
-</script>
+<script src="js/config.js"></script>
+<script src="js/analytics.js" defer></script>
+<script src="js/chat.js" defer></script>
+<script src="js/main.js" defer></script>
 </body>
 </html>
