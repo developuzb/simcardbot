@@ -534,7 +534,7 @@
     function setChips(a){chips.innerHTML='';a.forEach(function(c){var b=document.createElement('button');b.className='chip-b'+(c.cta?' cta':'');b.textContent=c.t;b.onclick=function(){if(c.href){window.open(c.href,'_blank');return;}routeUser(c.t,c.intent);};chips.appendChild(b);});}
     function startChips(){setChips([{t:'📶 Internet ko\'p',intent:'internet'},{t:'💸 Arzonroq',intent:'arzon'},{t:'▶️ YouTube',intent:'youtube'}]);}
     function ctaChips(){setChips([{t:'✈️ Menga o\'rnating',cta:true,href:TG},{t:'📞 Qo\'ng\'iroq',cta:true,href:'tel:+998770097171'}]);}
-    function boot(){history=[];turns=0;step=0;bot("Salom! 👋 30 soniya — meni sinab ko'ring. Nima qidiryapsiz?",800,startChips);}
+    function boot(){history=[];turns=0;step=0;bot("Assalomu alaykum! 😊 Texnoset'ga xush kelibsiz. Men sizga mos SIM-tarifni tanlab beraman — nima qidiryapsiz?",800,startChips);}
 
     function routeUser(text,intent){
       if(busy||!text)return; addUser(text);
@@ -550,9 +550,9 @@
         .then(function(d){ t.remove(); busy=false;
           var reply=(d&&(d.reply||d.message||d.content))||'';
           if(!reply) throw new Error('empty');
-          addBot(esc(reply).replace(/\n/g,'<br>'));
+          addBot(esc(reply).replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\*(.+?)\*/g,'<em>$1</em>').replace(/\n/g,'<br>'));
           history.push({role:'assistant',content:reply});
-          turns++; if(turns===2) ctaChips();
+          turns++;
         })
         .catch(function(){ t.remove(); busy=false;
           scripted(history.length?history[history.length-1].content:'',null);
