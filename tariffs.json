@@ -1,0 +1,37 @@
+{
+  "_izoh": "Texnoset SIM tariflari — sotuv agenti (chat_ai.py) shu fayldan o'qiydi. website/index.html'dagi tariffs massiviga mos bo'lsin. Tarif o'zgarsa SHU faylni tahrirlang — prompt tegmaydi.",
+  "promo": {
+    "yetkazish": "Uyga BEPUL yetkazish",
+    "tolov": "Oldindan to'lov YO'Q — SIM qo'lga tekkanda (naqd/karta)",
+    "aksiya": ["1+1 aksiya", "\"plus\" tariflarda chiroyli raqam SOVG'A (qiymati 2 mln so'mgacha)"],
+    "rasmiy": "Rasmiy SIM, pasport bilan rasmiylashtiriladi"
+  },
+  "operatorlar": {
+    "Ucell": [
+      {"nom": "Foydali 45", "net": "25GB", "daq": "700", "narx": 45000, "plus": false},
+      {"nom": "Bor 70", "net": "140GB", "daq": "cheksiz", "narx": 70000, "plus": true},
+      {"nom": "Bor 110", "net": "300GB", "daq": "cheksiz", "narx": 110000, "plus": true},
+      {"nom": "Bor 160", "net": "cheksiz", "daq": "cheksiz", "narx": 160000, "plus": true}
+    ],
+    "Beeline": [
+      {"nom": "Standart 45", "net": "25GB", "daq": "cheksiz", "narx": 45000, "plus": false},
+      {"nom": "Multi Plus 65", "net": "40GB", "daq": "cheksiz", "narx": 65000, "plus": false, "qoshimcha": "ChatGPT/Claude cheksiz"},
+      {"nom": "Yorqin 70", "net": "cheksiz", "daq": "cheksiz", "narx": 70000, "plus": true}
+    ],
+    "Mobiuz": [
+      {"nom": "Connect M 45", "net": "25GB", "daq": "cheksiz", "narx": 45000, "plus": false},
+      {"nom": "Mazza 70", "net": "150GB", "daq": "cheksiz", "narx": 70000, "plus": true, "qoshimcha": "ijtimoiy tarmoqlar cheksiz"},
+      {"nom": "Orzu 90", "net": "180GB", "daq": "cheksiz", "narx": 90000, "plus": true},
+      {"nom": "Orzu 110", "net": "cheksiz", "daq": "cheksiz", "narx": 110000, "plus": true, "qoshimcha": "yuqori tezlik"}
+    ],
+    "Humans": [
+      {"nom": "Cheksiz qo'ng'iroq", "net": "12GB", "daq": "cheksiz", "narx": 50000, "plus": false, "qoshimcha": "3 oy amal qiladi"},
+      {"nom": "Aloqa+Internet", "net": "20GB", "daq": "cheksiz", "narx": 65000, "plus": false}
+    ],
+    "Uzmobile": [
+      {"nom": "Mini M 45", "net": "10GB", "daq": "cheksiz", "narx": 45000, "plus": false},
+      {"nom": "Bonus Super Salom 70", "net": "100GB", "daq": "cheksiz", "narx": 70000, "plus": true, "qoshimcha": "YouTube bepul"},
+      {"nom": "Super Lux 77", "net": "200GB", "daq": "cheksiz", "narx": 77000, "plus": true}
+    ]
+  }
+}

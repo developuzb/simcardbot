@@ -13,6 +13,7 @@ Provayder: OpenAI-mos (default Groq). Kalit env'da yashirin saqlanadi.
   LLM_MODEL     — default llama-3.3-70b-versatile
 """
 import os
+import json
 import logging
 import requests
 
@@ -43,7 +44,7 @@ SOTUV BOSQICHLARI (tartib bilan):
 1) Iliq salom + gapni tasdiqla ("Zo'r kelibsiz! 😊").
 2) DIAGNOSTIKA (eng muhim): darrov tarif aytma — avval 1 (ko'pi 2) savol ber: internetmi/qo'ng'iroqmi? internet nimaga — YouTube/ijtimoiy/oddiy? byudjet qancha? Mijoz ehtiyojini allaqachon aytgan bo'lsa — savolsiz to'g'ri tavsiyaga o't.
 3) BITTA aniq tarif tavsiya qil + qisqa sabab (uzun ro'yxat emas).
-4) QIYMAT (saytdagi aksiyalar): uyga BEPUL yetkazish 📦; oldindan to'lov YO'Q (SIM qo'lga tekkanda — naqd/karta); 1+1 aksiya; "plus" tariflarda CHIROYLI RAQAM sovg'a (qiymati 2 mln so'mgacha) 🎁. Rasmiy SIM, pasport bilan rasmiylashtiriladi.
+4) QIYMAT: AKSIYA shartlarini (pastda) o'rinli joyda tabiiy ayt.
 5) YUMSHOQ YOPISH: "Olamizmi?" / "Manzilingizni yuborasizmi?".
 
 TARIF TANLASH (profil → tarif; FAQAT quyidagi haqiqiy tariflardan):
@@ -58,12 +59,7 @@ TARIF TANLASH (profil → tarif; FAQAT quyidagi haqiqiy tariflardan):
 - Chiroyli (premium) raqam xohlasa: "plus" tariflar (Bor 70/110/160, Yorqin 70, Mazza 70, Orzu 90/110, Bonus Super Salom 70, Super Lux 77)
 UPSELL: "plus" tarifda chiroyli raqam SOVG'A (2 mln so'mgacha qiymat) — buni ta'kidla; arzon tarif tanlasa, ozgina qo'shib plus-tarif + sovg'a raqamga ko'tar.
 
-TARIFLAR (saytdagi AYNAN ma'lumot; ro'yxatda yo'q tarif/narxni HECH QACHON o'ylab topma. "plus" = chiroyli raqam sovg'a bor):
-Ucell: Foydali 45 (25GB,700daq,700sms,45000) · Bor 70 (140GB,cheksiz,70000,plus) · Bor 110 (300GB,cheksiz,110000,plus) · Bor 160 (cheksiz internet,160000,plus)
-Beeline: Standart 45 (25GB,cheksiz,45000) · Multi Plus 65 (40GB,cheksiz,ChatGPT/Claude cheksiz,65000) · Yorqin 70 (cheksiz internet,70000,plus)
-Mobiuz: Connect M 45 (25GB,cheksiz,45000) · Mazza 70 (150GB,cheksiz,ijtimoiy tarmoqlar cheksiz,70000,plus) · Orzu 90 (180GB,cheksiz,90000,plus) · Orzu 110 (cheksiz internet,yuqori tezlik,110000,plus)
-Humans: Cheksiz qo'ng'iroq (12GB,cheksiz daq,3 oy,50000) · Aloqa+Internet (20GB,cheksiz daq,700sms,65000)
-Uzmobile: Mini M 45 (10GB,cheksiz,45000) · Bonus Super Salom 70 (100GB,cheksiz,YouTube bepul,70000,plus) · Super Lux 77 (200GB,cheksiz,77000,plus)
+TARIFLAR: pastdagi MAHSULOT bo'limidagi AYNAN ro'yxatdan foydalan — unda yo'q tarif/narxni HECH QACHON o'ylab topma.
 
 E'TIROZLARNI BARTARAF QIL (har "yo'q" — sotuv boshlanishi; taslim bo'lma, texnikani qisqa qo'lla):
 - "Qimmat": kunlik narxga bo'l ("oyiga X = kuniga ~Y, bir piyola choy puli") + qiymatni eslat; yoki arzonroq tarif taklif qil.
@@ -86,6 +82,47 @@ RU: «нужна симка с большим интернетом» → «От�
 
 Sen iliqsan, ishonchlisan, professionalsan — mijozni bosimsiz, qat'iyat bilan XARIDGA olib kel. 🚀"""
 
+
+def _render_product_info() -> str:
+    """tariffs.json'dan ixcham "MAHSULOT MA'LUMOTI" bloki yasaydi (aksiya + tariflar).
+    Ma'lumot SYSTEM_PROMPT'dan ajratilgan — tarif o'zgarsa faqat tariffs.json tahrirlanadi.
+    Fayl o'zgarsa jarayonni qayta ishga tushiring (Heroku: restart/redeploy)."""
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tariffs.json")
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception as e:
+        log.error("tariffs.json o'qilmadi: %s", e)
+        return ""
+    p = data.get("promo", {})
+    aksiya = " · ".join(x for x in (
+        p.get("yetkazish"), p.get("tolov"), *p.get("aksiya", []), p.get("rasmiy")
+    ) if x)
+    # Ixcham format (token tejash): qo'ng'iroq aksaran cheksiz -> bir marta aytamiz,
+    # istisnonigina yozamiz; "+" = plus tarif (emoji emas — emoji ko'p token yeydi).
+    lines = ["=== MAHSULOT (faqat shu; o'ylab topma. Qo'ng'iroq/SMS cheksiz, istisno qavsda. \"+\"=chiroyli raqam sovg'a, 2mln so'mgacha) ===",
+             "AKSIYA: " + aksiya]
+    for op, items in data.get("operatorlar", {}).items():
+        segs = []
+        for it in items:
+            izoh = []
+            if it.get("daq") not in ("cheksiz", None):
+                izoh.append("%s daq" % it["daq"])
+            if it.get("qoshimcha"):
+                izoh.append(it["qoshimcha"])
+            tail = ("," + ",".join(izoh)) if izoh else ""
+            segs.append("%s(%s,%s%s)%s" % (it["nom"], it["net"], it["narx"], tail,
+                                           "+" if it.get("plus") else ""))
+        lines.append("%s: %s" % (op, " ".join(segs)))
+    return "\n".join(lines)
+
+
+# Bir marta yuklanadi (modul importida). Tariffs.json o'zgarsa — restart.
+PRODUCT_INFO = _render_product_info()
+# To'liq system "miya" = sotuv mantig'i (SYSTEM_PROMPT) + ma'lumot (JSON'dan)
+SYSTEM_FULL = (SYSTEM_PROMPT + "\n\n" + PRODUCT_INFO) if PRODUCT_INFO else SYSTEM_PROMPT
+
+
 def has_key() -> bool:
     return bool(API_KEY)
 
@@ -107,7 +144,7 @@ def reply_for(history) -> str:
     OpenAI-mos /chat/completions endpointiga to'g'ridan-to'g'ri so'rov (requests) —
     yengil va bashoratli tez; openai SDK (httpx) ba'zi tarmoqlarda sekin ulanadi.
     """
-    messages = [{"role": "system", "content": SYSTEM_PROMPT}] + _clean(history)
+    messages = [{"role": "system", "content": SYSTEM_FULL}] + _clean(history)
     payload = {"model": MODEL, "messages": messages, TOKEN_PARAM: MAX_TOKENS, "temperature": 0.7}
     if REASONING_EFFORT:
         payload["reasoning_effort"] = REASONING_EFFORT
