@@ -217,7 +217,11 @@
 .st-arrow:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
 .st-arrow.prev{left:9px}
 .st-arrow.next{right:9px}
-.stories-hint{margin-top:14px;font-size:13px;color:var(--dim)}
+.st-listen{margin:14px auto 0;display:inline-flex;align-items:center;gap:7px;background:var(--soft2);border:1px solid var(--line);
+  color:var(--navy);border-radius:999px;padding:9px 18px;font-family:inherit;font-weight:600;font-size:14px;cursor:pointer;transition:.15s}
+.st-listen:hover{border-color:var(--blue);color:var(--blue)}
+.st-listen.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+.stories-hint{margin-top:10px;font-size:13px;color:var(--dim)}
 
 /* Stories ko'rinishda — suzuvchi chat tugmasi (FAB) vaqtincha yashirinadi (qoplanmasligi uchun) */
 .cfab.dim,.cbubble.dim{opacity:0;pointer-events:none;transform:scale(.6);transition:.25s}
