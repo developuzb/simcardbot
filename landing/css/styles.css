@@ -17,10 +17,13 @@
 
 /* --- Og'riq nuqtalari --- */
 .pain-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
-.pain{background:#fff;border:1px solid var(--line);border-radius:var(--rad);padding:24px 20px;box-shadow:var(--sh)}
-.pain span{font-size:30px}
-.pain h3{font-size:17px;color:var(--navy);margin:12px 0 7px}
-.pain p{font-size:14px;color:var(--mut)}
+/* Og'riq kartalari — Instagram-snimki (to'liq rasm + izoh) */
+.pain{background:#fff;border:1px solid var(--line);border-radius:16px;overflow:hidden;box-shadow:var(--sh);display:flex;flex-direction:column}
+.pain-img{display:block;background:var(--soft2);line-height:0}
+.pain-img img{width:100%;height:auto;display:block}
+.pain figcaption{padding:14px 16px 18px}
+.pain h3{font-size:16.5px;color:var(--navy);margin-bottom:6px}
+.pain p{font-size:13.5px;color:var(--mut);line-height:1.5}
 
 /* --- Uchta raqam --- */
 .stats-sec{background:var(--navy);color:#fff}
