@@ -205,14 +205,73 @@
   form.addEventListener("submit", function(e){ e.preventDefault(); var v=input.value.trim(); if(v){ input.value=""; send(v); } });
   document.addEventListener("keydown", function(e){ if(e.key==="Escape" && opened) close(); });
 
-  // Barcha [data-openchat] (sahifadagi har bir "Sinab ko'rish")
+  // Barcha [data-openchat] (sahifadagi har bir "Sinab ko'rish" -> SIM demo chat)
   document.querySelectorAll("[data-openchat]").forEach(function(b){
-    b.addEventListener("click", function(e){
-      e.preventDefault();
-      var plan = b.getAttribute("data-plan");
-      if(plan){ currentPlan = plan; T("plan_selected", {plan:plan}); open("Menga "+plan.toUpperCase()+" tarifi haqida ma'lumot bering"); }
-      else { open(); }
-    });
+    b.addEventListener("click", function(e){ e.preventDefault(); open(); });
+  });
+
+  // ===== TARIF (xizmat reja) buyurtmasi — SIM chatga EMAS, to'g'ridan-to'g'ri buyurtma formasiga =====
+  var PLAN_LABELS = { start:"START", biznes:"BIZNES", premium:"PREMIUM" };
+  function planPriceText(plan){
+    var p = (C.PRICES||{})[plan];
+    if(!p) return "";
+    try { return p.toLocaleString("ru-RU").replace(/[, ]/g," ") + " so'm/oy"; } catch(e){ return p + " so'm/oy"; }
+  }
+  var pmodal = document.createElement("div");
+  pmodal.className = "pmodal";
+  pmodal.innerHTML =
+    '<div class="pm-back"></div>' +
+    '<div class="pm-card" role="dialog" aria-modal="true" aria-label="Tarif buyurtmasi">' +
+      '<button class="pm-x" type="button" aria-label="Yopish">×</button><div class="pm-body"></div></div>';
+  document.body.appendChild(pmodal);
+  var pmBody = pmodal.querySelector(".pm-body");
+  function closePlan(){ pmodal.classList.remove("open"); }
+  pmodal.querySelector(".pm-x").onclick = closePlan;
+  pmodal.querySelector(".pm-back").onclick = closePlan;
+  document.addEventListener("keydown", function(e){ if(e.key==="Escape") closePlan(); });
+
+  function openPlanModal(plan){
+    currentPlan = plan;
+    T("plan_selected", {plan:plan});
+    var label = PLAN_LABELS[plan] || plan.toUpperCase();
+    var price = planPriceText(plan);
+    pmBody.innerHTML =
+      '<div class="pm-badge">🎉 Tanlandi</div>' +
+      '<h3><strong>'+label+'</strong> tarifi'+(price?' <span class="pm-price">'+price+'</span>':'')+'</h3>' +
+      '<p>Ism va telefon raqamingizni qoldiring — operatorimiz bog\'lanib, tarifni sozlab, ishga tushirib beradi.</p>' +
+      '<input id="pmName" placeholder="Ismingiz" autocomplete="name" aria-label="Ism">' +
+      '<input id="pmPhone" type="tel" placeholder="+998 __ ___ __ __" autocomplete="tel" inputmode="tel" aria-label="Telefon">' +
+      '<div class="pm-err" id="pmErr">Iltimos, ism va to\'g\'ri telefon raqamini kiriting.</div>' +
+      '<button class="pm-submit" id="pmSend" type="button">Bog\'lanishni so\'rash →</button>' +
+      '<a class="pm-tg" href="'+C.TELEGRAM+'" target="_blank" rel="noopener">yoki Telegram orqali yozish ✈️</a>';
+    pmodal.classList.add("open");
+    var nm=byId("pmName"), ph=byId("pmPhone"), er=byId("pmErr"), bt=byId("pmSend");
+    pmBody.querySelector(".pm-tg").onclick = function(){ T("telegram_click", {source:"plan"}); };
+    setTimeout(function(){ nm.focus(); }, 80);
+    bt.onclick = function(){
+      var name=(nm.value||"").trim(), phone=(ph.value||"").trim();
+      if(name.length<2 || phone.replace(/\D/g,"").length<9){ er.style.display="block"; return; }
+      er.style.display="none"; bt.disabled=true; bt.textContent="Yuborilmoqda…";
+      var sent=false, fin=function(ok){
+        if(sent) return; sent=true;
+        T("lead_submitted", {plan:plan, ok:!!ok, source:"plan"});
+        pmBody.innerHTML =
+          '<div class="pm-badge ok">✅ Qabul qilindi</div>' +
+          '<h3>Rahmat, '+esc(name)+'!</h3>' +
+          '<p>Operatorimiz <strong>'+label+'</strong> tarifini ulab berish uchun tez orada bog\'lanadi. Tezroq bo\'lsin desangiz — Telegramda yozing 👇</p>' +
+          '<a class="pm-submit pm-tglink" href="'+C.TELEGRAM+'" target="_blank" rel="noopener">✈️ Telegramda yozish</a>';
+        pmBody.querySelector(".pm-tglink").onclick = function(){ T("telegram_click", {source:"plan"}); };
+      };
+      if(!C.LEAD_API){ fin(false); return; }
+      fetch(C.LEAD_API, {method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({name:name, phone:phone, plan:plan, source:"narx-tarif"})})
+        .then(function(r){ fin(r && r.ok); }).catch(function(){ fin(false); });
+      setTimeout(function(){ fin(false); }, 6000);
+    };
+    ph.addEventListener("keydown", function(e){ if(e.key==="Enter") bt.click(); });
+  }
+  document.querySelectorAll("[data-plan-order]").forEach(function(b){
+    b.addEventListener("click", function(e){ e.preventDefault(); openPlanModal(b.getAttribute("data-plan-order")); });
   });
 
   // Telegram / telefon linklari (CONFIG'dan + treking)
