@@ -31,9 +31,10 @@
 .ps-card figcaption{padding:12px 15px 15px;font-size:13.5px;color:var(--ink);line-height:1.5}
 .ps-arrow{display:flex;align-items:center;justify-content:center;width:36px;height:36px;margin:0 auto;font-size:18px;color:#fff;background:var(--blue);font-weight:800;border-radius:50%;box-shadow:var(--sh)}
 @media(max-width:720px){
-  .ps-grid{gap:16px}
-  /* har bir muammo->yechim jufti — yaxlit blok (mijoz juftligini darrov tushunadi) */
-  .ps-row{grid-template-columns:1fr;gap:10px;background:#f6f9fd;border:1px solid #e7edf6;border-radius:18px;padding:12px}
+  .ps-grid{gap:20px}
+  /* har juft — OQ fon + kuchli soya bilan qalqib chiqadigan yaxlit blok */
+  .ps-row{grid-template-columns:1fr;gap:10px;background:#fff;border:1px solid var(--line);border-radius:20px;padding:14px;box-shadow:0 16px 36px -10px rgba(12,30,70,.24)}
+  .ps-card{box-shadow:none}
   .ps-arrow{transform:rotate(90deg);margin:-4px auto}
 }
 
