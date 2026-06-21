@@ -6,7 +6,7 @@
    ============================================================ */
 (function () {
   var T = window.track || function () {};
-  var V = "?v=3";
+  var V = "?v=4";
   var STEPS = [
     { img: "assets/story-1.jpg" + V, a: "assets/voice-1.mp3" + V, t: "Mijoz keladi",        d: "Mijoz SIM qidirib sizga yozadi — kechasimi, bayrammi, farqi yo'q." },
     { img: "assets/story-2.jpg" + V, a: "assets/voice-2.mp3" + V, t: "Chatga ulanadi",      d: "Bir tugma bilan AI bot suhbatni boshlaydi — siz band bo'lsangiz ham." },
@@ -35,6 +35,13 @@
   audio.addEventListener("timeupdate", function () {
     if (soundOn && audio.duration && fills[idx]) fills[idx].style.width = (audio.currentTime / audio.duration * 100) + "%";
   });
+
+  // --- Orqa fon musiqasi (past ovozda, narratsiya ostida uzluksiz loop) ---
+  var bg = new Audio();
+  bg.preload = "none"; bg.loop = true; bg.volume = 0.0;
+  bg.src = "assets/bg-music.wav" + V;
+  function bgPlay() { if (!soundOn) return; bg.volume = 0.15; var p = bg.play(); if (p && p.catch) p.catch(function () {}); }
+  function bgStop() { try { bg.pause(); } catch (e) {} }
 
   // --- Qurish ---
   STEPS.forEach(function (s, i) {
@@ -75,7 +82,7 @@
   // Joriy slaydni boshidan boshlash
   function startCurrent() {
     clearRaf(); elapsed = 0; startTs = 0; stopAudio();
-    if (soundOn && STEPS[idx].a) { audio.src = STEPS[idx].a; audio.currentTime = 0; playAudio(); }
+    if (soundOn && STEPS[idx].a) { audio.src = STEPS[idx].a; audio.currentTime = 0; playAudio(); bgPlay(); }
     else { raf = requestAnimationFrame(tick); }
   }
   function setPlayIcon(on) { pp.textContent = on ? "⏸" : "▶"; pp.setAttribute("aria-label", on ? "To'xtatish" : "Davom ettirish"); }
@@ -83,12 +90,12 @@
   function play() { if (playing) return; playing = true; setPlayIcon(true); startCurrent(); }
   function resume() {  // pauzadan davom (slaydni qayta boshlamasdan)
     if (playing) return; playing = true; setPlayIcon(true);
-    if (soundOn) playAudio();
+    if (soundOn) { playAudio(); bgPlay(); }
     else { startTs = 0; raf = requestAnimationFrame(tick); }
   }
   function pause() {
     if (!playing) return; playing = false; clearRaf();
-    if (soundOn) stopAudio();
+    if (soundOn) { stopAudio(); bgStop(); }
     else if (startTs) { elapsed += (now() - startTs); startTs = 0; }
     setPlayIcon(false);
   }
@@ -107,8 +114,8 @@
     soundBtn.classList.toggle("on", on);
     soundBtn.textContent = on ? "🔊 Ovoz yoniq" : "🔈 Ovozli izoh";
     soundBtn.setAttribute("aria-label", on ? "Ovozni o'chirish" : "Ovozli izohni yoqish");
-    if (on) { T("stories_sound", {}); idx = 0; render(); playing = true; setPlayIcon(true); startCurrent(); }
-    else { stopAudio(); startCurrent(); }
+    if (on) { T("stories_sound", {}); idx = 0; render(); playing = true; setPlayIcon(true); startCurrent(); bgPlay(); }
+    else { stopAudio(); bgStop(); startCurrent(); }
   }
   if (soundBtn) soundBtn.onclick = function () { setSound(!soundOn); };
 
