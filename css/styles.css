@@ -17,13 +17,23 @@
 
 /* --- Og'riq nuqtalari --- */
 .pain-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
-/* Og'riq kartalari — Instagram-snimki (to'liq rasm + izoh) */
-.pain{background:#fff;border:1px solid var(--line);border-radius:16px;overflow:hidden;box-shadow:var(--sh);display:flex;flex-direction:column}
-.pain-img{display:block;background:var(--soft2);line-height:0}
-.pain-img img{width:100%;height:auto;display:block}
-.pain figcaption{padding:14px 16px 18px}
-.pain h3{font-size:16.5px;color:var(--navy);margin-bottom:6px}
-.pain p{font-size:13.5px;color:var(--mut);line-height:1.5}
+/* Muammo -> Yechim (qizil ✕ / yashil ✓) — Instagram-snimki rasmlar bilan */
+.ps-grid{display:flex;flex-direction:column;gap:20px;max-width:980px;margin:0 auto}
+.ps-row{display:grid;grid-template-columns:1fr 38px 1fr;gap:12px;align-items:center}
+.ps-card{background:#fff;border-radius:16px;overflow:hidden;border:1.5px solid;display:flex;flex-direction:column;box-shadow:var(--sh)}
+.ps-card.bad{border-color:#f6c9ce}
+.ps-card.good{border-color:#bfe6cd}
+.ps-tag{font-size:12.5px;font-weight:700;padding:9px 14px;display:flex;align-items:center;gap:6px}
+.ps-tag.bad{color:#b91c1c;background:#fef2f2}
+.ps-tag.good{color:#15803d;background:#f0fdf4}
+.ps-img{line-height:0;background:var(--soft2)}
+.ps-img img{width:100%;height:auto;display:block}
+.ps-card figcaption{padding:12px 15px 15px;font-size:13.5px;color:var(--ink);line-height:1.5}
+.ps-arrow{font-size:24px;color:var(--blue);font-weight:700;text-align:center}
+@media(max-width:720px){
+  .ps-row{grid-template-columns:1fr;gap:8px}
+  .ps-arrow{transform:rotate(90deg);margin:-2px 0}
+}
 
 /* --- Uchta raqam --- */
 .stats-sec{background:var(--navy);color:#fff}
