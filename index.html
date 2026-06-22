@@ -26,7 +26,7 @@
 <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&family=Poppins:wght@600;700&family=Oswald:wght@500&display=swap" rel="stylesheet">
 
 <!-- KRITIK CSS (inline — birinchi ekran tez chiqishi uchun) -->
 <style>
@@ -102,7 +102,7 @@
     .hdr a.nav{display:none}
   }
 </style>
-<link rel="stylesheet" href="css/styles.css?v=4">
+<link rel="stylesheet" href="css/styles.css?v=5">
 </head>
 <body>
 
@@ -124,7 +124,7 @@
     <div>
       <span class="kicker">SIM KARTA BIZNESI</span>
       <span class="eyebrow">⚡ Sun'iy intellektli sotuv agenti</span>
-      <h1>SIM biznesingiz <span class="hl">o'zi sotsin</span> — siz uxlab yotganingizda ham.</h1>
+      <h1>Mijoz bilan <span class="hl">robot gaplashib, SIM sotadi</span> — siz uxlab yotganingizda ham.</h1>
       <p class="lead">sotuv agenti roboti mijoz bilan o'zbekcha gaplashadi, mos tarifni tanlaydi, buyurtmani oladi va kuryeringizga yuboradi. <b>24/7, charchamasdan, maossiz.</b></p>
       <div class="hero-cta">
         <button class="btn btn-cta btn-lg" data-openchat aria-label="Botni jonli sinab ko'rish">🤖 Botni jonli sinab ko'ring</button>
@@ -149,14 +149,24 @@
   </div>
   <div class="wrap op-strip">
     <span class="op-strip-label">Barcha operatorlar bilan ishlaymiz:</span>
-    <div class="op-logos">
-      <span class="op-chip op-ucell">Ucell</span>
-      <span class="op-chip op-beeline">Beeline</span>
-      <span class="op-chip op-mobiuz">Mobiuz</span>
-      <span class="op-chip op-humans">Humans</span>
-      <span class="op-chip op-uzmobile">Uzmobile</span>
-    </div>
+    <div class="op-logos" id="opLogos"></div>
   </div>
+  <script>
+  /* Operator brend-logolari — sim.texnoset.uz dagi brand() dan aynan, avto-generatsiya */
+  (function(){
+    var _blid=0;
+    function brand(name,fs){
+      var P="'Poppins',system-ui,sans-serif";
+      if(name==="Mobiuz"){return '<span style="display:inline-flex;align-items:baseline;font-family:'+P+';font-weight:700;font-size:'+fs+'px;color:#E4002B;letter-spacing:-0.045em;line-height:1;">mob<span style="position:relative;display:inline-block;">ı<span style="position:absolute;left:50%;top:-0.30em;transform:translateX(-50%);width:0;height:0;border-left:'+(fs*0.14)+'px solid transparent;border-right:'+(fs*0.14)+'px solid transparent;border-top:'+(fs*0.18)+'px solid #E4002B;"></span></span>uz</span>';}
+      if(name==="Ucell"){return '<span style="font-family:'+P+';font-weight:700;font-size:'+fs+'px;color:#7C2B9B;letter-spacing:-0.02em;line-height:1;">Ucell</span>';}
+      if(name==="Beeline"){var d=fs*1.32,uid="bl"+(++_blid);return '<span style="display:inline-flex;align-items:center;gap:'+(fs*0.34)+'px;line-height:1;"><svg width="'+d+'" height="'+d+'" viewBox="0 0 100 100" style="display:block;flex-shrink:0;"><defs><clipPath id="'+uid+'"><circle cx="50" cy="50" r="49"/></clipPath></defs><g clip-path="url(#'+uid+')"><rect x="0" y="0" width="100" height="100" fill="#171717"/><rect x="0" y="21" width="100" height="18" fill="#FFC400"/><rect x="0" y="60" width="100" height="18" fill="#FFC400"/><ellipse cx="34" cy="31" rx="27" ry="18" fill="#ffffff" opacity="0.18"/></g></svg><span style="font-family:'+P+';font-weight:600;font-size:'+fs+'px;color:#1A1A1A;letter-spacing:-0.012em;">Beeline</span></span>';}
+      if(name==="Humans"){var dot=fs*0.165,dots="";for(var i=0;i<6;i++)dots+='<span style="width:'+dot+'px;height:'+dot+'px;border-radius:50%;background:#161616;"></span>';return '<span style="display:inline-flex;flex-direction:column;align-items:stretch;line-height:1;"><span style="display:flex;justify-content:space-between;padding:0 '+(fs*0.07)+'px;margin-bottom:'+(fs*0.16)+'px;">'+dots+'</span><span style="font-family:\'Oswald\',system-ui,sans-serif;font-weight:500;font-size:'+fs+'px;color:#161616;letter-spacing:0.06em;text-transform:uppercase;">Humans</span></span>';}
+      var wd=fs*0.92;return '<span style="display:inline-flex;align-items:center;gap:'+(fs*0.3)+'px;line-height:1;"><svg width="'+wd+'" height="'+wd+'" viewBox="0 0 24 24" fill="none" stroke="#3F5C8A" stroke-width="2.4" stroke-linecap="round" style="display:block;flex-shrink:0;"><path d="M7 5a10 10 0 0 1 0 14"/><path d="M12.5 3a14 14 0 0 1 0 18"/></svg><span style="font-family:'+P+';font-weight:600;font-size:'+fs+'px;color:#3F5C8A;letter-spacing:-0.005em;">Uzmobile</span></span>';
+    }
+    var el=document.getElementById("opLogos");
+    if(el){var ops=["Ucell","Beeline","Mobiuz","Humans","Uzmobile"],h="";for(var i=0;i<ops.length;i++)h+='<span class="op-logo">'+brand(ops[i],22)+'</span>';el.innerHTML=h;}
+  })();
+  </script>
 </section>
 
 <!-- ============ OG'RIQ NUQTALARI ============ -->

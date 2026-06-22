@@ -20,13 +20,8 @@
 .kicker::before{content:"";position:absolute;left:0;top:1px;bottom:1px;width:4px;border-radius:4px;background:linear-gradient(var(--blue),var(--green))}
 .op-strip{display:flex;align-items:center;justify-content:center;gap:14px 22px;flex-wrap:wrap;margin-top:44px;padding-top:26px;border-top:1px solid var(--line)}
 .op-strip-label{font-size:13px;color:var(--mut);font-weight:600}
-.op-logos{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:center}
-.op-chip{font-family:"Space Grotesk",Inter,sans-serif;font-weight:700;font-size:15px;padding:8px 16px;border-radius:10px;border:1.5px solid var(--line);background:#fff;box-shadow:var(--sh)}
-.op-ucell{color:#8c2b87;border-color:#e7c9e6}
-.op-beeline{color:#111;border-color:#ffe08a;box-shadow:inset 0 -3px 0 #ffcc00,var(--sh)}
-.op-mobiuz{color:#7a2fae;border-color:#ddc9ee}
-.op-humans{color:#0e8a7d;border-color:#bfe8e2}
-.op-uzmobile{color:#1b75bb;border-color:#c4ddf0}
+.op-logos{display:flex;gap:16px 28px;flex-wrap:wrap;align-items:center;justify-content:center}
+.op-logo{display:inline-flex;align-items:center}
 @media(max-width:860px){.op-strip{margin-top:30px;gap:10px 16px}.op-chip{font-size:13.5px;padding:7px 13px}}
 
 /* --- Og'riq nuqtalari --- */
