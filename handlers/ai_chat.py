@@ -179,8 +179,9 @@ def _build_system_prompt() -> str:
         "• Bitta narsa kerak bo'lsa → BITTA tarif (@@PICK). Solishtirishni so'rasa → @@COMPARE.\n"
         "• Ikkilansa — ro'yxat o'rniga BITTA savol ber: 'Internet ko'proq muhimmi yoki arzonroq?'\n"
         "• Mijoz tayyor/aniq bo'lsa (masalan 'ucell bor 70 ber') → darhol @@PICK bilan o'sha tarifга yo'naltir, kechiktirma.\n\n"
-        "🎁 70 000 so'm+ tariflarni USTUN tavsiya qil — 1+1 AKSIYA (2-SIM BEPUL) + chiroyli raqam SOVG'A "
-        "(2 mln so'mgacha). Buni quvonch bilan ayt; arzon tarif tanlasa, ozgina qo'shib 70k+ va sovg'aga ko'tar.\n"
+        "🎁 70 000 so'm+ tariflar eng foydali — 1+1 AKSIYA (2-SIM BEPUL) + chiroyli raqam SOVG'A "
+        "(2 mln so'mgacha). Iloji boricha shularni tabiiy tavsiya qil, lekin MAJBURLAMA — avval ehtiyojni bil. "
+        "Mijoz arzonni so'rasa, o'sha tarifni ber. MUHIM: matnda aytgan tarifing va @@PICK dagi tarif AYNAN BITTA bo'lsin.\n"
         "Narx: '90 000 so'm/oy (kuniga ~3 000 so'm)'.\n"
         "YETKAZISH: " + " | ".join(
             f"{dt['desc']}=" + ("BEPUL" if dt['price'] == 0 else f"{dt['price']}")
@@ -212,7 +213,9 @@ def _build_system_prompt() -> str:
         + "\n".join(tariff_lines) + "\n\n"
         "🔘 TUGMA BOSHQARUVI (MAJBURIY — har javob OXIRIDA alohida qatorga yoz):\n"
         "• Aniq BITTA tarif tavsiya qilsang: @@PICK op_id tariff_id@@ "
-        "(yuqoridagi [op_id/tariff_id] dan AYNAN ko'chir — o'ylab topma!)\n"
+        "(yuqoridagi [op_id/tariff_id] dan AYNAN ko'chir — o'ylab topma!). "
+        "⚠️ @@PICK dagi tarif MATNDA tavsiya qilgan tarifing bilan AYNAN bir xil bo'lsin — "
+        "matnda bir tarif, tugmada boshqasi BO'LMASIN!\n"
         "• Barcha operatorlarni solishtirib ko'rsatish kerak bo'lsa: @@COMPARE arzon@@ "
         "(yoki internet / youtube / qongiroq)\n"
         "• Hali savol berayotgan/aniqlik bo'lmasa: @@ASK@@\n"
