@@ -9,14 +9,14 @@
   var V = "?v=4";
   var STEPS = [
     { img: "assets/story-1.jpg" + V, a: "assets/voice-1.mp3" + V, t: "Mijoz keladi",        d: "Mijoz SIM qidirib sizga yozadi — kechasimi, bayrammi, farqi yo'q." },
-    { img: "assets/story-2.jpg" + V, a: "assets/voice-2.mp3" + V, t: "Chatga ulanadi",      d: "Bir tugma bilan AI bot suhbatni boshlaydi — siz band bo'lsangiz ham." },
-    { img: "assets/story-3.jpg" + V, a: "assets/voice-3.mp3" + V, t: "AI gaplashadi",       d: "Bot o'zbekcha gaplashib, ehtiyojni so'rab, eng mos tarifni tavsiya qiladi." },
+    { img: "assets/story-2.jpg" + V, a: "assets/voice-2.mp3" + V, t: "Chatga ulanadi",      d: "Bir tugma bilan sotuv agenti roboti suhbatni boshlaydi — siz band bo'lsangiz ham." },
+    { img: "assets/story-3.jpg" + V, a: "assets/voice-3.mp3" + V, t: "Robot gaplashadi",       d: "Bot o'zbekcha gaplashib, ehtiyojni so'rab, eng mos tarifni tavsiya qiladi." },
     { img: "assets/story-4.jpg" + V, a: "assets/voice-4.mp3" + V, t: "Buyurtma olinadi",    d: "Ism, telefon, manzil — hammasini o'zi so'rab, avtomatik yig'adi." },
     { img: "assets/story-5.jpg" + V, a: "assets/voice-5.mp3" + V, t: "Guruhga tushadi",     d: "Tayyor buyurtma operator va kuryer guruhingizga o'zi tushadi." },
     { img: "assets/story-6.jpg" + V, a: "assets/voice-6.mp3" + V, t: "Kuryer yetkazadi",    d: "Kuryer yetkazadi, mijoz xursand — siz faqat nazorat qilasiz." },
     { img: "assets/story-7.jpg" + V, a: "assets/voice-7.mp3" + V, t: "Siz dam olasiz",      d: "Siz dam olasiz yoki yangi g'oyalar ustida ishlaysiz — tizim o'zi sotaveradi." },
-    { img: "assets/story-8.jpg" + V, a: "assets/voice-8.mp3" + V, t: "AI kunlik hisobot",   d: "Har kuni AI tayyor hisobot beradi: nechta buyurtma, qancha daromad." },
-    { img: "assets/story-9.jpg" + V, a: "assets/voice-9.mp3" + V, t: "Har bir mijoz yodda", d: "Har bir mijoz haqida ma'lumot va AI insayt — hammasi bir joyda." }
+    { img: "assets/story-8.jpg" + V, a: "assets/voice-8.mp3" + V, t: "Robot kunlik hisoboti",   d: "Har kuni robot tayyor hisobot beradi: nechta buyurtma, qancha daromad." },
+    { img: "assets/story-9.jpg" + V, a: "assets/voice-9.mp3" + V, t: "Har bir mijoz yodda", d: "Har bir mijoz haqida ma'lumot va robot tahlili — hammasi bir joyda." }
   ];
   var DUR = 3600;  // ovozsiz rejimda har slayd (ms)
 
