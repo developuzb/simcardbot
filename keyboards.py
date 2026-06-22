@@ -14,7 +14,7 @@ def remove_keyboard() -> ReplyKeyboardRemove:
 def main_menu_keyboard() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.button(text="🛒 Buyurtma berish", callback_data="new_order")
-    builder.button(text="🤖 AI yordamchi bilan tanlash", callback_data="open_ai_chat")
+    builder.button(text="🤖 Suxrob bilan tanlash", callback_data="open_ai_chat")
     builder.button(text="🎁 Aksiyalar", callback_data="show_promo")
     builder.button(text="📋 Tariflar", callback_data="show_tariffs")
     builder.button(text="👥 Do'st taklif qil", callback_data="show_referral")
@@ -26,7 +26,7 @@ def main_menu_keyboard() -> InlineKeyboardMarkup:
 
 def back_to_main_keyboard() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
-    builder.button(text="🤖 AI yordamchi", callback_data="open_ai_chat")
+    builder.button(text="🤖 Suxrob", callback_data="open_ai_chat")
     builder.button(text="🛒 Buyurtma", callback_data="new_order")
     builder.button(text="⬅️ Bosh sahifa", callback_data="back_to_main")
     builder.adjust(2, 1)

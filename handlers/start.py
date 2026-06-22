@@ -32,7 +32,7 @@ def _welcome_text(name: str) -> str:
         "⚡ Bugun buyurtma — bugun yetkazamiz (atigi <b>1 soatda</b> ham)\n"
         "🎁 70 000+ tariflarga <b>1+1</b>: ikkinchi SIM <b>BEPUL</b>\n"
         "👥 Do'st taklifiga chegirma\n"
-        "🤖 Suxrob (AI yordamchi) — eng mos tarifni topib beradi\n"
+        "🤖 Suxrob — eng mos tarifni topib beradi\n"
         "➖➖➖➖➖➖➖➖➖➖\n"
         "✅ Rasmiy SIM · Pasport bilan rasmiylashtiriladi · To'lov topshirilganda (naqd/karta)\n"
         "➖➖➖➖➖➖➖➖➖➖\n"
@@ -52,7 +52,7 @@ _SUXROB_GREETING = (
 def _nudge_keyboard():
     b = InlineKeyboardBuilder()
     b.button(text="🛒 Buyurtma berish", callback_data="new_order")
-    b.button(text="🤖 AI yordamchi", callback_data="open_ai_chat")
+    b.button(text="🤖 Suxrob", callback_data="open_ai_chat")
     b.adjust(2)
     return b.as_markup()
 
@@ -60,7 +60,7 @@ def _nudge_keyboard():
 _PROMO_NUDGE = (
     "💬 <b>Suxrob AI:</b> 1+1 va bepul yetkazish — bugun olsangiz ikki marta tejaysiz 😊\n"
     "Tayyor bo'lsangiz «🛒 Buyurtma berish»ni bosing. Ikkilanayotgan bo'lsangiz "
-    "«🤖 AI yordamchi»ga yozing — eng foydali tarifni o'zim topib beraman 👇"
+    "«🤖 Suxrob»ga yozing — eng foydali tarifni o'zim topib beraman 👇"
 )
 _TARIFFS_NUDGE = (
     "💬 <b>Suxrob AI:</b> Qaysi biri mosligini bilmasangiz, menga «arzonroq» yoki "
@@ -214,7 +214,7 @@ async def show_tariffs(callback: CallbackQuery):
         promo = f" 🎁 {PROMO_1PLUS1_MIN_PRICE:,}+ da 1+1" if max_price >= PROMO_1PLUS1_MIN_PRICE else ""
         lines.append(f"{op['emoji']} <b>{op['name']}</b> — {min_price:,} so'mdan{promo}")
     lines.append(
-        "\n🤖 <b>Aniq tarif tanlash uchun «AI yordamchi»dan foydalaning</b> — "
+        "\n🤖 <b>Aniq tarif tanlash uchun «🤖 Suxrob»dan foydalaning</b> — "
         "u savollaringizga javob berib, eng mosini topib beradi!"
     )
     await _show_section(callback, "\n".join(lines), back_to_main_keyboard())
@@ -248,7 +248,7 @@ async def show_about(callback: CallbackQuery):
 def _contact_keyboard() -> object:
     b = InlineKeyboardBuilder()
     b.button(text="📍 Ofis lokatsiyasi", callback_data="show_office_loc")
-    b.button(text="🤖 AI yordamchi", callback_data="open_ai_chat")
+    b.button(text="🤖 Suxrob", callback_data="open_ai_chat")
     b.button(text="⬅️ Bosh sahifa", callback_data="back_to_main")
     b.adjust(1, 2)
     return b.as_markup()
