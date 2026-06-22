@@ -25,9 +25,9 @@
     '<button class="cfab" id="cFab" aria-label="Sotuv agenti bilan suhbat">' +
       '<span class="cav">🤖<i></i></span><span>Sinab ko\'ring</span></button>' +
     '<div class="cbubble" id="cBubble" role="status"><span class="x" id="cBubbleX" aria-label="Yopish">×</span>' +
-      '<b>Salom! 👋</b> Qanaqa SIM kerakligini yozing — 30 soniyada tarif tanlab beraman.</div>' +
+      '<b>Salom! 👋 Men Suxrob.</b> Qanaqa SIM kerakligini yozing — eng mos tarifni tanlab beraman.</div>' +
     '<div class="cwin" id="cWin" role="dialog" aria-modal="false" aria-label="Sotuv agenti chati">' +
-      '<div class="cw-top"><span class="cav">🤖</span><div class="t"><b>Texnoset sotuvchi</b>' +
+      '<div class="cw-top"><span class="cav">🤖</span><div class="t"><b>Suxrob · Texnoset</b>' +
         '<small><i></i> onlayn · darrov javob</small></div>' +
         '<button class="cx" id="cClose" aria-label="Chatni yopish">×</button></div>' +
       '<div class="cw-body" id="cBody" aria-live="polite"></div>' +
@@ -82,7 +82,7 @@
 
   function boot(seedMsg){
     history=[]; userMsgs=0; leadShown=false; leadDone=false;
-    botSay("Assalomu alaykum! 😊 Men Texnoset sotuv agenti — sizga mos SIM-tarifni tanlab beraman.<br>Nima qidiryapsiz?", 600, function(){
+    botSay("Assalomu alaykum! 😊 Men <strong>Suxrob</strong> — Texnoset sotuv agenti. Sizga eng mos SIM-tarifni tanlab beraman.<br>Internet ko'proq kerakmi yoki qo'ng'iroq?", 600, function(){
       setChips([{t:"📶 Internet ko'p"},{t:"💸 Arzonroq"},{t:"▶️ YouTube"}]);
       if (seedMsg) send(seedMsg);
     });
