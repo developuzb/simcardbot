@@ -188,9 +188,15 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self._send_json(503, {"ok": False, "error": "store_failed"})
 
     def do_GET(self):
-        # Mavjud bo'lmagan yo'llar uchun ham index.html (SPA fallback)
+        host = self.headers.get("Host", "").split(":")[0].lower()
         rel = self.path.split("?", 1)[0]
         target = self.translate_path(self.path)
+        # texnoset.uz / www -> ekosistema hub (shu bitta dyno, qo'shimcha xarajatsiz)
+        if host in ("texnoset.uz", "www.texnoset.uz"):
+            if rel == "/" or not os.path.isfile(target):
+                self.path = "/hub.html"
+            return super().do_GET()
+        # sim.texnoset.uz va boshqalar -> SIM sayt (mavjud bo'lmagan yo'l -> index.html)
         if rel != "/" and not os.path.isfile(target):
             self.path = "/index.html"
         return super().do_GET()
